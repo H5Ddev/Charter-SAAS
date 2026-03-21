@@ -1,0 +1,334 @@
+import * as argon2 from 'argon2'
+import jwt from 'jsonwebtoken'
+import * as OTPAuth from 'otpauth'
+import qrcode from 'qrcode'
+import { PrismaClient, UserRole } from '@prisma/client'
+import Redis from 'ioredis'
+import { env } from '../../config/env'
+import { logger } from '../../shared/utils/logger'
+import { AppError } from '../../shared/middleware/errorHandler'
+import type { TokenPair, AuthUser, LoginResponse, MfaRequiredResponse } from './auth.types'
+
+const ARGON2_OPTIONS: argon2.Options = {
+  type: argon2.argon2id,
+  memoryCost: 65536,
+  timeCost: 3,
+  parallelism: 4,
+}
+
+const REFRESH_TOKEN_PREFIX = 'refresh:'
+
+export class AuthService {
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly redis: Redis,
+  ) {}
+
+  async register(
+    tenantId: string,
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    role: UserRole = UserRole.READ_ONLY,
+  ): Promise<LoginResponse> {
+    // Check tenant exists
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { id: tenantId, isActive: true, deletedAt: null },
+    })
+    if (!tenant) {
+      throw new AppError(404, 'TENANT_NOT_FOUND', 'Tenant not found or inactive')
+    }
+
+    // Check email uniqueness within tenant
+    const existing = await this.prisma.user.findFirst({
+      where: { tenantId, email, deletedAt: null },
+    })
+    if (existing) {
+      throw new AppError(409, 'EMAIL_IN_USE', 'Email address is already registered')
+    }
+
+    const passwordHash = await argon2.hash(password, ARGON2_OPTIONS)
+
+    const user = await this.prisma.user.create({
+      data: {
+        tenantId,
+        email,
+        passwordHash,
+        firstName,
+        lastName,
+        role,
+        isActive: true,
+      },
+    })
+
+    const tokens = await this.generateTokenPair(user)
+
+    return {
+      user: this.toAuthUser(user),
+      tokens,
+    }
+  }
+
+  async login(
+    tenantId: string,
+    email: string,
+    password: string,
+  ): Promise<LoginResponse | MfaRequiredResponse> {
+    const user = await this.prisma.user.findFirst({
+      where: { tenantId, email, deletedAt: null },
+      include: { mfaSettings: true },
+    })
+
+    if (!user) {
+      // Use same error message to prevent user enumeration
+      throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password')
+    }
+
+    if (!user.isActive) {
+      throw new AppError(403, 'ACCOUNT_DISABLED', 'Account has been disabled')
+    }
+
+    const passwordValid = await argon2.verify(user.passwordHash, password)
+    if (!passwordValid) {
+      throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password')
+    }
+
+    // Update last login timestamp
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    })
+
+    // Check if MFA is required
+    const mfaEnabled = user.mfaSettings?.totpEnabled || user.mfaSettings?.smsEnabled
+    if (mfaEnabled) {
+      // Issue a short-lived MFA session token
+      const mfaSessionToken = jwt.sign(
+        { userId: user.id, tenantId: user.tenantId, mfaPending: true },
+        env.JWT_ACCESS_SECRET,
+        { expiresIn: '10m' },
+      )
+
+      logger.info(`MFA required for user ${user.id}`)
+
+      return {
+        mfaRequired: true,
+        mfaSessionToken,
+        userId: user.id,
+      }
+    }
+
+    const tokens = await this.generateTokenPair(user)
+
+    return {
+      user: this.toAuthUser(user),
+      tokens,
+    }
+  }
+
+  async completeMfaLogin(mfaSessionToken: string, totpToken: string): Promise<LoginResponse> {
+    let payload: { userId: string; tenantId: string; mfaPending: boolean }
+
+    try {
+      payload = jwt.verify(mfaSessionToken, env.JWT_ACCESS_SECRET) as typeof payload
+    } catch {
+      throw new AppError(401, 'INVALID_MFA_SESSION', 'Invalid or expired MFA session token')
+    }
+
+    if (!payload.mfaPending) {
+      throw new AppError(400, 'INVALID_MFA_SESSION', 'Invalid MFA session')
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { id: payload.userId, deletedAt: null },
+      include: { mfaSettings: true },
+    })
+
+    if (!user?.mfaSettings?.totpSecret) {
+      throw new AppError(400, 'MFA_NOT_CONFIGURED', 'MFA is not configured for this user')
+    }
+
+    const isValid = this.verifyTotpToken(user.mfaSettings.totpSecret, totpToken)
+    if (!isValid) {
+      throw new AppError(401, 'INVALID_TOTP_TOKEN', 'Invalid authenticator code')
+    }
+
+    const tokens = await this.generateTokenPair(user)
+
+    return {
+      user: this.toAuthUser(user),
+      tokens,
+    }
+  }
+
+  async refreshToken(refreshToken: string): Promise<TokenPair> {
+    let payload: { id: string; email: string; tenantId: string; role: UserRole }
+
+    try {
+      payload = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as typeof payload
+    } catch {
+      throw new AppError(401, 'INVALID_REFRESH_TOKEN', 'Invalid or expired refresh token')
+    }
+
+    // Check refresh token is in Redis (not revoked)
+    const storedToken = await this.redis.get(`${REFRESH_TOKEN_PREFIX}${payload.id}`)
+    if (storedToken !== refreshToken) {
+      throw new AppError(401, 'REFRESH_TOKEN_REVOKED', 'Refresh token has been revoked')
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { id: payload.id, deletedAt: null },
+    })
+
+    if (!user || !user.isActive) {
+      throw new AppError(401, 'USER_NOT_FOUND', 'User not found or inactive')
+    }
+
+    return this.generateTokenPair(user)
+  }
+
+  async logout(userId: string): Promise<void> {
+    await this.redis.del(`${REFRESH_TOKEN_PREFIX}${userId}`)
+    logger.info(`User ${userId} logged out`)
+  }
+
+  async setupTotp(userId: string): Promise<{ secret: string; qrCodeDataUrl: string }> {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+    })
+
+    if (!user) {
+      throw new AppError(404, 'USER_NOT_FOUND', 'User not found')
+    }
+
+    const totp = new OTPAuth.TOTP({
+      issuer: env.TOTP_ISSUER,
+      label: user.email,
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+    })
+
+    const secret = totp.secret.base32
+
+    // Store the secret (not yet enabled — user must verify first)
+    await this.prisma.userMfaSettings.upsert({
+      where: { userId },
+      create: {
+        tenantId: user.tenantId,
+        userId,
+        totpSecret: secret,
+        totpEnabled: false,
+      },
+      update: {
+        totpSecret: secret,
+      },
+    })
+
+    const otpAuthUrl = totp.toString()
+    const qrCodeDataUrl = await qrcode.toDataURL(otpAuthUrl)
+
+    return { secret, qrCodeDataUrl }
+  }
+
+  async verifyTotp(
+    userId: string,
+    token: string,
+  ): Promise<{ enabled: boolean }> {
+    const mfaSettings = await this.prisma.userMfaSettings.findUnique({
+      where: { userId },
+    })
+
+    if (!mfaSettings?.totpSecret) {
+      throw new AppError(400, 'TOTP_NOT_SETUP', 'TOTP is not set up. Call /mfa/setup first.')
+    }
+
+    const isValid = this.verifyTotpToken(mfaSettings.totpSecret, token)
+
+    if (!isValid) {
+      throw new AppError(401, 'INVALID_TOTP_TOKEN', 'Invalid authenticator code')
+    }
+
+    // Enable TOTP if not yet enabled
+    if (!mfaSettings.totpEnabled) {
+      await this.prisma.userMfaSettings.update({
+        where: { userId },
+        data: { totpEnabled: true },
+      })
+      logger.info(`TOTP enabled for user ${userId}`)
+    }
+
+    return { enabled: true }
+  }
+
+  async generateTokenPair(
+    user: { id: string; email: string; tenantId: string; role: UserRole },
+  ): Promise<TokenPair> {
+    const payload = {
+      id: user.id,
+      email: user.email,
+      tenantId: user.tenantId,
+      role: user.role,
+    }
+
+    const accessToken = jwt.sign(payload, env.JWT_ACCESS_SECRET, {
+      expiresIn: env.JWT_ACCESS_EXPIRES_IN,
+    })
+
+    const refreshToken = jwt.sign(payload, env.JWT_REFRESH_SECRET, {
+      expiresIn: env.JWT_REFRESH_EXPIRES_IN,
+    })
+
+    // Store refresh token in Redis with TTL matching the token expiry
+    const refreshTtlSeconds = 7 * 24 * 60 * 60 // 7 days
+    await this.redis.set(
+      `${REFRESH_TOKEN_PREFIX}${user.id}`,
+      refreshToken,
+      'EX',
+      refreshTtlSeconds,
+    )
+
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: 15 * 60, // 15 minutes in seconds
+    }
+  }
+
+  verifyAccessToken(token: string): { id: string; email: string; tenantId: string; role: UserRole } {
+    return jwt.verify(token, env.JWT_ACCESS_SECRET) as ReturnType<typeof this.verifyAccessToken>
+  }
+
+  private verifyTotpToken(secret: string, token: string): boolean {
+    const totp = new OTPAuth.TOTP({
+      secret: OTPAuth.Secret.fromBase32(secret),
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+    })
+
+    const delta = totp.validate({ token, window: 1 })
+    return delta !== null
+  }
+
+  private toAuthUser(user: {
+    id: string
+    email: string
+    firstName: string
+    lastName: string
+    role: UserRole
+    tenantId: string
+    mfaSettings?: { totpEnabled: boolean; smsEnabled: boolean } | null
+  }): AuthUser {
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      tenantId: user.tenantId,
+      mfaEnabled: user.mfaSettings?.totpEnabled || user.mfaSettings?.smsEnabled || false,
+    }
+  }
+}

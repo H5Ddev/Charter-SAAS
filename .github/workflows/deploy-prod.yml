@@ -1,0 +1,469 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# AeroComm — Production Deployment Workflow
+# .github/workflows/deploy-prod.yml
+#
+# Triggered by: push to `main` branch
+# Gate:         Requires manual approval from a PRODUCTION_APPROVER before
+#               any Azure resources are touched.
+#
+# Secrets required in GitHub Environment "production":
+#   AZURE_CLIENT_ID          — Service principal client ID (OIDC)
+#   AZURE_TENANT_ID          — Azure AD tenant ID
+#   AZURE_SUBSCRIPTION_ID    — Azure subscription ID
+#   ACR_LOGIN_SERVER         — e.g. aerocomm.azurecr.io
+#   ACR_USERNAME             — ACR admin username (or use OIDC)
+#   ACR_PASSWORD             — ACR admin password
+#   AZURE_WEBAPP_NAME        — App Service name (backend)
+#   AZURE_WEBAPP_NAME_FE     — App Service name (frontend)
+#   AZURE_RESOURCE_GROUP     — Production resource group name
+#   KEY_VAULT_NAME           — Azure Key Vault name for prod
+#   DATABASE_URL             — Connection string (pulled from Key Vault at runtime)
+#
+# Required GitHub settings:
+#   Settings → Environments → "production"
+#     ✓ Required reviewers: add your PRODUCTION_APPROVER team/users
+#     ✓ Wait timer: 0 (optional — set to 5 min if you want a cooling-off period)
+#     ✓ Deployment branches: Selected branches → main only
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Deploy → Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:            # Allow manual trigger from GitHub UI
+    inputs:
+      reason:
+        description: "Reason for manual production deploy"
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false     # Never cancel a running prod deploy
+
+permissions:
+  contents: read
+  id-token: write               # Required for Azure OIDC authentication
+  deployments: write
+
+jobs:
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 1 — CI gate (runs WITHOUT the environment gate so it's fast)
+  # ───────────────────────────────────────────────────────────────────────────
+  ci:
+    name: CI Gate (lint · typecheck · test)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Backend ────────────────────────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Lint backend
+        working-directory: backend
+        run: npm run lint
+
+      - name: Type-check backend
+        working-directory: backend
+        run: npm run typecheck
+
+      - name: Run backend unit tests
+        working-directory: backend
+        run: npm run test:unit -- --coverage
+        env:
+          NODE_ENV: test
+
+      # ── Frontend ───────────────────────────────────────────────────────────
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Type-check frontend
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm run test -- --coverage
+
+      - name: Build frontend (smoke test)
+        working-directory: frontend
+        run: npm run build
+        env:
+          NODE_ENV: production
+          VITE_API_URL: "https://placeholder-for-build-check"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 2 — Manual approval gate
+  #   This job is assigned to the "production" GitHub Environment.
+  #   GitHub will pause here and notify required reviewers.
+  #   The deploy jobs below will NOT start until this is approved.
+  # ───────────────────────────────────────────────────────────────────────────
+  await-approval:
+    name: "⏸  Awaiting Production Approval"
+    needs: ci
+    runs-on: ubuntu-latest
+    environment:
+      name: production          # ← This is what triggers the approval gate
+    steps:
+      - name: Approval granted
+        run: |
+          echo "✅ Production deployment approved."
+          echo "Triggered by: ${{ github.actor }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Ref: ${{ github.ref }}"
+          if [ -n "${{ github.event.inputs.reason }}" ]; then
+            echo "Manual trigger reason: ${{ github.event.inputs.reason }}"
+          fi
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 3 — Build & push Docker images to ACR
+  # ───────────────────────────────────────────────────────────────────────────
+  build-and-push:
+    name: Build & Push Images → ACR
+    needs: await-approval
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      image-tag: ${{ steps.meta.outputs.image-tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate image tag
+        id: meta
+        run: |
+          SHORT_SHA="${GITHUB_SHA::8}"
+          TAG="prod-${SHORT_SHA}-$(date +%Y%m%d%H%M%S)"
+          echo "image-tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Image tag: ${TAG}"
+
+      # ── Azure login via OIDC (no stored credentials) ───────────────────────
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to Azure Container Registry
+        run: |
+          az acr login --name ${{ secrets.ACR_LOGIN_SERVER }}
+
+      # ── Backend image ──────────────────────────────────────────────────────
+      - name: Build backend Docker image
+        working-directory: backend
+        run: |
+          docker build \
+            --tag ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-backend:${{ steps.meta.outputs.image-tag }} \
+            --tag ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-backend:latest \
+            --build-arg NODE_ENV=production \
+            --file Dockerfile \
+            .
+
+      - name: Push backend image
+        run: |
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-backend:${{ steps.meta.outputs.image-tag }}
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-backend:latest
+
+      # ── Frontend image ─────────────────────────────────────────────────────
+      - name: Build frontend Docker image
+        working-directory: frontend
+        run: |
+          docker build \
+            --tag ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-frontend:${{ steps.meta.outputs.image-tag }} \
+            --tag ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-frontend:latest \
+            --build-arg VITE_API_URL=https://${{ secrets.AZURE_WEBAPP_NAME }}.azurewebsites.net \
+            --build-arg NODE_ENV=production \
+            --file Dockerfile \
+            .
+
+      - name: Push frontend image
+        run: |
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-frontend:${{ steps.meta.outputs.image-tag }}
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-frontend:latest
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 4 — Apply Bicep IaC (idempotent)
+  # ───────────────────────────────────────────────────────────────────────────
+  infrastructure:
+    name: Apply Infrastructure (Bicep)
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Bicep — what-if preview
+        uses: azure/arm-deploy@v2
+        with:
+          scope: resourcegroup
+          resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          template: ./infra/main.bicep
+          parameters: >
+            environment=production
+            acrLoginServer=${{ secrets.ACR_LOGIN_SERVER }}
+            imageTag=${{ needs.build-and-push.outputs.image-tag }}
+          deploymentMode: Incremental
+          additionalArguments: "--what-if"
+
+      - name: Deploy Bicep — apply
+        uses: azure/arm-deploy@v2
+        with:
+          scope: resourcegroup
+          resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          template: ./infra/main.bicep
+          parameters: >
+            environment=production
+            acrLoginServer=${{ secrets.ACR_LOGIN_SERVER }}
+            imageTag=${{ needs.build-and-push.outputs.image-tag }}
+          deploymentMode: Incremental
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 5 — Run database migrations (before app deploy)
+  # ───────────────────────────────────────────────────────────────────────────
+  migrate:
+    name: Run Database Migrations
+    needs: infrastructure
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Fetch DATABASE_URL from Key Vault
+        id: kv
+        run: |
+          DB_URL=$(az keyvault secret show \
+            --vault-name ${{ secrets.KEY_VAULT_NAME }} \
+            --name "DATABASE-URL" \
+            --query value -o tsv)
+          echo "::add-mask::${DB_URL}"
+          echo "database-url=${DB_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Run Prisma migrations (deploy mode)
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ steps.kv.outputs.database-url }}
+        run: |
+          npx prisma migrate deploy
+          echo "✅ Migrations applied successfully"
+
+      - name: Verify migration status
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ steps.kv.outputs.database-url }}
+        run: npx prisma migrate status
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 6 — Deploy backend App Service
+  # ───────────────────────────────────────────────────────────────────────────
+  deploy-backend:
+    name: Deploy Backend → Azure App Service
+    needs: migrate
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Update App Service container image
+        run: |
+          az webapp config container set \
+            --name ${{ secrets.AZURE_WEBAPP_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --docker-custom-image-name ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-backend:${{ needs.build-and-push.outputs.image-tag }} \
+            --docker-registry-server-url https://${{ secrets.ACR_LOGIN_SERVER }}
+
+      - name: Restart backend App Service
+        run: |
+          az webapp restart \
+            --name ${{ secrets.AZURE_WEBAPP_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }}
+
+      - name: Wait for backend health check
+        run: |
+          echo "Waiting for backend to become healthy..."
+          HEALTH_URL="https://${{ secrets.AZURE_WEBAPP_NAME }}.azurewebsites.net/api/health"
+          MAX_ATTEMPTS=20
+          ATTEMPT=0
+          until curl --silent --fail "${HEALTH_URL}" | grep -q '"status":"ok"'; do
+            ATTEMPT=$((ATTEMPT + 1))
+            if [ $ATTEMPT -ge $MAX_ATTEMPTS ]; then
+              echo "❌ Backend health check failed after ${MAX_ATTEMPTS} attempts"
+              exit 1
+            fi
+            echo "Attempt ${ATTEMPT}/${MAX_ATTEMPTS} — waiting 15s..."
+            sleep 15
+          done
+          echo "✅ Backend is healthy"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 7 — Deploy frontend App Service
+  # ───────────────────────────────────────────────────────────────────────────
+  deploy-frontend:
+    name: Deploy Frontend → Azure App Service
+    needs: deploy-backend       # Frontend deploys after backend is confirmed healthy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Update frontend App Service container image
+        run: |
+          az webapp config container set \
+            --name ${{ secrets.AZURE_WEBAPP_NAME_FE }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --docker-custom-image-name ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-frontend:${{ needs.build-and-push.outputs.image-tag }} \
+            --docker-registry-server-url https://${{ secrets.ACR_LOGIN_SERVER }}
+
+      - name: Restart frontend App Service
+        run: |
+          az webapp restart \
+            --name ${{ secrets.AZURE_WEBAPP_NAME_FE }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }}
+
+      - name: Wait for frontend health check
+        run: |
+          echo "Waiting for frontend to become healthy..."
+          HEALTH_URL="https://${{ secrets.AZURE_WEBAPP_NAME_FE }}.azurewebsites.net"
+          MAX_ATTEMPTS=15
+          ATTEMPT=0
+          until curl --silent --fail --output /dev/null "${HEALTH_URL}"; do
+            ATTEMPT=$((ATTEMPT + 1))
+            if [ $ATTEMPT -ge $MAX_ATTEMPTS ]; then
+              echo "❌ Frontend health check failed after ${MAX_ATTEMPTS} attempts"
+              exit 1
+            fi
+            echo "Attempt ${ATTEMPT}/${MAX_ATTEMPTS} — waiting 15s..."
+            sleep 15
+          done
+          echo "✅ Frontend is healthy"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 8 — Post-deploy smoke tests & summary
+  # ───────────────────────────────────────────────────────────────────────────
+  smoke-test:
+    name: Post-Deploy Smoke Tests
+    needs: [deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install smoke test dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Run smoke tests against production
+        working-directory: backend
+        run: npm run test:smoke
+        env:
+          SMOKE_TEST_BASE_URL: https://${{ secrets.AZURE_WEBAPP_NAME }}.azurewebsites.net
+          NODE_ENV: production
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          echo "## 🚀 Production Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field         | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status**    | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Image Tag** | \`${{ needs.build-and-push.outputs.image-tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit**    | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Actor**     | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Backend**   | https://${{ secrets.AZURE_WEBAPP_NAME }}.azurewebsites.net |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Frontend**  | https://${{ secrets.AZURE_WEBAPP_NAME_FE }}.azurewebsites.net |" >> $GITHUB_STEP_SUMMARY
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 9 — Notify on failure (always runs if any prior job fails)
+  # ───────────────────────────────────────────────────────────────────────────
+  notify-failure:
+    name: Notify on Failure
+    needs: [ci, build-and-push, infrastructure, migrate, deploy-backend, deploy-frontend, smoke-test]
+    if: failure()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Post failure notice to Slack
+        # TODO: Replace with your Slack webhook secret name
+        if: ${{ secrets.SLACK_DEPLOY_WEBHOOK != '' }}
+        run: |
+          curl -s -X POST "${{ secrets.SLACK_DEPLOY_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "text": "❌ *AeroComm Production Deploy FAILED*",
+              "attachments": [{
+                "color": "danger",
+                "fields": [
+                  {"title": "Commit", "value": "${{ github.sha }}", "short": true},
+                  {"title": "Actor", "value": "${{ github.actor }}", "short": true},
+                  {"title": "Run", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false}
+                ]
+              }]
+            }'

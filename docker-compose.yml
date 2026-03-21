@@ -1,0 +1,111 @@
+version: '3.9'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: 'sqlserver://db:1433;database=aerocomm_dev;user=sa;password=AeroComm_Dev1!;encrypt=false;trustServerCertificate=true'
+      REDIS_URL: 'redis://redis:6379'
+      JWT_ACCESS_SECRET: 'dev-access-secret-change-in-prod'
+      JWT_REFRESH_SECRET: 'dev-refresh-secret-change-in-prod'
+      JWT_ACCESS_EXPIRES_IN: '15m'
+      JWT_REFRESH_EXPIRES_IN: '7d'
+      AZURE_STORAGE_CONNECTION_STRING: 'DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tiqIRQcFQsAXLJQ==;BlobEndpoint=http://azurite:10000/devstoreaccount1;'
+      AZURE_STORAGE_CONTAINER_DOCUMENTS: documents
+      AZURE_STORAGE_CONTAINER_PHOTOS: photos
+      AZURE_SERVICE_BUS_QUEUE_AUTOMATION: automation-events
+      AZURE_SERVICE_BUS_QUEUE_NOTIFICATIONS: notification-events
+      TOTP_APP_NAME: AeroComm
+      TOTP_ISSUER: AeroComm
+      CORS_ORIGINS: 'http://localhost:5173,http://localhost:3000'
+      LOG_LEVEL: debug
+      PORT: '3000'
+      API_BASE_URL: 'http://localhost:3000'
+      FRONTEND_URL: 'http://localhost:5173'
+      RATE_LIMIT_WINDOW_MS: '900000'
+      RATE_LIMIT_MAX: '1000'
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/prisma:/app/prisma
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      azurite:
+        condition: service_started
+    networks:
+      - aerocomm
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - '5173:5173'
+    environment:
+      VITE_API_URL: 'http://localhost:3000'
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    depends_on:
+      - backend
+    networks:
+      - aerocomm
+
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    ports:
+      - '1433:1433'
+    environment:
+      SA_PASSWORD: 'AeroComm_Dev1!'
+      ACCEPT_EULA: 'Y'
+      MSSQL_PID: Developer
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test: ['CMD-SHELL', '/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P AeroComm_Dev1! -Q "SELECT 1" -C -N -No || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - aerocomm
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - aerocomm
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    ports:
+      - '10000:10000'  # Blob service
+      - '10001:10001'  # Queue service
+      - '10002:10002'  # Table service
+    volumes:
+      - azurite_data:/data
+    command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --location /data --debug /data/debug.log
+    networks:
+      - aerocomm
+
+volumes:
+  mssql_data:
+  redis_data:
+  azurite_data:
+
+networks:
+  aerocomm:
+    driver: bridge

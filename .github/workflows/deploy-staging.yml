@@ -1,0 +1,108 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - staging
+
+environment: staging
+
+jobs:
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    env:
+      RESOURCE_GROUP: aerocomm-staging-rg
+      BACKEND_APP_NAME: aerocomm-staging-backend
+      FRONTEND_APP_NAME: aerocomm-staging-frontend
+      IMAGE_TAG: staging-${{ github.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: backend
+          file: backend/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-staging-backend:${{ env.IMAGE_TAG }}
+            ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-staging-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: frontend
+          file: frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-staging-frontend:${{ env.IMAGE_TAG }}
+            ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-staging-frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Inject secrets to Key Vault
+        run: |
+          az keyvault secret set --vault-name "${{ secrets.AZURE_KEY_VAULT_NAME }}" --name "JWT-ACCESS-SECRET" --value "${{ secrets.JWT_ACCESS_SECRET }}"
+          az keyvault secret set --vault-name "${{ secrets.AZURE_KEY_VAULT_NAME }}" --name "JWT-REFRESH-SECRET" --value "${{ secrets.JWT_REFRESH_SECRET }}"
+          az keyvault secret set --vault-name "${{ secrets.AZURE_KEY_VAULT_NAME }}" --name "SENDGRID-API-KEY" --value "${{ secrets.SENDGRID_API_KEY }}"
+          az keyvault secret set --vault-name "${{ secrets.AZURE_KEY_VAULT_NAME }}" --name "TWILIO-AUTH-TOKEN" --value "${{ secrets.TWILIO_AUTH_TOKEN }}"
+          az keyvault secret set --vault-name "${{ secrets.AZURE_KEY_VAULT_NAME }}" --name "STRIPE-SECRET-KEY" --value "${{ secrets.STRIPE_SECRET_KEY }}"
+
+      - name: Deploy backend to App Service
+        run: |
+          az webapp config container set \
+            --name "${{ env.BACKEND_APP_NAME }}" \
+            --resource-group "${{ env.RESOURCE_GROUP }}" \
+            --docker-custom-image-name "${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-staging-backend:${{ env.IMAGE_TAG }}"
+
+      - name: Deploy frontend to App Service
+        run: |
+          az webapp config container set \
+            --name "${{ env.FRONTEND_APP_NAME }}" \
+            --resource-group "${{ env.RESOURCE_GROUP }}" \
+            --docker-custom-image-name "${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-staging-frontend:${{ env.IMAGE_TAG }}"
+
+      - name: Restart App Services
+        run: |
+          az webapp restart --name "${{ env.BACKEND_APP_NAME }}" --resource-group "${{ env.RESOURCE_GROUP }}"
+          az webapp restart --name "${{ env.FRONTEND_APP_NAME }}" --resource-group "${{ env.RESOURCE_GROUP }}"
+
+      - name: Trigger database migration
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'db-migrate.yml',
+              ref: 'staging',
+              inputs: {
+                environment: 'staging'
+              }
+            });
+
+      - name: Run smoke tests
+        run: |
+          sleep 30
+          curl --fail https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/health || exit 1
+          echo "Smoke test passed"

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker --version)",
+      "Bash(docker-compose --version)",
+      "Bash(docker compose:*)",
+      "Bash(git -C /c/charter-saas remote -v)",
+      "Bash(git -C /c/charter-saas log --oneline -3)"
+    ]
+  }
+}

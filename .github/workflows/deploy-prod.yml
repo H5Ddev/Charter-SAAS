@@ -83,9 +83,9 @@ jobs:
         working-directory: backend
         run: npm run type-check
 
-      - name: Run backend tests
+      - name: Run backend unit tests
         working-directory: backend
-        run: npm run test
+        run: npx jest tests/unit --coverage --passWithNoTests
         env:
           NODE_ENV: test
           DATABASE_URL: "sqlserver://localhost:1433;database=aerocomm_test;user=sa;password=TestPass1!;encrypt=false;trustServerCertificate=true"

@@ -31,7 +31,11 @@ export default function LoginPage() {
 
   async function onSubmit(values: LoginForm) {
     try {
-      const result = await login.mutateAsync(values)
+      // Derive tenantId from subdomain in production; fall back to 'default' in dev
+      const hostname = window.location.hostname
+      const parts = hostname.split('.')
+      const tenantId = parts.length > 2 ? parts[0] : 'default'
+      const result = await login.mutateAsync({ ...values, tenantId })
       if ('mfaRequired' in result && result.mfaRequired) {
         navigate('/auth/mfa', { state: { mfaSessionToken: (result as { mfaSessionToken: string }).mfaSessionToken } })
       }

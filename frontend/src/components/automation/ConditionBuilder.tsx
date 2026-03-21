@@ -9,7 +9,9 @@ export type ConditionOperator =
   | 'GT'
   | 'LT'
   | 'IS_EMPTY'
-  | 'IS_NOT_EMPTY';
+  | 'IS_NOT_EMPTY'
+  | 'IN'
+  | 'NOT_IN';
 
 export interface Condition {
   id: string;
@@ -37,6 +39,8 @@ const OPERATOR_OPTIONS: { value: ConditionOperator; label: string; hasValue: boo
   { value: 'LT', label: 'less than', hasValue: true },
   { value: 'IS_EMPTY', label: 'is empty', hasValue: false },
   { value: 'IS_NOT_EMPTY', label: 'is not empty', hasValue: false },
+  { value: 'IN', label: 'is one of', hasValue: true },
+  { value: 'NOT_IN', label: 'is not one of', hasValue: true },
 ];
 
 function generateId(): string {

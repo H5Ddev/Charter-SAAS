@@ -17,7 +17,7 @@ const mfaSchema = z.object({
 type MfaForm = z.infer<typeof mfaSchema>
 
 interface LocationState {
-  tempToken?: string
+  mfaSessionToken?: string
 }
 
 export default function MfaPage() {
@@ -26,9 +26,9 @@ export default function MfaPage() {
   const state = location.state as LocationState | null
   const mfaVerify = useMfaVerify()
 
-  // If no temp token, redirect to login
+  // If no session token, redirect to login
   useEffect(() => {
-    if (!state?.tempToken) {
+    if (!state?.mfaSessionToken) {
       navigate('/login', { replace: true })
     }
   }, [state, navigate])
@@ -43,8 +43,8 @@ export default function MfaPage() {
   async function onSubmit(values: MfaForm) {
     try {
       await mfaVerify.mutateAsync({
-        tempToken: state!.tempToken!,
-        code: values.code,
+        mfaSessionToken: state!.mfaSessionToken!,
+        token: values.code,
       })
       navigate('/dashboard', { replace: true })
     } catch {

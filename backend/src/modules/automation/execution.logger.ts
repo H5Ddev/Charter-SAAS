@@ -1,4 +1,5 @@
-import { PrismaClient, AutomationExecutionStatus } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
+import { AutomationExecutionStatus } from '../../shared/types/appEnums'
 import { logger } from '../../shared/utils/logger'
 
 export class ExecutionLogger {

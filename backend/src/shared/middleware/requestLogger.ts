@@ -4,5 +4,5 @@ import { morganStream } from '../utils/logger'
 // Skip logging for health check endpoint to reduce noise
 export const requestLogger = morgan('combined', {
   stream: morganStream,
-  skip: (req) => req.path === '/health' || req.path === '/favicon.ico',
+  skip: (req) => (req as { path?: string }).path === '/health' || (req as { path?: string }).path === '/favicon.ico',
 })

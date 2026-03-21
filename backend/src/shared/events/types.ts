@@ -35,6 +35,7 @@ export interface TripStatusChangedPayload {
   changedBy: string
   aircraftId?: string
   contactId?: string
+  [key: string]: unknown
 }
 
 export interface TripStatusChangedEvent extends BaseEvent {
@@ -46,6 +47,7 @@ export interface TripDelayFlaggedPayload {
   tripId: string
   delayNotes: string
   flaggedBy: string
+  [key: string]: unknown
 }
 
 export interface TripDelayFlaggedEvent extends BaseEvent {
@@ -59,6 +61,7 @@ export interface QuoteCreatedPayload {
   basePrice: number
   totalPrice: number
   currency: string
+  [key: string]: unknown
 }
 
 export interface QuoteCreatedEvent extends BaseEvent {
@@ -71,6 +74,7 @@ export interface QuoteAcceptedPayload {
   contactId: string
   signedAt: string
   signatureUrl?: string
+  [key: string]: unknown
 }
 
 export interface QuoteAcceptedEvent extends BaseEvent {
@@ -82,6 +86,7 @@ export interface QuoteExpiredPayload {
   quoteId: string
   contactId: string
   validUntil: string
+  [key: string]: unknown
 }
 
 export interface QuoteExpiredEvent extends BaseEvent {
@@ -92,6 +97,7 @@ export interface QuoteExpiredEvent extends BaseEvent {
 export interface QuoteDeclinedPayload {
   quoteId: string
   contactId: string
+  [key: string]: unknown
 }
 
 export interface QuoteDeclinedEvent extends BaseEvent {
@@ -106,6 +112,7 @@ export interface TicketOpenedPayload {
   source: string
   priority: string
   title: string
+  [key: string]: unknown
 }
 
 export interface TicketOpenedEvent extends BaseEvent {
@@ -118,6 +125,7 @@ export interface TicketSlaBreachedPayload {
   contactId?: string
   assignedTo?: string
   slaBreachAt: string
+  [key: string]: unknown
 }
 
 export interface TicketSlaBreachedEvent extends BaseEvent {
@@ -131,6 +139,7 @@ export interface TicketEscalatedPayload {
   escalatedTo: string
   previousPriority: string
   newPriority: string
+  [key: string]: unknown
 }
 
 export interface TicketEscalatedEvent extends BaseEvent {
@@ -143,6 +152,7 @@ export interface ContactCreatedPayload {
   type: string
   email?: string
   phone?: string
+  [key: string]: unknown
 }
 
 export interface ContactCreatedEvent extends BaseEvent {
@@ -156,6 +166,7 @@ export interface ContactFieldUpdatedPayload {
   oldValue: unknown
   newValue: unknown
   updatedBy: string
+  [key: string]: unknown
 }
 
 export interface ContactFieldUpdatedEvent extends BaseEvent {
@@ -166,6 +177,7 @@ export interface ContactFieldUpdatedEvent extends BaseEvent {
 export interface ScheduleCronPayload {
   cronExpression: string
   scheduledAt: string
+  [key: string]: unknown
 }
 
 export interface ScheduleCronEvent extends BaseEvent {
@@ -178,6 +190,7 @@ export interface InboundWebhookPayload {
   integrationId: string
   webhookEventId: string
   rawEventType: string
+  [key: string]: unknown
 }
 
 export interface InboundWebhookEvent extends BaseEvent {
@@ -193,6 +206,7 @@ export interface PaymentStatusChangedPayload {
   customerId?: string
   quoteId?: string
   tripId?: string
+  [key: string]: unknown
 }
 
 export interface PaymentStatusChangedEvent extends BaseEvent {

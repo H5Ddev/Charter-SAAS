@@ -13,7 +13,7 @@ import { z } from 'zod'
 const prisma = new PrismaClient()
 const service = new NotificationService(prisma)
 
-export const notificationsRouter = Router()
+export const notificationsRouter: Router = Router()
 notificationsRouter.use(requireAuth)
 notificationsRouter.use(tenantScope)
 
@@ -32,7 +32,7 @@ notificationsRouter.get('/templates/:id', async (req: Request, res: Response, ne
   try {
     const template = await prisma.notificationTemplate.findFirst({
       where: { id: req.params.id, tenantId: req.tenantId!, deletedAt: null },
-      include: { variables: true },
+      include: {},
     })
     if (!template) {
       res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Template not found' } })

@@ -33,7 +33,7 @@ import { webhooksRouter } from './modules/webhooks/router'
 // Express App
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const app = express()
+export const app: express.Application = express()
 export const httpServer = createServer(app)
 
 // ─────────────────────────────────────────────────────────────────────────────

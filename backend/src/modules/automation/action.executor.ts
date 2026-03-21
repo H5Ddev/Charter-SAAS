@@ -1,4 +1,5 @@
-import { PrismaClient, AutomationActionType } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
+import { AutomationActionType } from '../../shared/types/appEnums'
 import { render } from '../notifications/template.engine'
 import { smsSender } from '../notifications/channels/sms.sender'
 import { emailSender } from '../notifications/channels/email.sender'
@@ -314,6 +315,10 @@ export class ActionExecutor {
     await eventPublisher.publish(
       env.AZURE_SERVICE_BUS_QUEUE_AUTOMATION,
       createEvent(tenantId, 'INBOUND_WEBHOOK', {
+        integrationName: 'chain',
+        integrationId: targetId,
+        webhookEventId: targetId,
+        rawEventType: 'CHAIN_AUTOMATION',
         ...context,
         chainedFromAutomationId: targetId,
         hopCount,

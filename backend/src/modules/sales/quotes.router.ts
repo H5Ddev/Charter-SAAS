@@ -3,7 +3,7 @@ import { QuotesController } from './quotes.controller'
 import { requireAuth } from '../../shared/middleware/auth'
 import { tenantScope } from '../../shared/middleware/tenantScope'
 
-export const quotesRouter = Router()
+export const quotesRouter: Router = Router()
 const controller = new QuotesController()
 
 quotesRouter.use(requireAuth)

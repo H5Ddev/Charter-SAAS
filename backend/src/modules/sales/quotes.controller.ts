@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
-import { PrismaClient, QuoteStatus } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
+import { QuoteStatus } from '../../shared/types/appEnums'
 import {
   QuotesService,
   CreateQuoteSchema,

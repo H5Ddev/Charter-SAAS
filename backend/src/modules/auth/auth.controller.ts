@@ -68,7 +68,7 @@ export class AuthController {
         return
       }
 
-      const loginResult = result as Awaited<ReturnType<AuthService['login']>> & { tokens: { accessToken: string; refreshToken: string; expiresIn: number } }
+      const loginResult = result as import('./auth.types').LoginResponse
 
       res.cookie('refreshToken', loginResult.tokens.refreshToken, COOKIE_OPTIONS)
       res.cookie('accessToken', loginResult.tokens.accessToken, {

@@ -3,7 +3,7 @@ import { AircraftController } from './aircraft.controller'
 import { requireAuth } from '../../shared/middleware/auth'
 import { tenantScope } from '../../shared/middleware/tenantScope'
 
-export const aircraftRouter = Router()
+export const aircraftRouter: Router = Router()
 const controller = new AircraftController()
 
 aircraftRouter.use(requireAuth)

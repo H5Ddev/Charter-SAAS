@@ -74,7 +74,7 @@ export class ContactsController {
 
   async uploadDocument(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      if (!req.file) {
+      if (!(req as Request & { file?: unknown }).file) {
         res.status(400).json({ success: false, error: { code: 'NO_FILE', message: 'No file uploaded' } })
         return
       }
@@ -82,7 +82,7 @@ export class ContactsController {
         req.tenantId!,
         req.params.id!,
         req.user!.id,
-        req.file,
+        (req as Request & { file?: unknown }).file as never,
       )
       res.status(201).json(successResponse(doc))
     } catch (err) {

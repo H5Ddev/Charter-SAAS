@@ -83,7 +83,7 @@ export class AircraftService {
         homeBaseIcao: data.homeBaseIcao ?? undefined,
         ownerId: data.ownerId ?? undefined,
         isActive: data.isActive,
-        amenities: data.amenities as Prisma.InputJsonValue,
+        amenities: data.amenities != null ? JSON.stringify(data.amenities) : null,
       },
     })
   }

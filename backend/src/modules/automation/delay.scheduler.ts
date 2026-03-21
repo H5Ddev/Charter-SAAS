@@ -1,4 +1,5 @@
-import { PrismaClient, AutomationActionType, ScheduledMessageStatus } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
+import { AutomationActionType, ScheduledMessageStatus } from '../../shared/types/appEnums'
 import { eventPublisher } from '../../shared/events/publisher'
 import { BaseEvent } from '../../shared/events/types'
 import { env } from '../../config/env'

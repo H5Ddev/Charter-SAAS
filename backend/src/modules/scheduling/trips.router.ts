@@ -3,7 +3,7 @@ import { TripsController } from './trips.controller'
 import { requireAuth } from '../../shared/middleware/auth'
 import { tenantScope } from '../../shared/middleware/tenantScope'
 
-export const tripsRouter = Router()
+export const tripsRouter: Router = Router()
 const controller = new TripsController()
 
 tripsRouter.use(requireAuth)

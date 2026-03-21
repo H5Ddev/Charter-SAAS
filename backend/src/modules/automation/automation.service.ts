@@ -52,7 +52,7 @@ export class AutomationService {
           where: { deletedAt: null },
           include: { conditions: { where: { deletedAt: null } } },
         },
-        actions: { where: { deletedAt: null }, orderBy: { order: 'asc' } },
+        actions: { where: { deletedAt: null }, orderBy: { sequence: 'asc' } },
         executionLogs: {
           orderBy: { triggeredAt: 'desc' },
           take: 10,
@@ -69,11 +69,11 @@ export class AutomationService {
         tenantId,
         name: data.name,
         description: data.description ?? undefined,
-        isEnabled: data.isEnabled,
+        enabled: data.isEnabled,
         isDryRun: data.isDryRun,
-        triggerType: data.triggerType as never,
-        triggerConfig: data.triggerConfig as Prisma.InputJsonValue,
-        conditions: data.conditions as Prisma.InputJsonValue,
+        triggerType: data.triggerType,
+        triggerConfig: JSON.stringify(data.triggerConfig),
+        conditions: JSON.stringify(data.conditions),
       },
     })
   }
@@ -87,10 +87,10 @@ export class AutomationService {
       data: {
         ...(data.name && { name: data.name }),
         ...(data.description !== undefined && { description: data.description }),
-        ...(data.isEnabled !== undefined && { isEnabled: data.isEnabled }),
+        ...(data.isEnabled !== undefined && { enabled: data.isEnabled }),
         ...(data.isDryRun !== undefined && { isDryRun: data.isDryRun }),
-        ...(data.triggerType && { triggerType: data.triggerType as never }),
-        ...(data.triggerConfig && { triggerConfig: data.triggerConfig as Prisma.InputJsonValue }),
+        ...(data.triggerType && { triggerType: data.triggerType }),
+        ...(data.triggerConfig && { triggerConfig: JSON.stringify(data.triggerConfig) }),
       },
     })
   }
@@ -104,7 +104,7 @@ export class AutomationService {
   async toggle(tenantId: string, id: string, isEnabled: boolean) {
     const existing = await this.prisma.automation.findFirst({ where: { id, tenantId, deletedAt: null } })
     if (!existing) throw new AppError(404, 'AUTOMATION_NOT_FOUND', 'Automation not found')
-    return this.prisma.automation.update({ where: { id }, data: { isEnabled } })
+    return this.prisma.automation.update({ where: { id }, data: { enabled: isEnabled } })
   }
 
   async dryRun(tenantId: string, id: string, entityId: string, entityType: string) {
@@ -115,9 +115,9 @@ export class AutomationService {
     await this.prisma.automation.update({ where: { id }, data: { isDryRun: true } })
 
     try {
-      const event = createEvent(tenantId, automation.triggerType as never, {
+      const event = createEvent(tenantId, automation.triggerType as import('../../shared/events/types').TriggerEventType, {
         [`${entityType.toLowerCase()}Id`]: entityId,
-      })
+      } as import('../../shared/events/types').AeroCommEvent['payload'])
 
       await this.engine.processEvent(event)
       logger.info(`Dry run completed for automation ${id}`)

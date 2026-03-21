@@ -49,7 +49,7 @@ export class EventPublisher {
           sequenceNumber: sequenceNumber.toString(),
         })
         await sender.close()
-        return sequenceNumber
+        return sequenceNumber as unknown as bigint
       } else {
         await sender.sendMessages(message)
         logger.debug(`Event published to ${queueName}`, {
@@ -78,7 +78,7 @@ export class EventPublisher {
     try {
       const client = getServiceBusClient()
       const sender = client.createSender(queueName)
-      await sender.cancelScheduledMessages(sequenceNumber)
+      await sender.cancelScheduledMessages(sequenceNumber as unknown as Parameters<typeof sender.cancelScheduledMessages>[0])
       await sender.close()
       logger.info(`Cancelled scheduled message`, {
         queueName,

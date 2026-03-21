@@ -1,4 +1,5 @@
-import { PrismaClient, AutomationExecutionStatus } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
+import { AutomationExecutionStatus, AutomationActionType } from '../../shared/types/appEnums'
 import { BaseEvent } from '../../shared/events/types'
 import { TriggerRegistry } from './trigger.registry'
 import { conditionEvaluator, ConditionGroup } from './condition.evaluator'
@@ -51,11 +52,15 @@ export class AutomationEngine {
       id: string
       name: string
       isDryRun: boolean
-      conditionGroups: ConditionGroup[]
+      conditionGroups: Array<{
+        operator: string
+        conditions: Array<{ field: string; operator: string; value: string | null }>
+        childGroups?: Array<{ operator: string; conditions: Array<{ field: string; operator: string; value: string | null }> }>
+      }>
       actions: Array<{
-        type: import('@prisma/client').AutomationActionType
-        config: Record<string, unknown>
-        order: number
+        actionType: string
+        config: string
+        sequence: number
       }>
     },
     context: Record<string, unknown>,
@@ -70,11 +75,25 @@ export class AutomationEngine {
     const logId = await this.executionLogger.create(tenantId, automation.id, entityType, entityId)
 
     try {
-      // Evaluate conditions
-      const conditionsPass = conditionEvaluator.evaluate(
-        automation.conditionGroups as ConditionGroup[],
-        automationContext,
-      )
+      // Evaluate conditions — map DB shape to ConditionGroup shape
+      const conditionGroups: ConditionGroup[] = automation.conditionGroups.map((g) => ({
+        operator: g.operator as ConditionGroup['operator'],
+        conditions: g.conditions.map((c) => ({
+          field: c.field,
+          operator: c.operator as ConditionGroup['conditions'][0]['operator'],
+          value: c.value,
+        })),
+        childGroups: g.childGroups?.map((cg) => ({
+          operator: cg.operator as ConditionGroup['operator'],
+          conditions: cg.conditions.map((c) => ({
+            field: c.field,
+            operator: c.operator as ConditionGroup['conditions'][0]['operator'],
+            value: c.value,
+          })),
+        })),
+      }))
+
+      const conditionsPass = conditionEvaluator.evaluate(conditionGroups, automationContext)
 
       if (!conditionsPass) {
         logger.debug(`Conditions not met for automation ${automation.name}`, {
@@ -96,10 +115,15 @@ export class AutomationEngine {
 
       if (!automation.isDryRun) {
         for (const action of automation.actions) {
+          const parsedAction = {
+            type: action.actionType as AutomationActionType,
+            config: (() => { try { return JSON.parse(action.config) as Record<string, unknown> } catch { return {} } })(),
+            order: action.sequence,
+          }
           // Stop if WAIT_DELAY is encountered — remaining actions are scheduled
-          if (action.type === 'WAIT_DELAY') {
+          if (parsedAction.type === 'WAIT_DELAY') {
             await this.actionExecutor.execute(
-              action as never,
+              parsedAction as never,
               automationContext,
               tenantId,
               logId,
@@ -108,7 +132,7 @@ export class AutomationEngine {
           }
 
           await this.actionExecutor.execute(
-            action as never,
+            parsedAction as never,
             automationContext,
             tenantId,
             logId,
@@ -118,7 +142,7 @@ export class AutomationEngine {
       } else {
         logger.info(`[DRY RUN] Would execute ${automation.actions.length} actions`, {
           automationId: automation.id,
-          actions: automation.actions.map((a) => a.type),
+          actions: automation.actions.map((a) => a.actionType),
         })
         actionsRun = 0
       }

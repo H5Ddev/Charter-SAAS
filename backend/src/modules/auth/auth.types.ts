@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '../../shared/types/appEnums'
 
 export const RegisterSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -10,7 +10,7 @@ export const RegisterSchema = z.object({
     .regex(/[0-9]/, 'Password must contain at least one number'),
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
-  role: z.nativeEnum(UserRole).optional().default(UserRole.READ_ONLY),
+  role: z.string().optional().default(UserRole.READ_ONLY),
   tenantId: z.string().min(1),
 })
 
@@ -44,7 +44,7 @@ export interface AuthUser {
   email: string
   firstName: string
   lastName: string
-  role: UserRole
+  role: string
   tenantId: string
   mfaEnabled: boolean
 }

@@ -56,7 +56,7 @@ class OrganizationsController {
 
 const controller = new OrganizationsController()
 
-export const organizationsRouter = Router()
+export const organizationsRouter: Router = Router()
 organizationsRouter.use(requireAuth)
 organizationsRouter.use(tenantScope)
 

@@ -142,7 +142,7 @@ export class ContactsService {
         country: data.country ?? undefined,
         zipCode: data.zipCode ?? undefined,
         tags: JSON.stringify(data.tags),
-        customFields: data.customFields as Prisma.InputJsonValue,
+        customFields: data.customFields != null ? JSON.stringify(data.customFields) : null,
         preferredChannel: data.preferredChannel,
         doNotContact: data.doNotContact,
       },
@@ -191,7 +191,7 @@ export class ContactsService {
         ...(data.country && { country: data.country }),
         ...(data.tags && { tags: JSON.stringify(data.tags) }),
         ...(data.customFields !== undefined && {
-          customFields: data.customFields as Prisma.InputJsonValue,
+          customFields: data.customFields != null ? JSON.stringify(data.customFields) : null,
         }),
       },
     })

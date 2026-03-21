@@ -3,7 +3,7 @@ import { TicketsController } from './tickets.controller'
 import { requireAuth } from '../../shared/middleware/auth'
 import { tenantScope } from '../../shared/middleware/tenantScope'
 
-export const ticketsRouter = Router()
+export const ticketsRouter: Router = Router()
 const controller = new TicketsController()
 
 ticketsRouter.use(requireAuth)

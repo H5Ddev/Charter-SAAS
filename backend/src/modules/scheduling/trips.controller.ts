@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
-import { PrismaClient, TripStatus } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
+import { TripStatus } from '../../shared/types/appEnums'
 import {
   TripsService,
   CreateTripSchema,

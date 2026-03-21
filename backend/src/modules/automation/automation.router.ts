@@ -12,7 +12,7 @@ import { tenantScope } from '../../shared/middleware/tenantScope'
 const prisma = new PrismaClient()
 const service = new AutomationService(prisma)
 
-export const automationRouter = Router()
+export const automationRouter: Router = Router()
 automationRouter.use(requireAuth)
 automationRouter.use(tenantScope)
 

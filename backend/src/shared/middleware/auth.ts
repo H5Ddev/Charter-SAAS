@@ -2,13 +2,13 @@ import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import { env } from '../../config/env'
 import { errorResponse } from '../utils/response'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '../types/appEnums'
 
 export interface JwtPayload {
   id: string
   email: string
   tenantId: string
-  role: UserRole
+  role: string
 }
 
 // Extend Express Request to include user
@@ -62,7 +62,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   }
 }
 
-export function requireRole(...roles: UserRole[]) {
+export function requireRole(...roles: string[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json(errorResponse('UNAUTHORIZED', 'Authentication required'))

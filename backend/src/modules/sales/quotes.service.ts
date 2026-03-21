@@ -1,4 +1,5 @@
-import { PrismaClient, QuoteStatus, Prisma } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
+import { QuoteStatus } from '../../shared/types/appEnums'
 import { z } from 'zod'
 import { AppError } from '../../shared/middleware/errorHandler'
 import { eventPublisher } from '../../shared/events/publisher'
@@ -23,7 +24,7 @@ export const CreateQuoteSchema = z.object({
 })
 
 export const UpdateQuoteSchema = z.object({
-  status: z.nativeEnum(QuoteStatus).optional(),
+  status: z.string().optional(),
   validUntil: z.string().datetime().optional().nullable(),
   notes: z.string().optional().nullable(),
 })
@@ -87,7 +88,6 @@ export class QuotesService {
       data: {
         tenantId,
         contactId: data.contactId,
-        tripId: data.tripId ?? undefined,
         status: QuoteStatus.DRAFT,
         validUntil: data.validUntil ? new Date(data.validUntil) : undefined,
         basePrice: data.basePrice,
@@ -155,7 +155,7 @@ export class QuotesService {
         DECLINED: 'QUOTE_DECLINED',
         EXPIRED: 'QUOTE_EXPIRED',
       }
-      const eventType = eventTypeMap[data.status]
+      const eventType = eventTypeMap[data.status as QuoteStatus]
       if (eventType) {
         try {
           await eventPublisher.publish(

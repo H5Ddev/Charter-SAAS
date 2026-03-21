@@ -1,4 +1,5 @@
-import { PrismaClient, TripStatus, Prisma } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
+import { TripStatus } from '../../shared/types/appEnums'
 import { z } from 'zod'
 import { AppError } from '../../shared/middleware/errorHandler'
 import { eventPublisher } from '../../shared/events/publisher'
@@ -26,7 +27,7 @@ export const CreateTripSchema = z.object({
 })
 
 export const UpdateTripStatusSchema = z.object({
-  status: z.nativeEnum(TripStatus),
+  status: z.string(),
   notes: z.string().optional().nullable(),
 })
 

@@ -1,4 +1,5 @@
-import { PrismaClient, NotificationChannel } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
+import { NotificationChannel } from '../../shared/types/appEnums'
 import { z } from 'zod'
 import { render } from './template.engine'
 import { smsSender } from './channels/sms.sender'
@@ -13,7 +14,7 @@ import { paginationMeta } from '../../shared/utils/response'
 export const CreateTemplateSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().optional().nullable(),
-  channel: z.nativeEnum(NotificationChannel),
+  channel: z.string(),
   subject: z.string().optional().nullable(),
   body: z.string().min(1),
   isSystem: z.boolean().default(false),
@@ -64,7 +65,7 @@ export class NotificationService {
 
     await this.dispatch(
       tenantId,
-      template.channel,
+      template.channel as NotificationChannel,
       contact,
       renderedSubject,
       renderedBody,
@@ -120,9 +121,6 @@ export class NotificationService {
         // For Teams, 'to' should be the webhook URL
         logger.warn('TEAMS channel dispatch requires webhookUrl in contact.phone field')
         if (contact.phone) await teamsSender.send(contact.phone, body, subject)
-        break
-      case 'IN_APP':
-        logger.warn('IN_APP notifications should use inAppSender.send() directly with userId')
         break
       default:
         throw new AppError(400, 'INVALID_CHANNEL', `Unknown notification channel: ${channel as string}`)

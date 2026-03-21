@@ -2,7 +2,8 @@ import * as argon2 from 'argon2'
 import jwt from 'jsonwebtoken'
 import * as OTPAuth from 'otpauth'
 import qrcode from 'qrcode'
-import { PrismaClient, UserRole } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
+import { UserRole } from '../../shared/types/appEnums'
 import Redis from 'ioredis'
 import { env } from '../../config/env'
 import { logger } from '../../shared/utils/logger'
@@ -30,7 +31,7 @@ export class AuthService {
     password: string,
     firstName: string,
     lastName: string,
-    role: UserRole = UserRole.READ_ONLY,
+    role: string = UserRole.READ_ONLY,
   ): Promise<LoginResponse> {
     // Check tenant exists
     const tenant = await this.prisma.tenant.findFirst({
@@ -163,7 +164,7 @@ export class AuthService {
   }
 
   async refreshToken(refreshToken: string): Promise<TokenPair> {
-    let payload: { id: string; email: string; tenantId: string; role: UserRole }
+    let payload: { id: string; email: string; tenantId: string; role: string }
 
     try {
       payload = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as typeof payload
@@ -263,7 +264,7 @@ export class AuthService {
   }
 
   async generateTokenPair(
-    user: { id: string; email: string; tenantId: string; role: UserRole },
+    user: { id: string; email: string; tenantId: string; role: string },
   ): Promise<TokenPair> {
     const payload = {
       id: user.id,
@@ -298,7 +299,7 @@ export class AuthService {
     }
   }
 
-  verifyAccessToken(token: string): { id: string; email: string; tenantId: string; role: UserRole } {
+  verifyAccessToken(token: string): { id: string; email: string; tenantId: string; role: string } {
     return jwt.verify(token, env.JWT_ACCESS_SECRET) as ReturnType<typeof this.verifyAccessToken>
   }
 
@@ -319,7 +320,7 @@ export class AuthService {
     email: string
     firstName: string
     lastName: string
-    role: UserRole
+    role: string
     tenantId: string
     mfaSettings?: { totpEnabled: boolean; smsEnabled: boolean } | null
   }): AuthUser {

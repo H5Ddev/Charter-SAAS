@@ -3,7 +3,7 @@ import { ContactsController } from './contacts.controller'
 import { requireAuth } from '../../shared/middleware/auth'
 import { tenantScope } from '../../shared/middleware/tenantScope'
 
-export const contactsRouter = Router()
+export const contactsRouter: Router = Router()
 const controller = new ContactsController()
 
 // All routes require authentication and tenant scoping

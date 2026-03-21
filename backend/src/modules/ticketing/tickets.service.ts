@@ -1,4 +1,5 @@
-import { PrismaClient, TicketStatus, TicketSource, TicketPriority, Prisma } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
+import { TicketStatus, TicketSource, TicketPriority } from '../../shared/types/appEnums'
 import { z } from 'zod'
 import { AppError } from '../../shared/middleware/errorHandler'
 import { eventPublisher } from '../../shared/events/publisher'
@@ -11,16 +12,16 @@ export const CreateTicketSchema = z.object({
   contactId: z.string().optional().nullable(),
   tripId: z.string().optional().nullable(),
   quoteId: z.string().optional().nullable(),
-  source: z.nativeEnum(TicketSource).default(TicketSource.MANUAL),
-  priority: z.nativeEnum(TicketPriority).default(TicketPriority.NORMAL),
+  source: z.string().default(TicketSource.MANUAL),
+  priority: z.string().default(TicketPriority.NORMAL),
   title: z.string().min(1).max(255),
   body: z.string().optional().nullable(),
   assignedTo: z.string().optional().nullable(),
 })
 
 export const UpdateTicketSchema = z.object({
-  status: z.nativeEnum(TicketStatus).optional(),
-  priority: z.nativeEnum(TicketPriority).optional(),
+  status: z.string().optional(),
+  priority: z.string().optional(),
   assignedTo: z.string().optional().nullable(),
   title: z.string().optional(),
   body: z.string().optional().nullable(),
@@ -33,9 +34,9 @@ export const AddMessageSchema = z.object({
 })
 
 export const TicketFiltersSchema = z.object({
-  status: z.nativeEnum(TicketStatus).optional(),
-  priority: z.nativeEnum(TicketPriority).optional(),
-  source: z.nativeEnum(TicketSource).optional(),
+  status: z.string().optional(),
+  priority: z.string().optional(),
+  source: z.string().optional(),
   contactId: z.string().optional(),
   tripId: z.string().optional(),
   assignedTo: z.string().optional(),
@@ -187,7 +188,7 @@ export class TicketsService {
     })
   }
 
-  private calcSlaBreachAt(priority: TicketPriority): Date {
+  private calcSlaBreachAt(priority: string): Date {
     const hours: Record<TicketPriority, number> = {
       URGENT: 1,
       HIGH: 4,
@@ -195,6 +196,6 @@ export class TicketsService {
       LOW: 72,
     }
     const now = new Date()
-    return new Date(now.getTime() + (hours[priority] ?? 24) * 60 * 60 * 1000)
+    return new Date(now.getTime() + (hours[priority as TicketPriority] ?? 24) * 60 * 60 * 1000)
   }
 }

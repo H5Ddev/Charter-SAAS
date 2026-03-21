@@ -3,7 +3,7 @@ import { AuthController } from './auth.controller'
 import { authRateLimiter } from '../../shared/middleware/rateLimiter'
 import { requireAuth } from '../../shared/middleware/auth'
 
-export const authRouter = Router()
+export const authRouter: Router = Router()
 const controller = new AuthController()
 
 // Apply strict rate limiting to all auth endpoints

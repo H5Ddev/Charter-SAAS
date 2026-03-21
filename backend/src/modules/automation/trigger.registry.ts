@@ -1,4 +1,5 @@
-import { PrismaClient, AutomationTriggerType } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
+import { AutomationTriggerType } from '../../shared/types/appEnums'
 import { logger } from '../../shared/utils/logger'
 
 export class TriggerRegistry {
@@ -11,8 +12,8 @@ export class TriggerRegistry {
     const automations = await this.prisma.automation.findMany({
       where: {
         tenantId,
-        isEnabled: true,
-        triggerType: eventType as AutomationTriggerType,
+        enabled: true,
+        triggerType: eventType as string,
         deletedAt: null,
       },
       include: {
@@ -34,7 +35,7 @@ export class TriggerRegistry {
         },
         actions: {
           where: { deletedAt: null },
-          orderBy: { order: 'asc' },
+          orderBy: { sequence: 'asc' },
         },
       },
     })

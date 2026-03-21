@@ -20,6 +20,7 @@ export interface PaginationMeta {
   totalPages: number
   hasNextPage: boolean
   hasPrevPage: boolean
+  [key: string]: unknown
 }
 
 export function successResponse<T>(

@@ -1,4 +1,4 @@
-import { ConditionGroupOperator, ConditionOperator } from '@prisma/client'
+import { ConditionGroupOperator, ConditionOperator } from '../../shared/types/appEnums'
 import { resolvePath } from '../notifications/template.engine'
 import { logger } from '../../shared/utils/logger'
 

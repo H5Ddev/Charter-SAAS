@@ -15,7 +15,7 @@ import { logger } from '../../shared/utils/logger'
 import { env } from '../../config/env'
 import { webhookRateLimiter } from '../../shared/middleware/rateLimiter'
 
-export const webhooksRouter = Router()
+export const webhooksRouter: Router = Router()
 
 const prisma = new PrismaClient()
 

@@ -1,8 +1,8 @@
 import { z } from 'zod'
-import { ContactType, PreferredChannel } from '@prisma/client'
+import { ContactType, PreferredChannel } from '../../shared/types/appEnums'
 
 export const CreateContactSchema = z.object({
-  type: z.nativeEnum(ContactType).default(ContactType.PASSENGER),
+  type: z.string().default(ContactType.PASSENGER),
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
   email: z.string().email().optional().nullable(),
@@ -17,14 +17,14 @@ export const CreateContactSchema = z.object({
   zipCode: z.string().optional().nullable(),
   tags: z.array(z.string()).default([]),
   customFields: z.record(z.unknown()).optional().nullable(),
-  preferredChannel: z.nativeEnum(PreferredChannel).default(PreferredChannel.EMAIL),
+  preferredChannel: z.string().default(PreferredChannel.EMAIL),
   doNotContact: z.boolean().default(false),
 })
 
 export const UpdateContactSchema = CreateContactSchema.partial()
 
 export const ContactFiltersSchema = z.object({
-  type: z.nativeEnum(ContactType).optional(),
+  type: z.string().optional(),
   search: z.string().optional(),
   tags: z.string().optional(), // comma-separated
   organizationId: z.string().optional(),

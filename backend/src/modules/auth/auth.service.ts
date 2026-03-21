@@ -48,7 +48,7 @@ export class AuthService {
       throw new AppError(409, 'EMAIL_IN_USE', 'Email address is already registered')
     }
 
-    const passwordHash = await argon2.hash(password, ARGON2_OPTIONS)
+    const passwordHash = await argon2.hash(password, ARGON2_OPTIONS as argon2.Options & { raw?: false })
 
     const user = await this.prisma.user.create({
       data: {
@@ -272,12 +272,14 @@ export class AuthService {
       role: user.role,
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const accessToken = jwt.sign(payload, env.JWT_ACCESS_SECRET, {
-      expiresIn: env.JWT_ACCESS_EXPIRES_IN,
+      expiresIn: env.JWT_ACCESS_EXPIRES_IN as any,
     })
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const refreshToken = jwt.sign(payload, env.JWT_REFRESH_SECRET, {
-      expiresIn: env.JWT_REFRESH_EXPIRES_IN,
+      expiresIn: env.JWT_REFRESH_EXPIRES_IN as any,
     })
 
     // Store refresh token in Redis with TTL matching the token expiry

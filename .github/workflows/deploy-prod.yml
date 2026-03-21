@@ -426,9 +426,11 @@ jobs:
 
     steps:
       - name: Post failure notice to Slack
-        if: ${{ secrets.SLACK_DEPLOY_WEBHOOK != '' }}
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_DEPLOY_WEBHOOK }}
         run: |
-          curl -s -X POST "${{ secrets.SLACK_DEPLOY_WEBHOOK }}" \
+          [ -z "$SLACK_WEBHOOK" ] && exit 0
+          curl -s -X POST "$SLACK_WEBHOOK" \
             -H "Content-Type: application/json" \
             -d '{
               "text": "❌ *AeroComm Production Deploy FAILED*",

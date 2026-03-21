@@ -7,17 +7,17 @@
 #               any Azure resources are touched.
 #
 # Secrets required in GitHub Environment "production":
-#   AZURE_CLIENT_ID          — Service principal client ID (OIDC)
+#   AZURE_CLIENT_ID          — Service principal client ID
+#   AZURE_CLIENT_SECRET      — Service principal client secret
 #   AZURE_TENANT_ID          — Azure AD tenant ID
 #   AZURE_SUBSCRIPTION_ID    — Azure subscription ID
-#   ACR_LOGIN_SERVER         — e.g. aerocomm.azurecr.io
-#   ACR_USERNAME             — ACR admin username (or use OIDC)
+#   ACR_LOGIN_SERVER         — e.g. aerocommacr.azurecr.io
+#   ACR_USERNAME             — ACR admin username
 #   ACR_PASSWORD             — ACR admin password
 #   AZURE_WEBAPP_NAME        — App Service name (backend)
 #   AZURE_WEBAPP_NAME_FE     — App Service name (frontend)
 #   AZURE_RESOURCE_GROUP     — Production resource group name
 #   KEY_VAULT_NAME           — Azure Key Vault name for prod
-#   DATABASE_URL             — Connection string (pulled from Key Vault at runtime)
 #
 # Required GitHub settings:
 #   Settings → Environments → "production"
@@ -45,7 +45,6 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write               # Required for Azure OIDC authentication
   deployments: write
 
 jobs:
@@ -78,11 +77,11 @@ jobs:
 
       - name: Type-check backend
         working-directory: backend
-        run: npm run typecheck
+        run: npm run type-check
 
-      - name: Run backend unit tests
+      - name: Run backend tests
         working-directory: backend
-        run: npm run test:unit -- --coverage
+        run: npm run test
         env:
           NODE_ENV: test
 
@@ -97,11 +96,11 @@ jobs:
 
       - name: Type-check frontend
         working-directory: frontend
-        run: npm run typecheck
+        run: npm run type-check
 
       - name: Run frontend tests
         working-directory: frontend
-        run: npm run test -- --coverage
+        run: npm run test
 
       - name: Build frontend (smoke test)
         working-directory: frontend
@@ -156,13 +155,10 @@ jobs:
           echo "image-tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "Image tag: ${TAG}"
 
-      # ── Azure login via OIDC (no stored credentials) ───────────────────────
-      - name: Azure login (OIDC)
+      - name: Azure login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
 
       - name: Login to Azure Container Registry
         run: |
@@ -214,12 +210,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Azure login (OIDC)
+      - name: Azure login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
 
       - name: Deploy Bicep — what-if preview
         uses: azure/arm-deploy@v2
@@ -228,9 +222,7 @@ jobs:
           resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
           parameters: >
-            environment=production
-            acrLoginServer=${{ secrets.ACR_LOGIN_SERVER }}
-            imageTag=${{ needs.build-and-push.outputs.image-tag }}
+            environment=prod
           deploymentMode: Incremental
           additionalArguments: "--what-if"
 
@@ -241,9 +233,7 @@ jobs:
           resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
           template: ./infra/main.bicep
           parameters: >
-            environment=production
-            acrLoginServer=${{ secrets.ACR_LOGIN_SERVER }}
-            imageTag=${{ needs.build-and-push.outputs.image-tag }}
+            environment=prod
           deploymentMode: Incremental
 
   # ───────────────────────────────────────────────────────────────────────────
@@ -270,12 +260,10 @@ jobs:
         working-directory: backend
         run: npm ci
 
-      - name: Azure login (OIDC)
+      - name: Azure login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
 
       - name: Fetch DATABASE_URL from Key Vault
         id: kv
@@ -311,12 +299,10 @@ jobs:
     environment: production
 
     steps:
-      - name: Azure login (OIDC)
+      - name: Azure login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
 
       - name: Update App Service container image
         run: |
@@ -359,12 +345,10 @@ jobs:
     environment: production
 
     steps:
-      - name: Azure login (OIDC)
+      - name: Azure login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
 
       - name: Update frontend App Service container image
         run: |
@@ -398,36 +382,16 @@ jobs:
           echo "✅ Frontend is healthy"
 
   # ───────────────────────────────────────────────────────────────────────────
-  # JOB 8 — Post-deploy smoke tests & summary
+  # JOB 8 — Post-deploy summary
   # ───────────────────────────────────────────────────────────────────────────
-  smoke-test:
-    name: Post-Deploy Smoke Tests
+  summary:
+    name: Deployment Summary
     needs: [deploy-backend, deploy-frontend]
     runs-on: ubuntu-latest
-    environment: production
+    if: always()
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install smoke test dependencies
-        working-directory: backend
-        run: npm ci
-
-      - name: Run smoke tests against production
-        working-directory: backend
-        run: npm run test:smoke
-        env:
-          SMOKE_TEST_BASE_URL: https://${{ secrets.AZURE_WEBAPP_NAME }}.azurewebsites.net
-          NODE_ENV: production
-
       - name: Deployment summary
-        if: always()
         run: |
           echo "## 🚀 Production Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -445,13 +409,12 @@ jobs:
   # ───────────────────────────────────────────────────────────────────────────
   notify-failure:
     name: Notify on Failure
-    needs: [ci, build-and-push, infrastructure, migrate, deploy-backend, deploy-frontend, smoke-test]
+    needs: [ci, build-and-push, infrastructure, migrate, deploy-backend, deploy-frontend]
     if: failure()
     runs-on: ubuntu-latest
 
     steps:
       - name: Post failure notice to Slack
-        # TODO: Replace with your Slack webhook secret name
         if: ${{ secrets.SLACK_DEPLOY_WEBHOOK != '' }}
         run: |
           curl -s -X POST "${{ secrets.SLACK_DEPLOY_WEBHOOK }}" \

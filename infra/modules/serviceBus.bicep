@@ -18,7 +18,7 @@ var skuName = environment == 'dev' ? 'Basic' : 'Standard'
 // ─────────────────────────────────────────────────────────────────────────────
 
 resource serviceBusNamespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview' = {
-  name: '${prefix}-sb'
+  name: '${prefix}-bus'
   location: location
   tags: tags
   sku: {

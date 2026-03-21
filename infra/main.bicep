@@ -9,6 +9,8 @@ param location string = resourceGroup().location
 param appName string = 'aerocomm'
 
 var prefix = '${appName}-${environment}'
+// Computed ahead of time to break the appService <-> keyVault circular dependency
+var keyVaultUri = 'https://${prefix}-kv${az.environment().suffixes.keyvaultDns}/'
 var tags = {
   environment: environment
   application: appName
@@ -88,7 +90,7 @@ module appService 'modules/appService.bicep' = {
     redisConnectionString: redis.outputs.connectionString
     serviceBusConnectionString: serviceBus.outputs.connectionString
     storageConnectionString: blobStorage.outputs.connectionString
-    keyVaultUrl: keyVault.outputs.vaultUri
+    keyVaultUrl: keyVaultUri
     acrLoginServer: containerRegistry.outputs.loginServer
   }
 }

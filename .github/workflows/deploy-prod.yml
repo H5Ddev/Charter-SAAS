@@ -7,10 +7,8 @@
 #               any Azure resources are touched.
 #
 # Secrets required in GitHub Environment "production":
-#   AZURE_CLIENT_ID          — Service principal client ID
-#   AZURE_CLIENT_SECRET      — Service principal client secret
-#   AZURE_TENANT_ID          — Azure AD tenant ID
-#   AZURE_SUBSCRIPTION_ID    — Azure subscription ID
+#   AZURE_CREDENTIALS        — Full JSON: {"clientId":"…","clientSecret":"…","tenantId":"…","subscriptionId":"…"}
+#   (Previously split across AZURE_CLIENT_ID/SECRET/TENANT_ID/SUBSCRIPTION_ID — now combined into one secret)
 #   ACR_LOGIN_SERVER         — e.g. aerocommacr.azurecr.io
 #   ACR_USERNAME             — ACR admin username
 #   ACR_PASSWORD             — ACR admin password
@@ -169,7 +167,7 @@ jobs:
       - name: Azure login
         uses: azure/login@v2
         with:
-          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Login to Azure Container Registry
         run: |
@@ -224,7 +222,7 @@ jobs:
       - name: Azure login
         uses: azure/login@v2
         with:
-          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy Bicep — what-if preview
         uses: azure/arm-deploy@v2
@@ -274,7 +272,7 @@ jobs:
       - name: Azure login
         uses: azure/login@v2
         with:
-          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Fetch DATABASE_URL from Key Vault
         id: kv
@@ -313,7 +311,7 @@ jobs:
       - name: Azure login
         uses: azure/login@v2
         with:
-          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Update App Service container image
         run: |
@@ -359,7 +357,7 @@ jobs:
       - name: Azure login
         uses: azure/login@v2
         with:
-          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Update frontend App Service container image
         run: |

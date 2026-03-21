@@ -225,27 +225,21 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy Bicep — what-if preview
-        uses: azure/arm-deploy@v2
-        with:
-          scope: resourcegroup
-          resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
-          template: ./infra/main.bicep
-          parameters: >
-            environment=prod
-          deploymentMode: Incremental
-          additionalArguments: "--what-if"
-          failOnStdErr: false
+        run: |
+          az deployment group what-if \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --template-file ./infra/main.bicep \
+            --parameters environment=prod \
+            --only-show-errors
 
       - name: Deploy Bicep — apply
-        uses: azure/arm-deploy@v2
-        with:
-          scope: resourcegroup
-          resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
-          template: ./infra/main.bicep
-          parameters: >
-            environment=prod
-          deploymentMode: Incremental
-          failOnStdErr: false
+        run: |
+          az deployment group create \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --template-file ./infra/main.bicep \
+            --parameters environment=prod \
+            --mode Incremental \
+            --only-show-errors
 
   # ───────────────────────────────────────────────────────────────────────────
   # JOB 5 — Run database migrations (before app deploy)

@@ -234,6 +234,7 @@ jobs:
             environment=prod
           deploymentMode: Incremental
           additionalArguments: "--what-if"
+          failOnStdErr: false
 
       - name: Deploy Bicep — apply
         uses: azure/arm-deploy@v2
@@ -244,6 +245,7 @@ jobs:
           parameters: >
             environment=prod
           deploymentMode: Incremental
+          failOnStdErr: false
 
   # ───────────────────────────────────────────────────────────────────────────
   # JOB 5 — Run database migrations (before app deploy)

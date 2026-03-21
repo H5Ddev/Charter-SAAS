@@ -12,7 +12,7 @@ param tags object
 // ─────────────────────────────────────────────────────────────────────────────
 
 resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
-  name: '${replace(prefix, '-', '')}acr'
+  name: '${replace(prefix, '-', '')}acreg'
   location: location
   tags: tags
   sku: {

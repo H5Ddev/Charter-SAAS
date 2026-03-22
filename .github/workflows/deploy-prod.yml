@@ -229,7 +229,7 @@ jobs:
           az deployment group what-if \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --template-file ./infra/main.bicep \
-            --parameters environment=prod \
+            --parameters environment=prod sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }} \
             --only-show-errors
 
       - name: Deploy Bicep — apply
@@ -237,7 +237,7 @@ jobs:
           az deployment group create \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --template-file ./infra/main.bicep \
-            --parameters environment=prod \
+            --parameters environment=prod sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }} \
             --mode Incremental \
             --only-show-errors
 

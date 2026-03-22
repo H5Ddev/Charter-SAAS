@@ -16,7 +16,7 @@ param adminLogin string = 'aerocommadmin'
 
 @description('SQL administrator password')
 @secure()
-param adminPassword string = newGuid()
+param adminPassword string
 
 // SKU based on environment
 var skuName = environment == 'dev' ? 'S2' : environment == 'staging' ? 'S4' : 'P2'

@@ -8,6 +8,10 @@ param location string = resourceGroup().location
 @description('Application name used for resource naming')
 param appName string = 'aerocomm'
 
+@description('SQL administrator password — pass from GitHub secret SQL_ADMIN_PASSWORD')
+@secure()
+param sqlAdminPassword string
+
 var prefix = '${appName}-${environment}'
 // Computed ahead of time to break the appService <-> keyVault circular dependency
 var keyVaultUri = 'https://${prefix}-kv${az.environment().suffixes.keyvaultDns}/'
@@ -28,6 +32,7 @@ module sqlDatabase 'modules/sqlDatabase.bicep' = {
     location: location
     environment: environment
     tags: tags
+    adminPassword: sqlAdminPassword
   }
 }
 

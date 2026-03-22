@@ -43,4 +43,4 @@ resource redisCache 'Microsoft.Cache/redis@2023-08-01' = {
 
 output hostName string = redisCache.properties.hostName
 output sslPort int = redisCache.properties.sslPort
-output connectionString string = '${redisCache.properties.hostName}:${redisCache.properties.sslPort},password=${redisCache.listKeys().primaryKey},ssl=True,abortConnect=False'
+output connectionString string = 'rediss://:${redisCache.listKeys().primaryKey}@${redisCache.properties.hostName}:${redisCache.properties.sslPort}'

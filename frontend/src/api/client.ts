@@ -40,7 +40,13 @@ function processQueue(error: unknown, token: string | null) {
 }
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Unwrap backend { success: true, data: T } envelope so callers get T directly
+    if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+      response.data = response.data.data
+    }
+    return response
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
 

@@ -28,6 +28,17 @@ param keyVaultUrl string
 @description('ACR login server')
 param acrLoginServer string
 
+@description('JWT access token secret (min 32 chars)')
+@secure()
+param jwtAccessSecret string
+
+@description('JWT refresh token secret (min 32 chars)')
+@secure()
+param jwtRefreshSecret string
+
+@description('Allowed CORS origins (comma-separated)')
+param corsOrigins string
+
 // SKU selection based on environment
 var appServiceSkuName = environment == 'dev' ? 'B2' : 'P2v3'
 var appServiceSkuTier = environment == 'dev' ? 'Basic' : 'PremiumV3'
@@ -109,6 +120,18 @@ resource backendApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'DOCKER_REGISTRY_SERVER_URL'
           value: 'https://${acrLoginServer}'
+        }
+        {
+          name: 'JWT_ACCESS_SECRET'
+          value: jwtAccessSecret
+        }
+        {
+          name: 'JWT_REFRESH_SECRET'
+          value: jwtRefreshSecret
+        }
+        {
+          name: 'CORS_ORIGINS'
+          value: corsOrigins
         }
       ]
     }

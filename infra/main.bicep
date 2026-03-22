@@ -12,6 +12,17 @@ param appName string = 'aerocomm'
 @secure()
 param sqlAdminPassword string
 
+@description('JWT access token secret — pass from GitHub secret JWT_ACCESS_SECRET')
+@secure()
+param jwtAccessSecret string
+
+@description('JWT refresh token secret — pass from GitHub secret JWT_REFRESH_SECRET')
+@secure()
+param jwtRefreshSecret string
+
+@description('Allowed CORS origins — pass from GitHub secret CORS_ORIGINS')
+param corsOrigins string = 'https://${appName}-prod-frontend.azurewebsites.net'
+
 var prefix = '${appName}-${environment}'
 // Computed ahead of time to break the appService <-> keyVault circular dependency
 var keyVaultUri = 'https://${prefix}-kv${az.environment().suffixes.keyvaultDns}/'
@@ -97,6 +108,9 @@ module appService 'modules/appService.bicep' = {
     storageConnectionString: blobStorage.outputs.connectionString
     keyVaultUrl: keyVaultUri
     acrLoginServer: containerRegistry.outputs.loginServer
+    jwtAccessSecret: jwtAccessSecret
+    jwtRefreshSecret: jwtRefreshSecret
+    corsOrigins: corsOrigins
   }
 }
 

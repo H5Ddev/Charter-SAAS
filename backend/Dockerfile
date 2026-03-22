@@ -32,8 +32,8 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Install runtime dependencies only
-RUN apk add --no-cache python3 make g++
+# Install runtime dependencies (openssl required by Prisma at runtime on Alpine 3.19+)
+RUN apk add --no-cache openssl python3 make g++
 
 # Copy package files
 COPY package*.json ./

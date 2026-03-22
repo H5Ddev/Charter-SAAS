@@ -225,19 +225,23 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy Bicep — what-if preview
+        env:
+          SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
         run: |
           az deployment group what-if \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --template-file ./infra/main.bicep \
-            --parameters environment=prod sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }} \
+            --parameters environment=prod "sqlAdminPassword=$SQL_ADMIN_PASSWORD" \
             --only-show-errors
 
       - name: Deploy Bicep — apply
+        env:
+          SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
         run: |
           az deployment group create \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --template-file ./infra/main.bicep \
-            --parameters environment=prod sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }} \
+            --parameters environment=prod "sqlAdminPassword=$SQL_ADMIN_PASSWORD" \
             --mode Incremental \
             --only-show-errors
 
@@ -299,7 +303,7 @@ jobs:
   # ───────────────────────────────────────────────────────────────────────────
   deploy-backend:
     name: Deploy Backend → Azure App Service
-    needs: migrate
+    needs: [migrate, build-and-push]
     runs-on: ubuntu-latest
     environment: production
 
@@ -347,7 +351,7 @@ jobs:
   # ───────────────────────────────────────────────────────────────────────────
   deploy-frontend:
     name: Deploy Frontend → Azure App Service
-    needs: deploy-backend       # Frontend deploys after backend is confirmed healthy
+    needs: [deploy-backend, build-and-push]  # build-and-push listed to access image-tag output
     runs-on: ubuntu-latest
     environment: production
 
@@ -395,7 +399,7 @@ jobs:
   # ───────────────────────────────────────────────────────────────────────────
   summary:
     name: Deployment Summary
-    needs: [deploy-backend, deploy-frontend]
+    needs: [deploy-backend, deploy-frontend, build-and-push]
     runs-on: ubuntu-latest
     if: always()
 

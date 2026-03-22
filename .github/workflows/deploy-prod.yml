@@ -315,7 +315,9 @@ jobs:
             --name ${{ secrets.AZURE_WEBAPP_NAME }} \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --docker-custom-image-name ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-backend:${{ needs.build-and-push.outputs.image-tag }} \
-            --docker-registry-server-url https://${{ secrets.ACR_LOGIN_SERVER }}
+            --docker-registry-server-url https://${{ secrets.ACR_LOGIN_SERVER }} \
+            --docker-registry-server-user ${{ secrets.ACR_USERNAME }} \
+            --docker-registry-server-password ${{ secrets.ACR_PASSWORD }}
 
       - name: Restart backend App Service
         run: |
@@ -361,7 +363,9 @@ jobs:
             --name ${{ secrets.AZURE_WEBAPP_NAME_FE }} \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --docker-custom-image-name ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-frontend:${{ needs.build-and-push.outputs.image-tag }} \
-            --docker-registry-server-url https://${{ secrets.ACR_LOGIN_SERVER }}
+            --docker-registry-server-url https://${{ secrets.ACR_LOGIN_SERVER }} \
+            --docker-registry-server-user ${{ secrets.ACR_USERNAME }} \
+            --docker-registry-server-password ${{ secrets.ACR_PASSWORD }}
 
       - name: Restart frontend App Service
         run: |

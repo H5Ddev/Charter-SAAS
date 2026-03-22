@@ -178,6 +178,7 @@ jobs:
         working-directory: backend
         run: |
           docker build \
+            --target production \
             --tag ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-backend:${{ steps.meta.outputs.image-tag }} \
             --tag ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-backend:latest \
             --build-arg NODE_ENV=production \

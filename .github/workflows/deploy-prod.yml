@@ -195,6 +195,7 @@ jobs:
         working-directory: frontend
         run: |
           docker build \
+            --target production \
             --tag ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-frontend:${{ steps.meta.outputs.image-tag }} \
             --tag ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-frontend:latest \
             --build-arg VITE_API_URL=https://${{ secrets.AZURE_WEBAPP_NAME }}.azurewebsites.net \

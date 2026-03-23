@@ -41,9 +41,13 @@ function processQueue(error: unknown, token: string | null) {
 
 apiClient.interceptors.response.use(
   (response) => {
-    // Unwrap backend { success: true, data: T } envelope so callers get T directly
+    // Unwrap backend { success: true, data: T, meta? } envelope
+    // Paginated responses keep { data, meta } shape; singular responses unwrap to T directly
     if (response.data && typeof response.data === 'object' && 'success' in response.data) {
-      response.data = response.data.data
+      const envelope = response.data as { success: true; data: unknown; meta?: unknown }
+      response.data = envelope.meta !== undefined
+        ? { data: envelope.data, meta: envelope.meta }
+        : envelope.data
     }
     return response
   },

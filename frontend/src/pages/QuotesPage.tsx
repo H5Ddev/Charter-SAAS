@@ -6,6 +6,7 @@ import { Table, type Column } from '@/components/ui/Table'
 import { Badge, quoteStatusBadge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { PlusIcon } from '@heroicons/react/20/solid'
+import { NewQuoteModal } from '@/components/quotes/NewQuoteModal'
 
 type QuoteStatus = 'DRAFT' | 'SENT' | 'VIEWED' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED'
 
@@ -61,6 +62,7 @@ function isExpired(dateStr: string | null): boolean {
 export default function QuotesPage() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<QuoteStatus | ''>('')
+  const [newQuoteOpen, setNewQuoteOpen] = useState(false)
 
   const { data, isLoading } = useQuotes({
     page,
@@ -136,7 +138,7 @@ export default function QuotesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Quotes</h1>
           <p className="text-sm text-gray-500 mt-0.5">{data?.meta.total ?? 0} total</p>
         </div>
-        <Button size="md">
+        <Button size="md" onClick={() => setNewQuoteOpen(true)}>
           <PlusIcon className="h-4 w-4 mr-1.5" />
           New Quote
         </Button>
@@ -168,6 +170,11 @@ export default function QuotesPage() {
         emptyMessage="No quotes found. Create your first quote to get started."
         pagination={data?.meta}
         onPageChange={setPage}
+      />
+
+      <NewQuoteModal
+        isOpen={newQuoteOpen}
+        onClose={() => setNewQuoteOpen(false)}
       />
     </div>
   )

@@ -298,6 +298,12 @@ jobs:
           npx prisma migrate deploy
           echo "✅ Migrations applied successfully"
 
+      - name: Seed database (idempotent — upsert only)
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ steps.kv.outputs.database-url }}
+        run: npx prisma db seed
+
       - name: Verify migration status
         working-directory: backend
         env:

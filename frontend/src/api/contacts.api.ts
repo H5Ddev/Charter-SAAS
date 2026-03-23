@@ -55,7 +55,7 @@ export function useContact(id: string) {
   return useQuery({
     queryKey: [CONTACTS_KEY, id],
     queryFn: async () => {
-      const response = await apiClient.get<{ data: Contact }>(`/contacts/${id}`)
+      const response = await apiClient.get<Contact>(`/contacts/${id}`)
       return response.data
     },
     enabled: !!id,

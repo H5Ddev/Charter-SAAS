@@ -87,7 +87,7 @@ export function useNotificationTemplate(id: string) {
   return useQuery({
     queryKey: [TEMPLATES_KEY, id],
     queryFn: async () => {
-      const response = await apiClient.get<{ data: NotificationTemplate }>(
+      const response = await apiClient.get<NotificationTemplate>(
         `/notifications/templates/${id}`
       )
       return response.data
@@ -173,7 +173,7 @@ export function useSendNotification() {
       recipientId: string
       variables?: Record<string, string>
     }) => {
-      const response = await apiClient.post<{ data: { messageId: string; status: string } }>(
+      const response = await apiClient.post<{ messageId: string; status: string }>(
         '/notifications/send',
         { templateId, recipientId, variables }
       )

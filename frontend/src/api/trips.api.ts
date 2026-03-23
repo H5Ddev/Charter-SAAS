@@ -112,7 +112,7 @@ export function useTrip(id: string) {
   return useQuery({
     queryKey: [TRIPS_KEY, id],
     queryFn: async () => {
-      const response = await apiClient.get<{ data: Trip }>(`/trips/${id}`)
+      const response = await apiClient.get<Trip>(`/trips/${id}`)
       return response.data
     },
     enabled: !!id,

@@ -178,7 +178,7 @@ export function useAutomation(id: string) {
   return useQuery({
     queryKey: [AUTOMATIONS_KEY, id],
     queryFn: async () => {
-      const response = await apiClient.get<{ data: Automation }>(`/automations/${id}`)
+      const response = await apiClient.get<Automation>(`/automations/${id}`)
       return response.data
     },
     enabled: !!id,

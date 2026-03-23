@@ -113,7 +113,7 @@ export function useTrip(id: string) {
     queryKey: [TRIPS_KEY, id],
     queryFn: async () => {
       const response = await apiClient.get<{ data: Trip }>(`/trips/${id}`)
-      return response.data.data
+      return response.data
     },
     enabled: !!id,
   })
@@ -124,8 +124,8 @@ export function useCreateTrip() {
 
   return useMutation({
     mutationFn: async (data: CreateTripInput) => {
-      const response = await apiClient.post<{ data: Trip }>('/trips', data)
-      return response.data.data
+      const response = await apiClient.post<Trip>('/trips', data)
+      return response.data
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [TRIPS_KEY] })
@@ -138,8 +138,8 @@ export function useUpdateTripStatus() {
 
   return useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: TripStatus; notes?: string }) => {
-      const response = await apiClient.patch<{ data: Trip }>(`/trips/${id}/status`, { status, notes })
-      return response.data.data
+      const response = await apiClient.patch<Trip>(`/trips/${id}/status`, { status, notes })
+      return response.data
     },
     onSuccess: (_data, { id }) => {
       void queryClient.invalidateQueries({ queryKey: [TRIPS_KEY] })
@@ -153,8 +153,8 @@ export function useFlagDelay() {
 
   return useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      const response = await apiClient.post<{ data: Trip }>(`/trips/${id}/delay`, { reason })
-      return response.data.data
+      const response = await apiClient.post<Trip>(`/trips/${id}/delay`, { reason })
+      return response.data
     },
     onSuccess: (_data, { id }) => {
       void queryClient.invalidateQueries({ queryKey: [TRIPS_KEY] })
@@ -176,11 +176,11 @@ export function useAddTripPassenger() {
       contactId: string
       isSupervisor?: boolean
     }) => {
-      const response = await apiClient.post<{ data: TripPassenger }>(
+      const response = await apiClient.post<TripPassenger>(
         `/trips/${tripId}/passengers`,
         { contactId, isSupervisor }
       )
-      return response.data.data
+      return response.data
     },
     onSuccess: (_data, { tripId }) => {
       void queryClient.invalidateQueries({ queryKey: [TRIPS_KEY, tripId] })

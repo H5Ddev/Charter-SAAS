@@ -43,10 +43,8 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: async (payload: LoginPayload) => {
-      const response = await apiClient.post<{
-        data: LoginResponse | MfaRequiredResponse
-      }>('/auth/login', payload)
-      return response.data.data
+      const response = await apiClient.post<LoginResponse | MfaRequiredResponse>('/auth/login', payload)
+      return response.data
     },
     onSuccess: (data) => {
       if (!('mfaRequired' in data)) {
@@ -61,8 +59,8 @@ export function useMfaVerify() {
 
   return useMutation({
     mutationFn: async (payload: MfaVerifyPayload) => {
-      const response = await apiClient.post<{ data: LoginResponse }>('/auth/mfa/verify', payload)
-      return response.data.data
+      const response = await apiClient.post<LoginResponse>('/auth/mfa/verify', payload)
+      return response.data
     },
     onSuccess: (data) => {
       login(data.user, data.accessToken)
@@ -73,8 +71,8 @@ export function useMfaVerify() {
 export function useMfaSetup() {
   return useMutation({
     mutationFn: async () => {
-      const response = await apiClient.post<{ data: MfaSetupResponse }>('/auth/mfa/setup')
-      return response.data.data
+      const response = await apiClient.post<MfaSetupResponse>('/auth/mfa/setup')
+      return response.data
     },
   })
 }
@@ -82,10 +80,10 @@ export function useMfaSetup() {
 export function useRefreshToken() {
   return useMutation({
     mutationFn: async () => {
-      const response = await apiClient.post<{ data: { accessToken: string; expiresIn: number } }>(
+      const response = await apiClient.post<{ accessToken: string; expiresIn: number }>(
         '/auth/refresh',
       )
-      return response.data.data
+      return response.data
     },
     onSuccess: (data) => {
       useAuthStore.getState().setAccessToken(data.accessToken)
@@ -115,8 +113,8 @@ export function useRegister() {
 
   return useMutation({
     mutationFn: async (payload: RegisterPayload) => {
-      const response = await apiClient.post<{ data: LoginResponse }>('/auth/register', payload)
-      return response.data.data
+      const response = await apiClient.post<LoginResponse>('/auth/register', payload)
+      return response.data
     },
     onSuccess: (data) => {
       login(data.user, data.accessToken)

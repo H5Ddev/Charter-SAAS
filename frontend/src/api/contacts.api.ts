@@ -56,7 +56,7 @@ export function useContact(id: string) {
     queryKey: [CONTACTS_KEY, id],
     queryFn: async () => {
       const response = await apiClient.get<{ data: Contact }>(`/contacts/${id}`)
-      return response.data.data
+      return response.data
     },
     enabled: !!id,
   })
@@ -67,8 +67,8 @@ export function useCreateContact() {
 
   return useMutation({
     mutationFn: async (data: Partial<Contact>) => {
-      const response = await apiClient.post<{ data: Contact }>('/contacts', data)
-      return response.data.data
+      const response = await apiClient.post<Contact>('/contacts', data)
+      return response.data
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [CONTACTS_KEY] })
@@ -81,8 +81,8 @@ export function useUpdateContact() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Contact> }) => {
-      const response = await apiClient.patch<{ data: Contact }>(`/contacts/${id}`, data)
-      return response.data.data
+      const response = await apiClient.patch<Contact>(`/contacts/${id}`, data)
+      return response.data
     },
     onSuccess: (_data, { id }) => {
       void queryClient.invalidateQueries({ queryKey: [CONTACTS_KEY] })

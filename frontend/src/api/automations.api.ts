@@ -179,7 +179,7 @@ export function useAutomation(id: string) {
     queryKey: [AUTOMATIONS_KEY, id],
     queryFn: async () => {
       const response = await apiClient.get<{ data: Automation }>(`/automations/${id}`)
-      return response.data.data
+      return response.data
     },
     enabled: !!id,
   })
@@ -190,8 +190,8 @@ export function useCreateAutomation() {
 
   return useMutation({
     mutationFn: async (data: CreateAutomationInput) => {
-      const response = await apiClient.post<{ data: Automation }>('/automations', data)
-      return response.data.data
+      const response = await apiClient.post<Automation>('/automations', data)
+      return response.data
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [AUTOMATIONS_KEY] })
@@ -210,8 +210,8 @@ export function useUpdateAutomation() {
       id: string
       data: Partial<CreateAutomationInput>
     }) => {
-      const response = await apiClient.patch<{ data: Automation }>(`/automations/${id}`, data)
-      return response.data.data
+      const response = await apiClient.patch<Automation>(`/automations/${id}`, data)
+      return response.data
     },
     onSuccess: (_data, { id }) => {
       void queryClient.invalidateQueries({ queryKey: [AUTOMATIONS_KEY] })
@@ -238,8 +238,8 @@ export function useToggleAutomation() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiClient.post<{ data: Automation }>(`/automations/${id}/toggle`)
-      return response.data.data
+      const response = await apiClient.post<Automation>(`/automations/${id}/toggle`)
+      return response.data
     },
     onSuccess: (_data, id) => {
       void queryClient.invalidateQueries({ queryKey: [AUTOMATIONS_KEY] })
@@ -251,11 +251,11 @@ export function useToggleAutomation() {
 export function useDryRunAutomation() {
   return useMutation({
     mutationFn: async ({ id, context }: { id: string; context: Record<string, unknown> }) => {
-      const response = await apiClient.post<{ data: DryRunResult }>(
+      const response = await apiClient.post<DryRunResult>(
         `/automations/${id}/dry-run`,
         { context }
       )
-      return response.data.data
+      return response.data
     },
   })
 }

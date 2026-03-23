@@ -90,7 +90,7 @@ export function useNotificationTemplate(id: string) {
       const response = await apiClient.get<{ data: NotificationTemplate }>(
         `/notifications/templates/${id}`
       )
-      return response.data.data
+      return response.data
     },
     enabled: !!id,
   })
@@ -101,11 +101,11 @@ export function useCreateTemplate() {
 
   return useMutation({
     mutationFn: async (data: CreateTemplateInput) => {
-      const response = await apiClient.post<{ data: NotificationTemplate }>(
+      const response = await apiClient.post<NotificationTemplate>(
         '/notifications/templates',
         data
       )
-      return response.data.data
+      return response.data
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [TEMPLATES_KEY] })
@@ -124,11 +124,11 @@ export function useUpdateTemplate() {
       id: string
       data: Partial<CreateTemplateInput>
     }) => {
-      const response = await apiClient.patch<{ data: NotificationTemplate }>(
+      const response = await apiClient.patch<NotificationTemplate>(
         `/notifications/templates/${id}`,
         data
       )
-      return response.data.data
+      return response.data
     },
     onSuccess: (_data, { id }) => {
       void queryClient.invalidateQueries({ queryKey: [TEMPLATES_KEY] })
@@ -153,11 +153,11 @@ export function useDeleteTemplate() {
 export function usePreviewTemplate() {
   return useMutation({
     mutationFn: async (input: PreviewTemplateInput) => {
-      const response = await apiClient.post<{ data: PreviewResult }>(
+      const response = await apiClient.post<PreviewResult>(
         '/notifications/templates/preview',
         input
       )
-      return response.data.data
+      return response.data
     },
   })
 }
@@ -177,7 +177,7 @@ export function useSendNotification() {
         '/notifications/send',
         { templateId, recipientId, variables }
       )
-      return response.data.data
+      return response.data
     },
   })
 }

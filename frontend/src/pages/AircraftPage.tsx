@@ -7,31 +7,20 @@ import { Badge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { PlusIcon } from '@heroicons/react/20/solid'
 import { AddAircraftModal } from '@/components/aircraft/AddAircraftModal'
-import type { Aircraft } from '@/api/aircraft.api'
+import { normalizeAircraft, type Aircraft } from '@/api/aircraft.api'
 
 function useAircraft(filters: { page?: number; pageSize?: number; isActive?: boolean }) {
   return useQuery({
     queryKey: ['aircraft', filters],
     queryFn: async () => {
       const response = await apiClient.get<{
-        data: Array<{ id: string; tailNumber: string; make: string; model: string; year: number | null; seats: number; rangeNm: number | null; isActive: boolean; homeBaseIcao: string | null; createdAt: string }>
+        data: Array<{ id: string; tailNumber: string; make: string; model: string; year: number | null; seats: number; rangeNm: number | null; isActive: boolean; homeBaseIcao: string | null; costPerHour: number | string | null; hourlyRate: number | string | null; createdAt: string }>
         meta: { total: number; page: number; pageSize: number; totalPages: number }
       }>('/aircraft', { params: filters })
       const raw = response.data
       return {
         ...raw,
-        data: raw.data.map((a) => ({
-          id: a.id,
-          registration: a.tailNumber,
-          make: a.make,
-          model: a.model,
-          year: a.year,
-          seatingCapacity: a.seats,
-          rangeNm: a.rangeNm,
-          isActive: a.isActive,
-          homeBaseIcao: a.homeBaseIcao,
-          createdAt: a.createdAt,
-        })) as Aircraft[],
+        data: raw.data.map((a) => normalizeAircraft(a as Parameters<typeof normalizeAircraft>[0])) as Aircraft[],
       }
     },
   })
@@ -92,6 +81,20 @@ export default function AircraftPage() {
       header: 'Home Base',
       render: (a) => a.homeBaseIcao
         ? <span className="font-mono font-medium text-gray-900 text-sm">{a.homeBaseIcao}</span>
+        : <span className="text-gray-400 text-sm">—</span>,
+    },
+    {
+      key: 'hourlyRate',
+      header: 'Client Rate',
+      render: (a) => a.hourlyRate != null
+        ? <span className="text-sm font-medium text-gray-900 tabular-nums">${a.hourlyRate.toLocaleString()}<span className="text-gray-400 font-normal">/hr</span></span>
+        : <span className="text-gray-400 text-sm">—</span>,
+    },
+    {
+      key: 'costPerHour',
+      header: 'Cost/Hr',
+      render: (a) => a.costPerHour != null
+        ? <span className="text-sm text-gray-600 tabular-nums">${a.costPerHour.toLocaleString()}</span>
         : <span className="text-gray-400 text-sm">—</span>,
     },
     {

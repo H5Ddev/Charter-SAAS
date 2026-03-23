@@ -1,9 +1,12 @@
 import { useState, useCallback } from 'react'
 import { clsx } from 'clsx'
+import { useQuery } from '@tanstack/react-query'
 import { Modal } from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import { useContacts } from '@/api/contacts.api'
 import { useCreateQuote, type QuoteLineItemInput } from '@/api/quotes.api'
+import { normalizeAircraft } from '@/api/aircraft.api'
+import { apiClient } from '@/api/client'
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 
 interface Props {
@@ -41,6 +44,13 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
   const [notes, setNotes] = useState('')
   const [lineItems, setLineItems] = useState<QuoteLineItemInput[]>([])
 
+  // Aircraft selection for rate-based pricing
+  const [aircraftSearch, setAircraftSearch] = useState('')
+  const [aircraftId, setAircraftId] = useState('')
+  const [selectedHourlyRate, setSelectedHourlyRate] = useState<number | null>(null)
+  const [showAircraftDropdown, setShowAircraftDropdown] = useState(false)
+  const [estimatedHours, setEstimatedHours] = useState('')
+
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const { data: contactsData } = useContacts({
@@ -49,6 +59,19 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
   })
   const contacts = contactsData?.data ?? []
 
+  const { data: aircraftListData } = useQuery({
+    queryKey: ['aircraft-picker', aircraftSearch],
+    queryFn: async () => {
+      const response = await apiClient.get<{ data: unknown[] }>('/aircraft', {
+        params: { isActive: true, pageSize: 10, search: aircraftSearch || undefined },
+      })
+      const raw = response.data as { data: unknown[] }
+      return (raw.data as Parameters<typeof normalizeAircraft>[0][]).map(normalizeAircraft)
+    },
+    enabled: showAircraftDropdown,
+  })
+  const aircraftList = aircraftListData ?? []
+
   const createQuote = useCreateQuote()
 
   const lineItemsTotal = lineItems.reduce(
@@ -56,6 +79,24 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
     0,
   )
   const grandTotal = (parseFloat(basePrice) || 0) + lineItemsTotal
+
+  function selectAircraft(id: string, label: string, rate: number | null) {
+    setAircraftId(id)
+    setAircraftSearch(label)
+    setSelectedHourlyRate(rate)
+    setShowAircraftDropdown(false)
+    // Auto-fill base price if we have both rate and hours
+    if (rate && estimatedHours) {
+      setBasePrice((rate * parseFloat(estimatedHours)).toFixed(2))
+    }
+  }
+
+  function handleHoursChange(val: string) {
+    setEstimatedHours(val)
+    if (selectedHourlyRate && val) {
+      setBasePrice((selectedHourlyRate * parseFloat(val)).toFixed(2))
+    }
+  }
 
   function selectContact(id: string, name: string) {
     setContactId(id)
@@ -117,6 +158,11 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
     setValidUntil('')
     setNotes('')
     setLineItems([])
+    setAircraftSearch('')
+    setAircraftId('')
+    setSelectedHourlyRate(null)
+    setShowAircraftDropdown(false)
+    setEstimatedHours('')
     setErrors({})
     onClose()
   }, [onClose])
@@ -189,6 +235,75 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
               No contacts found
             </div>
           )}
+        </div>
+
+        {/* Aircraft + estimated hours (optional, auto-fills base price) */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Aircraft
+              <span className="ml-1.5 text-xs text-gray-400 font-normal">(optional)</span>
+            </label>
+            <input
+              type="text"
+              placeholder="Search aircraft…"
+              value={aircraftSearch}
+              onChange={(e) => {
+                setAircraftSearch(e.target.value)
+                setAircraftId('')
+                setSelectedHourlyRate(null)
+                setShowAircraftDropdown(true)
+              }}
+              onFocus={() => setShowAircraftDropdown(true)}
+              onBlur={() => setTimeout(() => setShowAircraftDropdown(false), 150)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            {showAircraftDropdown && aircraftList.length > 0 && (
+              <ul className="absolute z-10 mt-1 w-full bg-white rounded-md border border-gray-200 shadow-lg max-h-40 overflow-y-auto">
+                {aircraftList.map((a) => (
+                  <li key={a.id}>
+                    <button
+                      type="button"
+                      onMouseDown={() => selectAircraft(
+                        a.id,
+                        `${a.registration} — ${a.make} ${a.model}`,
+                        a.hourlyRate,
+                      )}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 transition-colors"
+                    >
+                      <span className="font-mono font-semibold text-gray-900">{a.registration}</span>
+                      <span className="ml-2 text-gray-500">{a.make} {a.model}</span>
+                      {a.hourlyRate != null && (
+                        <span className="ml-auto float-right text-xs text-primary-600 font-medium">
+                          ${a.hourlyRate.toLocaleString()}/hr
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {selectedHourlyRate != null && (
+              <p className="mt-1 text-xs text-primary-600 font-medium">
+                Rate: ${selectedHourlyRate.toLocaleString()}/hr
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Est. Flight Hours
+              <span className="ml-1.5 text-xs text-gray-400 font-normal">(auto-fills price)</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              placeholder="e.g. 3.5"
+              value={estimatedHours}
+              onChange={(e) => handleHoursChange(e.target.value)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
         </div>
 
         {/* Base price + currency + valid until */}

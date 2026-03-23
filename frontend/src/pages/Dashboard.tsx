@@ -165,7 +165,7 @@ export default function Dashboard() {
             />
             <StatCard
               label="Total Contacts"
-              value={contactsData?.meta.total ?? '—'}
+              value={contactsData?.meta?.total ?? '—'}
               sub="Owners & passengers"
               iconBg="bg-green-50 text-green-600"
               icon={<UsersIcon20 />}

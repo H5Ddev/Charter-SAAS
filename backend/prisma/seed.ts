@@ -469,12 +469,12 @@ async function seedAutomationRules() {
       where: { automationId: automation.id },
       update: {
         eventType: rule.trigger.eventType as never,
-        filters: rule.trigger.filters,
+        filters: JSON.stringify(rule.trigger.filters),
       },
       create: {
         automationId: automation.id,
         eventType: rule.trigger.eventType as never,
-        filters: rule.trigger.filters,
+        filters: JSON.stringify(rule.trigger.filters),
       },
     });
 
@@ -516,7 +516,7 @@ async function seedAutomationRules() {
           actionType: action.actionType,
           delayRelativeTo: action.delayRelativeTo,
           delayOffsetMs: action.delayOffsetMs,
-          config: action.config,
+          config: JSON.stringify(action.config),
         },
       });
     }

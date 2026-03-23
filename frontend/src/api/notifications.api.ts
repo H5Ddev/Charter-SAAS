@@ -70,6 +70,10 @@ interface PaginatedResponse<T> {
 
 const TEMPLATES_KEY = 'notification-templates'
 
+function normalizeTemplate(t: NotificationTemplate): NotificationTemplate {
+  return { ...t, variables: t.variables ?? [] }
+}
+
 export function useNotificationTemplates(filters?: TemplateFilters) {
   return useQuery({
     queryKey: [TEMPLATES_KEY, filters],
@@ -78,7 +82,8 @@ export function useNotificationTemplates(filters?: TemplateFilters) {
         '/notifications/templates',
         { params: filters }
       )
-      return response.data
+      const raw = response.data
+      return { ...raw, data: raw.data.map(normalizeTemplate) }
     },
   })
 }
@@ -90,7 +95,7 @@ export function useNotificationTemplate(id: string) {
       const response = await apiClient.get<NotificationTemplate>(
         `/notifications/templates/${id}`
       )
-      return response.data
+      return normalizeTemplate(response.data)
     },
     enabled: !!id,
   })

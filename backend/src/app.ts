@@ -36,6 +36,9 @@ import { webhooksRouter } from './modules/webhooks/router'
 export const app: express.Application = express()
 export const httpServer = createServer(app)
 
+// Trust Azure App Service / load balancer proxy (fixes X-Forwarded-For for rate limiting)
+app.set('trust proxy', 1)
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Socket.io
 // ─────────────────────────────────────────────────────────────────────────────

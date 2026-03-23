@@ -14,6 +14,8 @@ COPY . .
 # Expose build-time env vars to Vite (must be declared as ARG then ENV)
 ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ARG VITE_TENANT_ID
+ENV VITE_TENANT_ID=$VITE_TENANT_ID
 
 RUN npm run build
 

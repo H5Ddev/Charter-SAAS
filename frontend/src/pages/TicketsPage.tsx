@@ -6,6 +6,7 @@ import { Table, type Column } from '@/components/ui/Table'
 import { Badge, ticketStatusBadge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { PlusIcon, ExclamationTriangleIcon } from '@heroicons/react/20/solid'
+import { NewTicketModal } from '@/components/tickets/NewTicketModal'
 
 type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'PENDING_CUSTOMER' | 'RESOLVED' | 'CLOSED'
 type TicketPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
@@ -62,6 +63,7 @@ function useTickets(filters: { status?: string; page?: number; pageSize?: number
 export default function TicketsPage() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<TicketStatus | ''>('')
+  const [newTicketOpen, setNewTicketOpen] = useState(false)
 
   const { data, isLoading } = useTickets({
     page,
@@ -141,7 +143,7 @@ export default function TicketsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Tickets</h1>
           <p className="text-sm text-gray-500 mt-0.5">{data?.meta.total ?? 0} total</p>
         </div>
-        <Button size="md">
+        <Button size="md" onClick={() => setNewTicketOpen(true)}>
           <PlusIcon className="h-4 w-4 mr-1.5" />
           New Ticket
         </Button>
@@ -174,6 +176,11 @@ export default function TicketsPage() {
         pagination={data?.meta}
         onPageChange={setPage}
         rowClassName={(t) => t.slaBreach ? 'bg-red-50/40' : ''}
+      />
+
+      <NewTicketModal
+        isOpen={newTicketOpen}
+        onClose={() => setNewTicketOpen(false)}
       />
     </div>
   )

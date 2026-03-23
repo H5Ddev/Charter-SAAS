@@ -1,6 +1,13 @@
 import rateLimit from 'express-rate-limit'
+import { Request } from 'express'
 import { env } from '../../config/env'
 import { errorResponse } from '../utils/response'
+
+// Azure App Service forwards X-Forwarded-For as "ip:port" — strip the port
+const keyGenerator = (req: Request): string => {
+  const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown'
+  return ip.includes(':') && !ip.startsWith('[') ? ip.split(':')[0] : ip
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Standard API rate limiter: 100 requests per 15 minutes
@@ -10,6 +17,7 @@ export const apiRateLimiter = rateLimit({
   max: env.RATE_LIMIT_MAX,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator,
   handler: (_req, res) => {
     res.status(429).json(
       errorResponse(
@@ -32,6 +40,7 @@ export const authRateLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator,
   message: errorResponse(
     'AUTH_RATE_LIMIT_EXCEEDED',
     'Too many authentication attempts. Please try again in 15 minutes.',
@@ -55,6 +64,7 @@ export const webhookRateLimiter = rateLimit({
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator,
   handler: (_req, res) => {
     res.status(429).json(
       errorResponse('WEBHOOK_RATE_LIMIT_EXCEEDED', 'Too many webhook requests'),

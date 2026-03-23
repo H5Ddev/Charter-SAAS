@@ -15,6 +15,7 @@ import {
   UserGroupIcon,
   ClipboardDocumentListIcon,
   CalendarDaysIcon,
+  UsersIcon as UsersManageIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/store/auth.store'
 
@@ -37,6 +38,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Maintenance', to: '/maintenance', icon: ClipboardDocumentListIcon },
   { label: 'Automations', to: '/automations', icon: BoltIcon },
   { label: 'Templates', to: '/notifications/templates', icon: BellIcon },
+  { label: 'Users', to: '/users', icon: UsersManageIcon },
   { label: 'Settings', to: '/settings', icon: Cog6ToothIcon },
 ]
 

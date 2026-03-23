@@ -35,6 +35,7 @@ const CrewPage = lazy(() => import('./pages/CrewPage'))
 const MaintenancePage = lazy(() => import('./pages/MaintenancePage'))
 const AutomationsPage = lazy(() => import('./pages/AutomationsPage'))
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage'))
+const UsersPage = lazy(() => import('./pages/UsersPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -150,6 +151,14 @@ export default function App() {
           element={
             <Suspense fallback={<PageLoader />}>
               <TemplatesPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="users"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <UsersPage />
             </Suspense>
           }
         />

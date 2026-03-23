@@ -2,7 +2,7 @@
   "name": "aerocomm-backend",
   "version": "1.0.0",
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node --transpile-only prisma/seed.ts"
   },
   "scripts": {
     "build": "tsc",

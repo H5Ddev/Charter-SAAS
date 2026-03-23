@@ -275,6 +275,10 @@ jobs:
         working-directory: backend
         run: npm ci
 
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
+
       - name: Azure login
         uses: azure/login@v2
         with:

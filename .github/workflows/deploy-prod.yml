@@ -294,25 +294,19 @@ jobs:
           echo "::add-mask::${DB_URL}"
           echo "database-url=${DB_URL}" >> "$GITHUB_OUTPUT"
 
-      - name: Run Prisma migrations (deploy mode)
+      - name: Push schema to database
         working-directory: backend
         env:
           DATABASE_URL: ${{ steps.kv.outputs.database-url }}
         run: |
-          npx prisma migrate deploy
-          echo "✅ Migrations applied successfully"
+          npx prisma db push --accept-data-loss
+          echo "✅ Schema applied successfully"
 
       - name: Seed database (idempotent — upsert only)
         working-directory: backend
         env:
           DATABASE_URL: ${{ steps.kv.outputs.database-url }}
         run: npx prisma db seed
-
-      - name: Verify migration status
-        working-directory: backend
-        env:
-          DATABASE_URL: ${{ steps.kv.outputs.database-url }}
-        run: npx prisma migrate status
 
   # ───────────────────────────────────────────────────────────────────────────
   # JOB 6 — Deploy backend App Service

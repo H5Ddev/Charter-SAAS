@@ -31,6 +31,7 @@ import { webhooksRouter } from './modules/webhooks/router'
 import { crewRouter } from './modules/crew/crew.router'
 import { maintenanceRouter } from './modules/maintenance/maintenance.router'
 import { usersRouter } from './modules/users/users.router'
+import { integrationsRouter } from './modules/integrations/integrations.router'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Express App
@@ -188,6 +189,7 @@ app.use('/api/webhooks', webhooksRouter)
 app.use('/api/crew', crewRouter)
 app.use('/api/maintenance', maintenanceRouter)
 app.use('/api/users', usersRouter)
+app.use('/api/integrations', integrationsRouter)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 404 Handler

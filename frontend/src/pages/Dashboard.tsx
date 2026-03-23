@@ -117,21 +117,21 @@ export default function Dashboard() {
   const { data: tripsData, isLoading: tripsLoading } = useTrips({ pageSize: 8 })
   const { data: contactsData } = useContacts({ pageSize: 1 })
 
-  const activeCount =
-    tripsData?.data.filter(
-      (t) => t.status === 'CONFIRMED' || t.status === 'MANIFEST_LOCKED',
-    ).length ?? 0
+  const trips = tripsData?.data ?? []
 
-  const departuresTodayCount =
-    tripsData?.data.filter((t) => {
-      const dep = new Date(t.departureTime)
-      const now = new Date()
-      const tomorrow = new Date(now)
-      tomorrow.setDate(now.getDate() + 1)
-      return dep >= now && dep <= tomorrow && t.status !== 'CANCELLED'
-    }).length ?? 0
+  const activeCount = trips.filter(
+    (t) => t.status === 'CONFIRMED' || t.status === 'MANIFEST_LOCKED',
+  ).length
 
-  const delayedCount = tripsData?.data.filter((t) => t.isDelayed).length ?? 0
+  const departuresTodayCount = trips.filter((t) => {
+    const dep = new Date(t.departureTime)
+    const now = new Date()
+    const tomorrow = new Date(now)
+    tomorrow.setDate(now.getDate() + 1)
+    return dep >= now && dep <= tomorrow && t.status !== 'CANCELLED'
+  }).length
+
+  const delayedCount = trips.filter((t) => t.isDelayed).length
 
   return (
     <div className="space-y-6">
@@ -248,7 +248,7 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
-        ) : tripsData?.data.length === 0 ? (
+        ) : trips.length === 0 ? (
           <div className="px-5 py-12 text-center">
             <div className="mx-auto h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center mb-3 text-gray-400">
               <PaperAirplaneIcon20 />
@@ -265,7 +265,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <ul className="divide-y divide-gray-100">
-            {tripsData?.data.map((trip) => {
+            {trips.map((trip) => {
               const originIcao = trip.legs?.[0]?.originIcao ?? trip.departureAirport
               const destIcao = trip.legs?.[0]?.destinationIcao ?? trip.arrivalAirport
               const dep = new Date(trip.departureTime)

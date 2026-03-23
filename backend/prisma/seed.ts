@@ -11,7 +11,7 @@
  * Run: npx prisma db seed
  */
 
-import { PrismaClient, TripStatus, AutomationActionType } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import argon2 from "argon2";
 
 const prisma = new PrismaClient();
@@ -145,13 +145,13 @@ const AUTOMATION_RULES = [
     enabled: true,
     trigger: {
       eventType: "TRIP_STATUS_CHANGED",
-      filters: { toStatus: TripStatus.BOOKED },
+      filters: { toStatus: "BOOKED" },
     },
     conditionGroups: [], // No additional conditions — fire for all bookings
     actions: [
       {
         sequence: 1,
-        actionType: AutomationActionType.SEND_SMS,
+        actionType: "SEND_SMS",
         delayRelativeTo: null,
         delayOffsetMs: 0,
         config: {
@@ -170,13 +170,13 @@ const AUTOMATION_RULES = [
     enabled: true,
     trigger: {
       eventType: "TRIP_STATUS_CHANGED",
-      filters: { toStatus: TripStatus.BOOKED },
+      filters: { toStatus: "BOOKED" },
     },
     conditionGroups: [],
     actions: [
       {
         sequence: 1,
-        actionType: AutomationActionType.SEND_SMS,
+        actionType: "SEND_SMS",
         delayRelativeTo: "trip.departureAt",
         delayOffsetMs: -7 * 24 * 60 * 60 * 1000, // -7 days
         config: {
@@ -195,13 +195,13 @@ const AUTOMATION_RULES = [
     enabled: true,
     trigger: {
       eventType: "TRIP_STATUS_CHANGED",
-      filters: { toStatus: TripStatus.BOOKED },
+      filters: { toStatus: "BOOKED" },
     },
     conditionGroups: [],
     actions: [
       {
         sequence: 1,
-        actionType: AutomationActionType.SEND_SMS,
+        actionType: "SEND_SMS",
         delayRelativeTo: "trip.departureAt",
         delayOffsetMs: -48 * 60 * 60 * 1000, // -48 hours
         config: {
@@ -220,13 +220,13 @@ const AUTOMATION_RULES = [
     enabled: true,
     trigger: {
       eventType: "TRIP_STATUS_CHANGED",
-      filters: { toStatus: TripStatus.BOOKED },
+      filters: { toStatus: "BOOKED" },
     },
     conditionGroups: [],
     actions: [
       {
         sequence: 1,
-        actionType: AutomationActionType.SEND_SMS,
+        actionType: "SEND_SMS",
         delayRelativeTo: "trip.departureAt",
         delayOffsetMs: -24 * 60 * 60 * 1000, // -24 hours
         config: {
@@ -245,13 +245,13 @@ const AUTOMATION_RULES = [
     enabled: true,
     trigger: {
       eventType: "TRIP_STATUS_CHANGED",
-      filters: { toStatus: TripStatus.BOOKED },
+      filters: { toStatus: "BOOKED" },
     },
     conditionGroups: [],
     actions: [
       {
         sequence: 1,
-        actionType: AutomationActionType.SEND_SMS,
+        actionType: "SEND_SMS",
         delayRelativeTo: "trip.departureAt",
         delayOffsetMs: -2 * 60 * 60 * 1000, // -2 hours
         config: {
@@ -270,7 +270,7 @@ const AUTOMATION_RULES = [
     enabled: true,
     trigger: {
       eventType: "TRIP_STATUS_CHANGED",
-      filters: { toStatus: TripStatus.DEPARTED },
+      filters: { toStatus: "DEPARTED" },
     },
     conditionGroups: [
       {
@@ -288,7 +288,7 @@ const AUTOMATION_RULES = [
     actions: [
       {
         sequence: 1,
-        actionType: AutomationActionType.SEND_SMS,
+        actionType: "SEND_SMS",
         delayRelativeTo: "trip.returnAt",
         delayOffsetMs: -2 * 60 * 60 * 1000, // -2 hours from return leg
         config: {
@@ -307,13 +307,13 @@ const AUTOMATION_RULES = [
     enabled: true,
     trigger: {
       eventType: "TRIP_STATUS_CHANGED",
-      filters: { toStatus: TripStatus.COMPLETED },
+      filters: { toStatus: "COMPLETED" },
     },
     conditionGroups: [],
     actions: [
       {
         sequence: 1,
-        actionType: AutomationActionType.SEND_SMS,
+        actionType: "SEND_SMS",
         /**
          * Delay: +1 day from completedAt, clamped to 9:00 AM local tenant time.
          * The AutomationEngine resolves this using:
@@ -346,7 +346,7 @@ const AUTOMATION_RULES = [
     actions: [
       {
         sequence: 1,
-        actionType: AutomationActionType.SEND_SMS,
+        actionType: "SEND_SMS",
         delayRelativeTo: null,
         delayOffsetMs: 0, // Immediate
         config: {

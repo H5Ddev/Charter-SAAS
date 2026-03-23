@@ -160,16 +160,62 @@ interface PaginatedResponse<T> {
   }
 }
 
+// Backend returns a flat shape; normalize it to the Automation interface
+interface BackendAutomation {
+  id: string
+  name: string
+  description: string | null
+  enabled?: boolean
+  isActive?: boolean
+  triggerType?: string
+  trigger?: { id: string; eventType: string; filters?: string }
+  triggers?: AutomationTrigger[]
+  _count?: { actions?: number; executionLogs?: number }
+  executionCount?: number
+  lastExecutedAt?: string | null
+  conditionGroups?: AutomationConditionGroup[]
+  actions?: AutomationAction[]
+  tenantId: string
+  createdAt: string
+  updatedAt: string
+}
+
+function normalizeAutomation(raw: BackendAutomation): Automation {
+  const triggers: AutomationTrigger[] = raw.triggers?.length
+    ? raw.triggers
+    : raw.trigger
+      ? [{ id: raw.trigger.id, eventType: raw.trigger.eventType as AutomationTriggerType, config: {} }]
+      : raw.triggerType
+        ? [{ id: raw.id, eventType: raw.triggerType as AutomationTriggerType, config: {} }]
+        : []
+
+  return {
+    id: raw.id,
+    name: raw.name,
+    description: raw.description,
+    isActive: raw.isActive ?? raw.enabled ?? false,
+    triggers,
+    conditionGroups: raw.conditionGroups ?? [],
+    actions: raw.actions ?? [],
+    executionCount: raw.executionCount ?? raw._count?.executionLogs ?? 0,
+    lastExecutedAt: raw.lastExecutedAt ?? null,
+    tenantId: raw.tenantId,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+  }
+}
+
 const AUTOMATIONS_KEY = 'automations'
 
 export function useAutomations(filters?: AutomationFilters) {
   return useQuery({
     queryKey: [AUTOMATIONS_KEY, filters],
     queryFn: async () => {
-      const response = await apiClient.get<PaginatedResponse<Automation>>('/automations', {
+      const response = await apiClient.get<PaginatedResponse<BackendAutomation>>('/automations', {
         params: filters,
       })
-      return response.data
+      const raw = response.data as PaginatedResponse<BackendAutomation>
+      return { ...raw, data: raw.data.map(normalizeAutomation) } as PaginatedResponse<Automation>
     },
   })
 }
@@ -178,8 +224,8 @@ export function useAutomation(id: string) {
   return useQuery({
     queryKey: [AUTOMATIONS_KEY, id],
     queryFn: async () => {
-      const response = await apiClient.get<Automation>(`/automations/${id}`)
-      return response.data
+      const response = await apiClient.get<BackendAutomation>(`/automations/${id}`)
+      return normalizeAutomation(response.data as BackendAutomation)
     },
     enabled: !!id,
   })

@@ -12,6 +12,8 @@ import {
   Cog6ToothIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  UserGroupIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/store/auth.store'
 
@@ -29,6 +31,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Quotes', to: '/quotes', icon: DocumentTextIcon },
   { label: 'Tickets', to: '/tickets', icon: TicketIcon },
   { label: 'Aircraft', to: '/aircraft', icon: WrenchScrewdriverIcon },
+  { label: 'Crew', to: '/crew', icon: UserGroupIcon },
+  { label: 'Maintenance', to: '/maintenance', icon: ClipboardDocumentListIcon },
   { label: 'Automations', to: '/automations', icon: BoltIcon },
   { label: 'Templates', to: '/notifications/templates', icon: BellIcon },
   { label: 'Settings', to: '/settings', icon: Cog6ToothIcon },

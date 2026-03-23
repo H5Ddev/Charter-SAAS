@@ -28,6 +28,8 @@ import { ticketsRouter } from './modules/ticketing/tickets.router'
 import { automationRouter } from './modules/automation/automation.router'
 import { notificationsRouter } from './modules/notifications/notifications.router'
 import { webhooksRouter } from './modules/webhooks/router'
+import { crewRouter } from './modules/crew/crew.router'
+import { maintenanceRouter } from './modules/maintenance/maintenance.router'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Express App
@@ -182,6 +184,8 @@ app.use('/api/tickets', ticketsRouter)
 app.use('/api/automations', automationRouter)
 app.use('/api/notifications', notificationsRouter)
 app.use('/api/webhooks', webhooksRouter)
+app.use('/api/crew', crewRouter)
+app.use('/api/maintenance', maintenanceRouter)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 404 Handler

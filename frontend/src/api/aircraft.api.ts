@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from './client'
 
 export interface CreateAircraftInput {
@@ -64,6 +64,17 @@ export function normalizeAircraft(raw: BackendAircraft): Aircraft {
 }
 
 const AIRCRAFT_KEY = 'aircraft'
+
+export function useAircraftList(filters?: { page?: number; pageSize?: number; isActive?: boolean }) {
+  return useQuery({
+    queryKey: [AIRCRAFT_KEY, filters],
+    queryFn: async () => {
+      const response = await apiClient.get<{ data: BackendAircraft[]; meta: { total: number; page: number; pageSize: number; totalPages: number } }>('/aircraft', { params: filters })
+      const raw = response.data as { data: BackendAircraft[]; meta: { total: number; page: number; pageSize: number; totalPages: number } }
+      return { ...raw, data: raw.data.map(normalizeAircraft) }
+    },
+  })
+}
 
 export function useCreateAircraft() {
   const queryClient = useQueryClient()

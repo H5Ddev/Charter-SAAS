@@ -14,6 +14,7 @@ import {
   ChevronRightIcon,
   UserGroupIcon,
   ClipboardDocumentListIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/store/auth.store'
 
@@ -28,6 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', to: '/', icon: HomeIcon },
   { label: 'Contacts', to: '/contacts', icon: UsersIcon },
   { label: 'Trips', to: '/trips', icon: PaperAirplaneIcon },
+  { label: 'Calendar', to: '/calendar', icon: CalendarDaysIcon },
   { label: 'Quotes', to: '/quotes', icon: DocumentTextIcon },
   { label: 'Tickets', to: '/tickets', icon: TicketIcon },
   { label: 'Aircraft', to: '/aircraft', icon: WrenchScrewdriverIcon },

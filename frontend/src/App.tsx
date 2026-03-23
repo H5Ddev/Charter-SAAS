@@ -30,6 +30,7 @@ const TripsPage = lazy(() => import('./pages/TripsPage'))
 const TicketsPage = lazy(() => import('./pages/TicketsPage'))
 const QuotesPage = lazy(() => import('./pages/QuotesPage'))
 const AircraftPage = lazy(() => import('./pages/AircraftPage'))
+const CalendarPage = lazy(() => import('./pages/CalendarPage'))
 const CrewPage = lazy(() => import('./pages/CrewPage'))
 const MaintenancePage = lazy(() => import('./pages/MaintenancePage'))
 const AutomationsPage = lazy(() => import('./pages/AutomationsPage'))
@@ -85,6 +86,14 @@ export default function App() {
           element={
             <Suspense fallback={<PageLoader />}>
               <TripsPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="calendar"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <CalendarPage />
             </Suspense>
           }
         />

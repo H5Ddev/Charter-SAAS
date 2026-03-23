@@ -479,6 +479,16 @@ async function seedAutomationRules() {
     });
 
     // Delete and re-create condition groups (simpler than full upsert on nested)
+    // Must delete child conditions first due to FK constraint
+    const existingGroups = await prisma.automationConditionGroup.findMany({
+      where: { automationId: automation.id },
+      select: { id: true },
+    });
+    if (existingGroups.length > 0) {
+      await prisma.automationCondition.deleteMany({
+        where: { conditionGroupId: { in: existingGroups.map((g) => g.id) } },
+      });
+    }
     await prisma.automationConditionGroup.deleteMany({
       where: { automationId: automation.id },
     });

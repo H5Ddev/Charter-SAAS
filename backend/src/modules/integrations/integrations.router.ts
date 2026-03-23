@@ -9,13 +9,6 @@ import { AppError } from '../../shared/middleware/errorHandler'
 export const integrationsRouter: Router = Router()
 integrationsRouter.use(requireAuth)
 
-function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  if (!['ADMIN', 'SUPER_ADMIN'].includes(req.user!.role)) {
-    return next(new AppError(403, 'FORBIDDEN', 'Admin access required'))
-  }
-  next()
-}
-
 /**
  * GET /api/integrations/status
  * Returns which integrations are configured (no secrets exposed).
@@ -48,7 +41,7 @@ const TestSmsSchema = z.object({
   to: z.string().min(10, 'Phone number is required'),
 })
 
-integrationsRouter.post('/twilio/test', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+integrationsRouter.post('/twilio/test', async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN || !env.TWILIO_PHONE_NUMBER) {
       throw new AppError(400, 'TWILIO_NOT_CONFIGURED', 'Twilio credentials are not set. Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER to the environment.')

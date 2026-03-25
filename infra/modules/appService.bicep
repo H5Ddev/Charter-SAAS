@@ -39,10 +39,10 @@ param jwtRefreshSecret string
 @description('Allowed CORS origins (comma-separated)')
 param corsOrigins string
 
-// SKU selection based on environment
-var appServiceSkuName = environment == 'dev' ? 'B2' : 'P2v3'
-var appServiceSkuTier = environment == 'dev' ? 'Basic' : 'PremiumV3'
-var appServiceCapacity = environment == 'prod' ? 2 : 1
+// SKU locked to Basic B2 — do not upgrade via Bicep, change manually in Portal if needed
+var appServiceSkuName = 'B2'
+var appServiceSkuTier = 'Basic'
+var appServiceCapacity = 1
 
 // ─────────────────────────────────────────────────────────────────────────────
 // App Service Plan

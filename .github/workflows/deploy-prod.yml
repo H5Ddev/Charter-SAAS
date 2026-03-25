@@ -207,55 +207,17 @@ jobs:
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-frontend:${{ steps.meta.outputs.image-tag }}
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/aerocomm-frontend:latest
 
-  # ───────────────────────────────────────────────────────────────────────────
-  # JOB 4 — Apply Bicep IaC (idempotent)
-  # ───────────────────────────────────────────────────────────────────────────
-  infrastructure:
-    name: Apply Infrastructure (Bicep)
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    environment: production
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Azure login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Deploy Bicep — what-if preview
-        env:
-          SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
-          JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
-          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
-        run: |
-          az deployment group what-if \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --template-file ./infra/main.bicep \
-            --parameters environment=prod "sqlAdminPassword=$SQL_ADMIN_PASSWORD" "jwtAccessSecret=$JWT_ACCESS_SECRET" "jwtRefreshSecret=$JWT_REFRESH_SECRET" \
-            --only-show-errors
-
-      - name: Deploy Bicep — apply
-        env:
-          SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
-          JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
-          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
-        run: |
-          az deployment group create \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --template-file ./infra/main.bicep \
-            --parameters environment=prod "sqlAdminPassword=$SQL_ADMIN_PASSWORD" "jwtAccessSecret=$JWT_ACCESS_SECRET" "jwtRefreshSecret=$JWT_REFRESH_SECRET" \
-            --mode Incremental \
-            --only-show-errors
+  # NOTE: Infrastructure (Bicep) is intentionally NOT run here.
+  # Run infra changes manually via Azure CLI or Portal only.
+  # Running Bicep on code deploys overwrites manually-configured app settings
+  # (Twilio keys, JWT secrets, etc.) and can change the hosting plan tier.
 
   # ───────────────────────────────────────────────────────────────────────────
-  # JOB 5 — Run database migrations (before app deploy)
+  # JOB 4 — Run database migrations (before app deploy)
   # ───────────────────────────────────────────────────────────────────────────
   migrate:
     name: Run Database Migrations
-    needs: infrastructure
+    needs: build-and-push
     runs-on: ubuntu-latest
     environment: production
 
@@ -431,7 +393,7 @@ jobs:
   # ───────────────────────────────────────────────────────────────────────────
   notify-failure:
     name: Notify on Failure
-    needs: [ci, build-and-push, infrastructure, migrate, deploy-backend, deploy-frontend]
+    needs: [ci, build-and-push, migrate, deploy-backend, deploy-frontend]
     if: failure()
     runs-on: ubuntu-latest
 

@@ -18,9 +18,9 @@ param adminLogin string = 'aerocommadmin'
 @secure()
 param adminPassword string
 
-// SKU based on environment
-var skuName = environment == 'dev' ? 'S2' : environment == 'staging' ? 'S4' : 'P2'
-var skuTier = environment == 'prod' ? 'Premium' : 'Standard'
+// SKU locked to Basic — do not upgrade via Bicep, change manually in Portal if needed
+var skuName = 'Basic'
+var skuTier = 'Basic'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SQL Server

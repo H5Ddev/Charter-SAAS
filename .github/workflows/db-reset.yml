@@ -73,15 +73,22 @@ jobs:
           echo "::add-mask::${DB_URL}"
           echo "database-url=${DB_URL}" >> "$GITHUB_OUTPUT"
 
-      - name: Drop all tables and recreate schema
+      - name: Drop all constraints and tables
         working-directory: backend
         env:
           DATABASE_URL: ${{ steps.kv.outputs.database-url }}
         run: |
-          echo "⚠️  Dropping all tables and recreating schema..."
+          echo "⚠️  Dropping all database objects..."
           echo "Reason: ${{ github.event.inputs.reason }}"
           echo "Actor:  ${{ github.actor }}"
-          npx prisma db push --force-reset --accept-data-loss
+          npx ts-node --transpile-only scripts/db-nuke.ts
+
+      - name: Recreate schema
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ steps.kv.outputs.database-url }}
+        run: |
+          npx prisma db push --accept-data-loss
           echo "✅ Schema applied to fresh database"
 
       - name: Seed database

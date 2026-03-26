@@ -51,5 +51,12 @@ integrationsRouter.post('/twilio/test', async (req: Request, res: Response, next
     await smsSender.send(to, 'AeroComm: Twilio integration test successful ✓', req.user!.tenantId)
 
     res.json(successResponse({ sent: true, to }))
-  } catch (err) { next(err) }
+  } catch (err) {
+    if (err instanceof AppError) return next(err)
+    // Surface Twilio API errors with their actual message instead of the generic 500
+    const twilioErr = err as { message?: string; status?: number; code?: number }
+    const message = twilioErr.message ?? 'Failed to send SMS'
+    const hint = twilioErr.code ? ` (Twilio code ${twilioErr.code})` : ''
+    next(new AppError(twilioErr.status ?? 400, 'TWILIO_ERROR', message + hint))
+  }
 })

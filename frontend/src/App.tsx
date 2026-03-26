@@ -22,6 +22,9 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 // Eagerly loaded (small, always needed)
 import LoginPage from './pages/LoginPage'
 import MfaPage from './pages/MfaPage'
+import PrivacyPage from './pages/legal/PrivacyPage'
+import TermsPage from './pages/legal/TermsPage'
+import SmsConsentPage from './pages/legal/SmsConsentPage'
 
 // Lazy loaded for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -57,6 +60,9 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/auth/mfa" element={<MfaPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/sms-consent" element={<SmsConsentPage />} />
 
       <Route
         path="/"

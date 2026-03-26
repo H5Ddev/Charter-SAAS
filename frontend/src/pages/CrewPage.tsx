@@ -35,6 +35,16 @@ const MEDICAL_CLASSES: { value: MedicalClass; label: string }[] = [
   { value: 'CLASS_3', label: 'Class 3' },
 ]
 
+// Which field sections are relevant per role
+const ROLE_FIELDS: Record<CrewRole, { license: boolean; medical: boolean; typeRatings: boolean }> = {
+  CAPTAIN:          { license: true,  medical: true,  typeRatings: true  },
+  FIRST_OFFICER:    { license: true,  medical: true,  typeRatings: true  },
+  FLIGHT_ATTENDANT: { license: false, medical: true,  typeRatings: false },
+  MECHANIC:         { license: true,  medical: false, typeRatings: false },
+  DISPATCHER:       { license: false, medical: false, typeRatings: false },
+  OTHER:            { license: false, medical: false, typeRatings: false },
+}
+
 function daysUntil(dateStr: string | null): number | null {
   if (!dateStr) return null
   return Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
@@ -60,16 +70,79 @@ function ExpiryCell({ date, label }: { date: string | null; label: string }) {
   )
 }
 
+function DuplicateWarning({ label, name, confirmed, onConfirm }: {
+  label: string; name: string; confirmed: boolean; onConfirm: (v: boolean) => void
+}) {
+  return (
+    <div className="rounded-md bg-amber-50 border border-amber-300 px-3 py-2.5 space-y-2">
+      <div className="flex items-start gap-2">
+        <ExclamationTriangleIcon className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+        <p className="text-xs text-amber-800">
+          This {label} is already in use by <span className="font-semibold">{name}</span>.
+        </p>
+      </div>
+      <label className="flex items-center gap-2 cursor-pointer pl-6">
+        <input type="checkbox" checked={confirmed} onChange={(e) => onConfirm(e.target.checked)}
+          className="h-3.5 w-3.5 rounded border-amber-400 text-amber-600 focus:ring-amber-500" />
+        <span className="text-xs text-amber-700">I understand and want to proceed anyway</span>
+      </label>
+    </div>
+  )
+}
+
 function AddCrewModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [form, setForm] = useState<Partial<CreateCrewMemberInput>>({ role: 'CAPTAIN', isActive: true })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [typeRatingInput, setTypeRatingInput] = useState('')
+  const [confirmed, setConfirmed] = useState<Record<string, boolean>>({})
   const createCrew = useCreateCrewMember()
+
+  // Fetch all crew for duplicate detection
+  const { data: allCrewData } = useCrew({ pageSize: 500 })
+  const allCrew = allCrewData?.data ?? []
+
+  const role = (form.role ?? 'CAPTAIN') as CrewRole
+  const fields = ROLE_FIELDS[role]
 
   function set<K extends keyof CreateCrewMemberInput>(key: K, value: CreateCrewMemberInput[K]) {
     setForm((f) => ({ ...f, [key]: value }))
     setErrors((e) => ({ ...e, [key]: '' }))
+    setConfirmed((c) => ({ ...c, [key]: false }))
   }
+
+  function handleRoleChange(newRole: CrewRole) {
+    const newFields = ROLE_FIELDS[newRole]
+    setForm((f) => ({
+      ...f,
+      role: newRole,
+      // Clear fields not relevant to the new role
+      licenseNumber: newFields.license ? f.licenseNumber : undefined,
+      licenseType: newFields.license ? f.licenseType : undefined,
+      licenseExpiry: newFields.license ? f.licenseExpiry : undefined,
+      medicalClass: newFields.medical ? f.medicalClass : undefined,
+      medicalExpiry: newFields.medical ? f.medicalExpiry : undefined,
+    }))
+    if (!newFields.typeRatings) setTypeRatingInput('')
+    setConfirmed({})
+  }
+
+  // Duplicate checks
+  function findDuplicate(field: 'email' | 'phone' | 'licenseNumber', value: string | undefined) {
+    if (!value?.trim()) return null
+    return allCrew.find((m) => {
+      const mv = m[field]
+      return mv && mv.toLowerCase() === value.trim().toLowerCase()
+    }) ?? null
+  }
+
+  const emailDup = findDuplicate('email', form.email)
+  const phoneDup = findDuplicate('phone', form.phone)
+  const licenseDup = fields.license ? findDuplicate('licenseNumber', form.licenseNumber) : null
+
+  const hasPendingConflicts =
+    (emailDup && !confirmed.email) ||
+    (phoneDup && !confirmed.phone) ||
+    (licenseDup && !confirmed.licenseNumber)
 
   function validate() {
     const errs: Record<string, string> = {}
@@ -84,11 +157,12 @@ function AddCrewModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
     setForm({ role: 'CAPTAIN', isActive: true })
     setErrors({})
     setTypeRatingInput('')
+    setConfirmed({})
     onClose()
   }, [onClose])
 
   async function handleSubmit() {
-    if (!validate()) return
+    if (!validate() || hasPendingConflicts) return
     const typeRatings = typeRatingInput.trim()
       ? typeRatingInput.split(',').map((s) => s.trim()).filter(Boolean)
       : undefined
@@ -96,12 +170,17 @@ function AddCrewModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
     handleClose()
   }
 
+  const inputCls = 'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500'
+
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Add Crew Member" size="xl"
       footer={
         <>
           <Button variant="secondary" onClick={handleClose} disabled={createCrew.isPending}>Cancel</Button>
-          <Button variant="primary" onClick={handleSubmit} loading={createCrew.isPending}>Add Member</Button>
+          <Button variant="primary" onClick={handleSubmit} loading={createCrew.isPending}
+            disabled={!!hasPendingConflicts}>
+            Add Member
+          </Button>
         </>
       }
     >
@@ -122,7 +201,7 @@ function AddCrewModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Role <span className="text-red-500">*</span></label>
-            <select value={form.role ?? ''} onChange={(e) => set('role', e.target.value as CrewRole)}
+            <select value={form.role ?? ''} onChange={(e) => handleRoleChange(e.target.value as CrewRole)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
               {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
@@ -133,66 +212,85 @@ function AddCrewModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input type="email" value={form.email ?? ''} onChange={(e) => set('email', e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            <input type="email" value={form.email ?? ''} onChange={(e) => set('email', e.target.value)} className={inputCls} />
+            {emailDup && (
+              <div className="mt-1.5">
+                <DuplicateWarning label="email" name={`${emailDup.firstName} ${emailDup.lastName}`}
+                  confirmed={!!confirmed.email} onConfirm={(v) => setConfirmed((c) => ({ ...c, email: v }))} />
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-            <input type="tel" value={form.phone ?? ''} onChange={(e) => set('phone', e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+            <input type="tel" value={form.phone ?? ''} onChange={(e) => set('phone', e.target.value)} className={inputCls} />
+            {phoneDup && (
+              <div className="mt-1.5">
+                <DuplicateWarning label="phone number" name={`${phoneDup.firstName} ${phoneDup.lastName}`}
+                  confirmed={!!confirmed.phone} onConfirm={(v) => setConfirmed((c) => ({ ...c, phone: v }))} />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* License */}
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">License Number</label>
-            <input value={form.licenseNumber ?? ''} onChange={(e) => set('licenseNumber', e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+        {/* License — pilots and mechanics only */}
+        {fields.license && (
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">License Number</label>
+              <input value={form.licenseNumber ?? ''} onChange={(e) => set('licenseNumber', e.target.value)} className={inputCls} />
+              {licenseDup && (
+                <div className="mt-1.5">
+                  <DuplicateWarning label="license number" name={`${licenseDup.firstName} ${licenseDup.lastName}`}
+                    confirmed={!!confirmed.licenseNumber} onConfirm={(v) => setConfirmed((c) => ({ ...c, licenseNumber: v }))} />
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">License Type</label>
+              <input list="license-types" value={form.licenseType ?? ''} onChange={(e) => set('licenseType', e.target.value)}
+                placeholder="ATP, CPL…" className={inputCls} />
+              <datalist id="license-types">{LICENSE_TYPES.map((t) => <option key={t} value={t} />)}</datalist>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">License Expiry</label>
+              <input type="date" value={form.licenseExpiry ? form.licenseExpiry.split('T')[0] : ''}
+                onChange={(e) => set('licenseExpiry', e.target.value ? new Date(e.target.value).toISOString() : undefined)}
+                className={inputCls} />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">License Type</label>
-            <input list="license-types" value={form.licenseType ?? ''} onChange={(e) => set('licenseType', e.target.value)}
-              placeholder="ATP, CPL…"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-            <datalist id="license-types">{LICENSE_TYPES.map((t) => <option key={t} value={t} />)}</datalist>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">License Expiry</label>
-            <input type="date" value={form.licenseExpiry ? form.licenseExpiry.split('T')[0] : ''}
-              onChange={(e) => set('licenseExpiry', e.target.value ? new Date(e.target.value).toISOString() : undefined)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-          </div>
-        </div>
+        )}
 
-        {/* Medical */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Medical Class</label>
-            <select value={form.medicalClass ?? ''} onChange={(e) => set('medicalClass', (e.target.value || undefined) as MedicalClass | undefined)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-              <option value="">— None —</option>
-              {MEDICAL_CLASSES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
+        {/* Medical — pilots and flight attendants only */}
+        {fields.medical && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Medical Class</label>
+              <select value={form.medicalClass ?? ''} onChange={(e) => set('medicalClass', (e.target.value || undefined) as MedicalClass | undefined)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                <option value="">— None —</option>
+                {MEDICAL_CLASSES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Medical Expiry</label>
+              <input type="date" value={form.medicalExpiry ? form.medicalExpiry.split('T')[0] : ''}
+                onChange={(e) => set('medicalExpiry', e.target.value ? new Date(e.target.value).toISOString() : undefined)}
+                className={inputCls} />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Medical Expiry</label>
-            <input type="date" value={form.medicalExpiry ? form.medicalExpiry.split('T')[0] : ''}
-              onChange={(e) => set('medicalExpiry', e.target.value ? new Date(e.target.value).toISOString() : undefined)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-          </div>
-        </div>
+        )}
 
-        {/* Type ratings */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Type Ratings
-            <span className="ml-1.5 text-xs text-gray-400 font-normal">(comma-separated, e.g. G650, B737)</span>
-          </label>
-          <input value={typeRatingInput} onChange={(e) => setTypeRatingInput(e.target.value)}
-            placeholder="G650, CL-604…"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-        </div>
+        {/* Type ratings — pilots only */}
+        {fields.typeRatings && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Type Ratings
+              <span className="ml-1.5 text-xs text-gray-400 font-normal">(comma-separated, e.g. G650, B737)</span>
+            </label>
+            <input value={typeRatingInput} onChange={(e) => setTypeRatingInput(e.target.value)}
+              placeholder="G650, CL-604…" className={inputCls} />
+          </div>
+        )}
 
         {/* Notes + active */}
         <div className="grid grid-cols-3 gap-3 items-start">

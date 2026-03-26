@@ -118,7 +118,7 @@ export class QuotesService {
           create: [{
             tenantId,
             versionNumber: 1,
-            snapshotData: data as never,
+            snapshotData: JSON.stringify(data),
             createdBy: userId,
           }],
         },

@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button'
 import { useContacts } from '@/api/contacts.api'
 import { useCreateQuote, type QuoteLineItemInput } from '@/api/quotes.api'
 import { normalizeAircraft } from '@/api/aircraft.api'
-import { apiClient } from '@/api/client'
+import { apiClient, getErrorMessage } from '@/api/client'
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 
 interface Props {
@@ -565,7 +565,7 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
 
         {createQuote.isError && (
           <p className="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2">
-            Failed to create quote. Please try again.
+            {getErrorMessage(createQuote.error)}
           </p>
         )}
       </div>

@@ -36,6 +36,7 @@ export function AddAircraftModal({ isOpen, onClose, onCreated }: Props) {
 
   const { data: contactsData } = useContacts({
     search: ownerSearch || undefined,
+    type: 'OWNER',
     pageSize: 10,
   })
   const contacts = contactsData?.data ?? []

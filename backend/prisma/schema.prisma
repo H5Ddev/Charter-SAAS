@@ -582,6 +582,7 @@ model Quote {
   id              String    @id @default(cuid())
   tenantId        String
   contactId       String
+  reference       String?
   status          String    @default("DRAFT")
   originIcao      String?
   destinationIcao String?

@@ -25,6 +25,7 @@ import MfaPage from './pages/MfaPage'
 import PrivacyPage from './pages/legal/PrivacyPage'
 import TermsPage from './pages/legal/TermsPage'
 import SmsConsentPage from './pages/legal/SmsConsentPage'
+import PortalPage from './pages/portal/PortalPage'
 
 // Lazy loaded for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -63,6 +64,7 @@ export default function App() {
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/sms-consent" element={<SmsConsentPage />} />
+      <Route path="/portal/:token" element={<PortalPage />} />
 
       <Route
         path="/"

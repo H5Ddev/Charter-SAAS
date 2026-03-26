@@ -7,12 +7,13 @@ import { Badge, quoteStatusBadge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { PlusIcon } from '@heroicons/react/20/solid'
 import { NewQuoteModal } from '@/components/quotes/NewQuoteModal'
+import { QuoteDetailModal } from '@/components/quotes/QuoteDetailModal'
 
 type QuoteStatus = 'DRAFT' | 'SENT' | 'VIEWED' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED'
 
 interface Quote {
   id: string
-  reference: string
+  reference: string | null
   status: QuoteStatus
   totalPrice: number
   currency: string
@@ -63,6 +64,7 @@ export default function QuotesPage() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<QuoteStatus | ''>('')
   const [newQuoteOpen, setNewQuoteOpen] = useState(false)
+  const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null)
 
   const { data, isLoading } = useQuotes({
     page,
@@ -76,7 +78,9 @@ export default function QuotesPage() {
       header: 'Quote',
       render: (q) => (
         <div>
-          <p className="font-mono font-semibold text-gray-900 text-sm">{q.reference}</p>
+          <p className="font-mono font-semibold text-gray-900 text-sm">
+            {q.reference ?? q.id.slice(0, 8).toUpperCase()}
+          </p>
           <p className="text-xs text-gray-400 mt-0.5">
             {new Date(q.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
           </p>
@@ -170,11 +174,17 @@ export default function QuotesPage() {
         emptyMessage="No quotes found. Create your first quote to get started."
         pagination={data?.meta}
         onPageChange={setPage}
+        onRowClick={(q) => setSelectedQuoteId(q.id)}
       />
 
       <NewQuoteModal
         isOpen={newQuoteOpen}
         onClose={() => setNewQuoteOpen(false)}
+      />
+
+      <QuoteDetailModal
+        quoteId={selectedQuoteId}
+        onClose={() => setSelectedQuoteId(null)}
       />
     </div>
   )

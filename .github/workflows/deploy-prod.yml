@@ -27,11 +27,14 @@
 name: Deploy → Production
 
 on:
-  workflow_dispatch:            # Manual trigger only — no auto-deploy on push
+  push:
+    branches:
+      - main
+  workflow_dispatch:
     inputs:
       reason:
-        description: "Reason for manual production deploy"
-        required: true
+        description: "Reason for manual deploy (optional — auto-populated on push)"
+        required: false
         type: string
 
 concurrency:

@@ -17,6 +17,8 @@ declare global {
     interface Request {
       user?: JwtPayload
       tenantId?: string
+      portalContactId?: string
+      portalTenantId?: string
     }
   }
 }

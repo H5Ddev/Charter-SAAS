@@ -45,6 +45,15 @@ export type CreateQuoteDto = z.infer<typeof CreateQuoteSchema>
 export type UpdateQuoteDto = z.infer<typeof UpdateQuoteSchema>
 export type AddLineItemDto = z.infer<typeof AddLineItemSchema>
 
+function generateReference(): string {
+  const now = new Date()
+  const yy = String(now.getFullYear()).slice(-2)
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const dd = String(now.getDate()).padStart(2, '0')
+  const suffix = Math.random().toString(36).slice(2, 6).toUpperCase()
+  return `Q-${yy}${mm}${dd}-${suffix}`
+}
+
 export class QuotesService {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -93,6 +102,7 @@ export class QuotesService {
       data: {
         tenantId,
         contactId: data.contactId,
+        reference: generateReference(),
         status: QuoteStatus.DRAFT,
         originIcao: data.originIcao ?? undefined,
         destinationIcao: data.destinationIcao ?? undefined,

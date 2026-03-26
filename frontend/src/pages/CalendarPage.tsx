@@ -72,13 +72,13 @@ function buildEvents(
   const events: CalendarEvent[] = []
 
   for (const trip of trips) {
-    const date = safeParseISO(trip.departureTime)
+    const date = safeParseISO(trip.departureAt)
     if (!date) continue
     events.push({
       id: `trip-${trip.id}`,
       kind: 'trip',
-      title: `${trip.departureAirport} → ${trip.arrivalAirport}`,
-      subtitle: trip.aircraft?.registration ?? trip.reference,
+      title: `${trip.originIcao} → ${trip.destinationIcao}`,
+      subtitle: trip.aircraft?.tailNumber ?? trip.reference,
       date,
       colorClass: TRIP_STATUS_COLORS[trip.status] ?? 'bg-blue-100 text-blue-800',
       dotClass: TRIP_DOT_COLORS[trip.status] ?? 'bg-blue-500',

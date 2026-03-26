@@ -124,7 +124,7 @@ export default function Dashboard() {
   ).length
 
   const departuresTodayCount = trips.filter((t) => {
-    const dep = new Date(t.departureTime)
+    const dep = new Date(t.departureAt)
     const now = new Date()
     const tomorrow = new Date(now)
     tomorrow.setDate(now.getDate() + 1)
@@ -266,9 +266,9 @@ export default function Dashboard() {
         ) : (
           <ul className="divide-y divide-gray-100">
             {trips.map((trip) => {
-              const originIcao = trip.legs?.[0]?.originIcao ?? trip.departureAirport
-              const destIcao = trip.legs?.[0]?.destinationIcao ?? trip.arrivalAirport
-              const dep = new Date(trip.departureTime)
+              const originIcao = trip.legs?.[0]?.originIcao ?? trip.originIcao
+              const destIcao = trip.legs?.[0]?.destinationIcao ?? trip.destinationIcao
+              const dep = new Date(trip.departureAt)
               const departureFormatted =
                 dep.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
                 ' · ' +
@@ -294,7 +294,7 @@ export default function Dashboard() {
                     </div>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {departureFormatted}
-                      {trip.aircraft?.registration ? ` · ${trip.aircraft.registration}` : ''}
+                      {trip.aircraft?.tailNumber ? ` · ${trip.aircraft.tailNumber}` : ''}
                     </p>
                   </div>
                   <Badge variant={tripStatusBadge(trip.status)} size="sm">

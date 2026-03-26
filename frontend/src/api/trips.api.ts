@@ -30,28 +30,31 @@ export interface TripPassenger {
     lastName: string
     email: string | null
   }
-  isSupervisor: boolean
+  isPrimary: boolean
 }
 
 export interface Trip {
   id: string
   reference: string
   status: TripStatus
-  aircraftId: string
+  aircraftId: string | null
   aircraft: {
     id: string
-    registration: string
+    tailNumber: string
     make: string
     model: string
-  }
+  } | null
   legs: TripLeg[]
   passengers: TripPassenger[]
-  departureAirport: string
-  arrivalAirport: string
-  departureTime: string
-  arrivalTime: string
+  originIcao: string
+  destinationIcao: string
+  departureAt: string
+  arrivalAt: string | null
+  returnDepartureAt: string | null
+  returnArrivalAt: string | null
   isDelayed: boolean
-  delayReason: string | null
+  delayNotes: string | null
+  paxCount: number
   notes: string | null
   tenantId: string
   createdAt: string
@@ -69,19 +72,15 @@ export interface TripFilters {
 }
 
 export interface CreateTripInput {
-  aircraftId: string
-  departureAirport: string
-  arrivalAirport: string
-  departureTime: string
-  arrivalTime: string
+  aircraftId?: string
+  originIcao: string
+  destinationIcao: string
+  departureAt: string
+  arrivalAt?: string
+  returnDepartureAt?: string
+  returnArrivalAt?: string
+  paxCount: number
   notes?: string
-  legs?: Array<{
-    sequence: number
-    originIcao: string
-    destinationIcao: string
-    scheduledDeparture: string
-    scheduledArrival: string
-  }>
 }
 
 interface PaginatedResponse<T> {
@@ -152,8 +151,8 @@ export function useFlagDelay() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      const response = await apiClient.post<Trip>(`/trips/${id}/delay`, { reason })
+    mutationFn: async ({ id, delayNotes }: { id: string; delayNotes: string }) => {
+      const response = await apiClient.post<Trip>(`/trips/${id}/delay`, { delayNotes })
       return response.data
     },
     onSuccess: (_data, { id }) => {
@@ -170,15 +169,15 @@ export function useAddTripPassenger() {
     mutationFn: async ({
       tripId,
       contactId,
-      isSupervisor,
+      isPrimary,
     }: {
       tripId: string
       contactId: string
-      isSupervisor?: boolean
+      isPrimary?: boolean
     }) => {
       const response = await apiClient.post<TripPassenger>(
         `/trips/${tripId}/passengers`,
-        { contactId, isSupervisor }
+        { contactId, isPrimary }
       )
       return response.data
     },

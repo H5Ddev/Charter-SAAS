@@ -38,6 +38,12 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
   const [contactName, setContactName] = useState('')
   const [showContactDropdown, setShowContactDropdown] = useState(false)
 
+  const [originIcao, setOriginIcao] = useState('')
+  const [destinationIcao, setDestinationIcao] = useState('')
+  const [tripType, setTripType] = useState<'ONE_WAY' | 'ROUND_TRIP'>('ONE_WAY')
+  const [departureDate, setDepartureDate] = useState('')
+  const [returnDate, setReturnDate] = useState('')
+
   const [basePrice, setBasePrice] = useState('')
   const [currency, setCurrency] = useState('USD')
   const [validUntil, setValidUntil] = useState('')
@@ -137,6 +143,13 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
 
     const result = await createQuote.mutateAsync({
       contactId,
+      originIcao: originIcao.trim().toUpperCase() || undefined,
+      destinationIcao: destinationIcao.trim().toUpperCase() || undefined,
+      tripType,
+      departureDate: departureDate ? new Date(departureDate).toISOString() : undefined,
+      returnDate: tripType === 'ROUND_TRIP' && returnDate
+        ? new Date(returnDate).toISOString()
+        : undefined,
       basePrice: parseFloat(basePrice),
       currency,
       validUntil: validUntil ? new Date(validUntil).toISOString() : undefined,
@@ -153,6 +166,11 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
     setContactId('')
     setContactName('')
     setShowContactDropdown(false)
+    setOriginIcao('')
+    setDestinationIcao('')
+    setTripType('ONE_WAY')
+    setDepartureDate('')
+    setReturnDate('')
     setBasePrice('')
     setCurrency('USD')
     setValidUntil('')
@@ -235,6 +253,78 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
               No contacts found
             </div>
           )}
+        </div>
+
+        {/* Route */}
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Origin ICAO</label>
+              <input
+                type="text"
+                maxLength={4}
+                placeholder="KTEB"
+                value={originIcao}
+                onChange={(e) => setOriginIcao(e.target.value.toUpperCase())}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 uppercase"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Destination ICAO</label>
+              <input
+                type="text"
+                maxLength={4}
+                placeholder="KFLL"
+                value={destinationIcao}
+                onChange={(e) => setDestinationIcao(e.target.value.toUpperCase())}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 uppercase"
+              />
+            </div>
+          </div>
+
+          {/* Trip type toggle */}
+          <div className="flex rounded-md border border-gray-300 overflow-hidden">
+            {(['ONE_WAY', 'ROUND_TRIP'] as const).map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setTripType(type)}
+                className={clsx(
+                  'flex-1 py-2 text-sm font-medium transition-colors',
+                  tripType === type
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-50',
+                )}
+              >
+                {type === 'ONE_WAY' ? 'One Way' : 'Round Trip'}
+              </button>
+            ))}
+          </div>
+
+          <div className={clsx('grid gap-3', tripType === 'ROUND_TRIP' ? 'grid-cols-2' : 'grid-cols-1')}>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Departure Date</label>
+              <input
+                type="date"
+                value={departureDate}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={(e) => setDepartureDate(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            {tripType === 'ROUND_TRIP' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Return Date</label>
+                <input
+                  type="date"
+                  value={returnDate}
+                  min={departureDate || new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setReturnDate(e.target.value)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Aircraft + estimated hours (optional, auto-fills base price) */}

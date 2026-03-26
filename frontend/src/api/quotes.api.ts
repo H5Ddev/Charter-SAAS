@@ -11,6 +11,11 @@ export interface QuoteLineItemInput {
 export interface CreateQuoteInput {
   contactId: string
   tripId?: string
+  originIcao?: string
+  destinationIcao?: string
+  tripType?: 'ONE_WAY' | 'ROUND_TRIP'
+  departureDate?: string
+  returnDate?: string
   validUntil?: string
   basePrice: number
   currency: string

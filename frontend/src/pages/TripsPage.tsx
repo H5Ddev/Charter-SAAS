@@ -53,9 +53,12 @@ const statusSchema = z.object({
 const newTripSchema = z.object({
   originIcao: z.string().length(4, 'Must be 4 characters').toUpperCase(),
   destinationIcao: z.string().length(4, 'Must be 4 characters').toUpperCase(),
+  tripType: z.enum(['ONE_WAY', 'ROUND_TRIP']).default('ONE_WAY'),
   departureAt: z.string().min(1, 'Departure date/time is required'),
   arrivalAt: z.string().optional(),
-  pax: z.coerce.number().int().min(1, 'At least 1 passenger').max(999),
+  returnDepartureAt: z.string().optional(),
+  returnArrivalAt: z.string().optional(),
+  paxCount: z.coerce.number().int().min(1, 'At least 1 passenger').max(999),
   notes: z.string().optional(),
 })
 
@@ -161,12 +164,14 @@ export default function TripsPage() {
   const statusForm = useForm<StatusForm>({ resolver: zodResolver(statusSchema) })
   const newTripForm = useForm<NewTripForm>({
     resolver: zodResolver(newTripSchema),
-    defaultValues: { pax: 1 },
+    defaultValues: { paxCount: 1, tripType: 'ONE_WAY' },
   })
+
+  const watchTripType = newTripForm.watch('tripType')
 
   async function handleFlagDelay(values: DelayForm) {
     if (!delayTrip) return
-    await flagDelay.mutateAsync({ id: delayTrip.id, reason: values.reason })
+    await flagDelay.mutateAsync({ id: delayTrip.id, delayNotes: values.reason })
     setDelayTrip(null)
     delayForm.reset()
   }
@@ -184,26 +189,20 @@ export default function TripsPage() {
   }
 
   async function handleCreateTrip(values: NewTripForm) {
+    const isRoundTrip = values.tripType === 'ROUND_TRIP'
     await createTrip.mutateAsync({
-      departureAirport: values.originIcao,
-      arrivalAirport: values.destinationIcao,
-      departureTime: new Date(values.departureAt).toISOString(),
-      arrivalTime: values.arrivalAt
-        ? new Date(values.arrivalAt).toISOString()
-        : new Date(values.departureAt).toISOString(),
+      originIcao: values.originIcao,
+      destinationIcao: values.destinationIcao,
+      departureAt: new Date(values.departureAt).toISOString(),
+      arrivalAt: values.arrivalAt ? new Date(values.arrivalAt).toISOString() : undefined,
+      returnDepartureAt: isRoundTrip && values.returnDepartureAt
+        ? new Date(values.returnDepartureAt).toISOString()
+        : undefined,
+      returnArrivalAt: isRoundTrip && values.returnArrivalAt
+        ? new Date(values.returnArrivalAt).toISOString()
+        : undefined,
+      paxCount: values.paxCount,
       notes: values.notes || undefined,
-      aircraftId: '',
-      legs: [
-        {
-          sequence: 1,
-          originIcao: values.originIcao,
-          destinationIcao: values.destinationIcao,
-          scheduledDeparture: new Date(values.departureAt).toISOString(),
-          scheduledArrival: values.arrivalAt
-            ? new Date(values.arrivalAt).toISOString()
-            : new Date(values.departureAt).toISOString(),
-        },
-      ],
     })
     setNewTripOpen(false)
     newTripForm.reset()
@@ -219,12 +218,12 @@ export default function TripsPage() {
       key: 'route',
       header: 'Route',
       render: (t) => {
-        const originIcao = t.legs?.[0]?.originIcao ?? t.departureAirport
-        const destinationIcao = t.legs?.[0]?.destinationIcao ?? t.arrivalAirport
+        const origin = t.legs?.[0]?.originIcao ?? t.originIcao
+        const destination = t.legs?.[0]?.destinationIcao ?? t.destinationIcao
         return (
           <div className="flex items-center gap-1.5">
             <span className="font-mono font-bold text-gray-900 text-sm tracking-wide">
-              {originIcao}
+              {origin}
             </span>
             <svg
               className="h-3.5 w-3.5 text-gray-400"
@@ -240,8 +239,11 @@ export default function TripsPage() {
               />
             </svg>
             <span className="font-mono font-bold text-gray-900 text-sm tracking-wide">
-              {destinationIcao}
+              {destination}
             </span>
+            {t.returnDepartureAt && (
+              <span className="ml-1 text-xs text-primary-600 font-medium">↩ RT</span>
+            )}
           </div>
         )
       },
@@ -250,14 +252,14 @@ export default function TripsPage() {
       key: 'aircraft',
       header: 'Aircraft',
       render: (t) => (
-        <span className="text-sm">{t.aircraft?.registration ?? '—'}</span>
+        <span className="text-sm">{t.aircraft?.tailNumber ?? '—'}</span>
       ),
     },
     {
       key: 'departure',
       header: 'Departure',
       render: (t) => {
-        const dep = new Date(t.departureTime)
+        const dep = new Date(t.departureAt)
         const now = new Date()
         const diffH = (dep.getTime() - now.getTime()) / 3600000
         const formatted =
@@ -281,6 +283,11 @@ export default function TripsPage() {
           </div>
         )
       },
+    },
+    {
+      key: 'pax',
+      header: 'PAX',
+      render: (t) => <span className="text-sm text-gray-700">{t.paxCount}</span>,
     },
     {
       key: 'status',
@@ -365,12 +372,12 @@ export default function TripsPage() {
       {/* New Trip Modal */}
       <Modal
         isOpen={newTripOpen}
-        onClose={() => setNewTripOpen(false)}
+        onClose={() => { setNewTripOpen(false); newTripForm.reset() }}
         title="New Trip"
         size="md"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setNewTripOpen(false)}>
+            <Button variant="secondary" onClick={() => { setNewTripOpen(false); newTripForm.reset() }}>
               Cancel
             </Button>
             <Button
@@ -383,6 +390,7 @@ export default function TripsPage() {
         }
       >
         <form className="space-y-4" noValidate>
+          {/* Route */}
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Origin ICAO"
@@ -401,6 +409,30 @@ export default function TripsPage() {
               {...newTripForm.register('destinationIcao')}
             />
           </div>
+
+          {/* Trip type toggle */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Trip Type</label>
+            <div className="flex rounded-md border border-gray-300 overflow-hidden">
+              {(['ONE_WAY', 'ROUND_TRIP'] as const).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => newTripForm.setValue('tripType', type)}
+                  className={clsx(
+                    'flex-1 py-2 text-sm font-medium transition-colors',
+                    watchTripType === type
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-white text-gray-600 hover:bg-gray-50',
+                  )}
+                >
+                  {type === 'ONE_WAY' ? 'One Way' : 'Round Trip'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Outbound departure / arrival */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -408,7 +440,7 @@ export default function TripsPage() {
               </label>
               <input
                 type="datetime-local"
-                className="form-input"
+                className="form-input w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 {...newTripForm.register('departureAt')}
               />
               {newTripForm.formState.errors.departureAt && (
@@ -421,28 +453,61 @@ export default function TripsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Arrival</label>
               <input
                 type="datetime-local"
-                className="form-input"
+                className="form-input w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 {...newTripForm.register('arrivalAt')}
               />
             </div>
           </div>
+
+          {/* Return leg (round trip only) */}
+          {watchTripType === 'ROUND_TRIP' && (
+            <div className="grid grid-cols-2 gap-4 pt-1">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Return Departure
+                </label>
+                <input
+                  type="datetime-local"
+                  className="form-input w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  {...newTripForm.register('returnDepartureAt')}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Return Arrival
+                </label>
+                <input
+                  type="datetime-local"
+                  className="form-input w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  {...newTripForm.register('returnArrivalAt')}
+                />
+              </div>
+            </div>
+          )}
+
           <Input
             label="PAX Count"
             type="number"
             required
             min={1}
-            error={newTripForm.formState.errors.pax?.message}
-            {...newTripForm.register('pax')}
+            error={newTripForm.formState.errors.paxCount?.message}
+            {...newTripForm.register('paxCount')}
           />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
             <textarea
               rows={3}
               placeholder="Any special instructions or notes..."
-              className="form-input resize-none"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
               {...newTripForm.register('notes')}
             />
           </div>
+
+          {createTrip.isError && (
+            <p className="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2">
+              Failed to create trip. Please try again.
+            </p>
+          )}
         </form>
       </Modal>
 

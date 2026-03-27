@@ -7,6 +7,7 @@ import { Badge, ticketStatusBadge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { PlusIcon, ExclamationTriangleIcon } from '@heroicons/react/20/solid'
 import { NewTicketModal } from '@/components/tickets/NewTicketModal'
+import { TicketDetailModal } from '@/components/tickets/TicketDetailModal'
 
 type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'PENDING_CUSTOMER' | 'RESOLVED' | 'CLOSED'
 type TicketPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
@@ -17,7 +18,7 @@ interface Ticket {
   subject: string
   status: TicketStatus
   priority: TicketPriority
-  contact: { firstName: string; lastName: string }
+  contact: { firstName: string; lastName: string } | null
   assigneeId: string | null
   slaBreach: boolean
   source: string
@@ -32,13 +33,6 @@ const STATUSES: { value: TicketStatus | ''; label: string }[] = [
   { value: 'RESOLVED', label: 'Resolved' },
   { value: 'CLOSED', label: 'Closed' },
 ]
-
-const PRIORITY_COLORS: Record<TicketPriority, string> = {
-  LOW: 'text-gray-400',
-  NORMAL: 'text-blue-500',
-  HIGH: 'text-amber-500',
-  URGENT: 'text-red-500',
-}
 
 const PRIORITY_BG: Record<TicketPriority, string> = {
   LOW: 'bg-gray-100 text-gray-600',
@@ -64,6 +58,7 @@ export default function TicketsPage() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<TicketStatus | ''>('')
   const [newTicketOpen, setNewTicketOpen] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const { data, isLoading } = useTickets({
     page,
@@ -95,7 +90,7 @@ export default function TicketsPage() {
       header: 'Contact',
       render: (t) => (
         <span className="text-sm text-gray-700">
-          {t.contact.firstName} {t.contact.lastName}
+          {t.contact ? `${t.contact.firstName} ${t.contact.lastName}` : <span className="text-gray-400">—</span>}
         </span>
       ),
     },
@@ -176,11 +171,17 @@ export default function TicketsPage() {
         pagination={data?.meta}
         onPageChange={setPage}
         rowClassName={(t) => t.slaBreach ? 'bg-red-50/40' : ''}
+        onRowClick={(t) => setSelectedId(t.id)}
       />
 
       <NewTicketModal
         isOpen={newTicketOpen}
         onClose={() => setNewTicketOpen(false)}
+      />
+
+      <TicketDetailModal
+        ticketId={selectedId}
+        onClose={() => setSelectedId(null)}
       />
     </div>
   )

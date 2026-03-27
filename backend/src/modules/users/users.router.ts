@@ -15,7 +15,7 @@ usersRouter.use(tenantScope)
 
 // Only ADMIN and MANAGER can manage users
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  if (!['ADMIN', 'SUPER_ADMIN', 'MANAGER'].includes(req.user!.role)) {
+  if (!['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'COMPANY_ADMIN'].includes(req.user!.role)) {
     return next(new AppError(403, 'FORBIDDEN', 'Insufficient permissions'))
   }
   next()

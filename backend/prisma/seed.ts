@@ -398,7 +398,7 @@ async function seedAdminUser() {
       firstName: "Demo",
       lastName: "Admin",
       passwordHash: hashedPassword,
-      role: "COMPANY_ADMIN",
+      role: "ADMIN",
       isActive: true,
       mfaSettings: {
         create: {

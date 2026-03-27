@@ -5,6 +5,7 @@ import {
   ChevronDownIcon,
   ArrowRightOnRectangleIcon,
   Cog6ToothIcon,
+  Bars3Icon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/store/auth.store'
 import { useLogout } from '@/api/auth.api'
@@ -21,7 +22,11 @@ const PAGE_LABELS: Record<string, string> = {
   '/settings': 'Settings',
 }
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick?: () => void
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   const user = useAuthStore((s) => s.user)
   const logout = useLogout()
   const location = useLocation()
@@ -34,10 +39,19 @@ export function Header() {
   }
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center px-6 gap-4 shrink-0">
+    <header className="h-16 bg-white border-b border-gray-200 flex items-center px-4 sm:px-6 gap-3 shrink-0">
+      {/* Mobile hamburger */}
+      <button
+        onClick={onMenuClick}
+        className="lg:hidden p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+        aria-label="Open menu"
+      >
+        <Bars3Icon className="h-5 w-5" />
+      </button>
+
       {/* Page title */}
-      <div className="flex-1">
-        <span className="text-sm font-semibold text-gray-900">{pageLabel}</span>
+      <div className="flex-1 min-w-0">
+        <span className="text-sm font-semibold text-gray-900 truncate">{pageLabel}</span>
       </div>
 
       {/* Notification Bell */}

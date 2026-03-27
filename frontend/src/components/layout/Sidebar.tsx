@@ -45,28 +45,38 @@ const NAV_ITEMS: NavItem[] = [
 interface SidebarProps {
   collapsed: boolean
   onToggle: () => void
+  onMobileClose?: () => void
 }
 
-export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
   const user = useAuthStore((s) => s.user)
 
   return (
     <aside
       className={clsx(
         'flex flex-col bg-sidebar text-sidebar-text h-screen transition-all duration-200 shrink-0',
-        collapsed ? 'w-16' : 'w-60'
+        collapsed ? 'w-64 lg:w-16' : 'w-64 lg:w-60',
       )}
     >
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b border-white/10">
-        {!collapsed && (
-          <span className="text-white font-bold text-lg tracking-tight truncate">AeroComm</span>
-        )}
+        <span className={clsx('text-white font-bold text-lg tracking-tight truncate', collapsed && 'lg:hidden')}>
+          AeroComm
+        </span>
+        {/* Mobile close button */}
+        <button
+          onClick={onMobileClose}
+          className="ml-auto rounded p-1 text-sidebar-text hover:text-white hover:bg-sidebar-hover transition-colors lg:hidden"
+          aria-label="Close menu"
+        >
+          <ChevronLeftIcon className="h-4 w-4" />
+        </button>
+        {/* Desktop collapse toggle */}
         <button
           onClick={onToggle}
           className={clsx(
-            'ml-auto rounded p-1 text-sidebar-text hover:text-white hover:bg-sidebar-hover transition-colors',
-            collapsed && 'mx-auto'
+            'hidden lg:block rounded p-1 text-sidebar-text hover:text-white hover:bg-sidebar-hover transition-colors',
+            collapsed ? 'mx-auto' : 'ml-auto',
           )}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
@@ -85,6 +95,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             key={item.to}
             to={item.to}
             end={item.to === '/'}
+            onClick={onMobileClose}
             className={({ isActive }) =>
               clsx(
                 'flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors',
@@ -95,7 +106,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             }
           >
             <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-            {!collapsed && <span className="truncate">{item.label}</span>}
+            <span className={clsx('truncate', collapsed && 'lg:hidden')}>{item.label}</span>
           </NavLink>
         ))}
       </nav>

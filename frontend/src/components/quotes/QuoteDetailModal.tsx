@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { clsx } from 'clsx'
 import { Modal } from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import { Badge, quoteStatusBadge } from '@/components/ui/Badge'
 import { apiClient } from '@/api/client'
 import { useGeneratePortalLink } from '@/api/portal.api'
-import { PrinterIcon, LinkIcon, CheckIcon } from '@heroicons/react/24/outline'
+import { PrinterIcon, LinkIcon, CheckIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline'
 
 interface QuoteDetail {
   id: string
@@ -65,9 +65,24 @@ function useQuoteDetail(id: string | null) {
   })
 }
 
+function useSendQuote(quoteId: string | null) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.patch<QuoteDetail>(`/quotes/${quoteId}`, { status: 'SENT' })
+      return res.data
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['quote-detail', quoteId] })
+      void queryClient.invalidateQueries({ queryKey: ['quotes'] })
+    },
+  })
+}
+
 export function QuoteDetailModal({ quoteId, onClose }: Props) {
   const { data: quote, isLoading } = useQuoteDetail(quoteId)
   const generateLink = useGeneratePortalLink()
+  const sendQuote = useSendQuote(quoteId)
   const [portalUrl, setPortalUrl] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -157,6 +172,20 @@ export function QuoteDetailModal({ quoteId, onClose }: Props) {
           {quote.validUntil && (
             <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-2.5 text-sm text-amber-800">
               Valid until <span className="font-medium">{fmtDate(quote.validUntil)}</span>
+            </div>
+          )}
+
+          {/* Send to client */}
+          {quote.status === 'DRAFT' && (
+            <div className="flex items-center justify-between rounded-lg bg-blue-50 border border-blue-200 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-blue-900">Ready to send?</p>
+                <p className="text-xs text-blue-700">This will mark the quote as Sent so the client can accept or decline.</p>
+              </div>
+              <Button size="sm" onClick={() => sendQuote.mutate()} loading={sendQuote.isPending}>
+                <PaperAirplaneIcon className="h-4 w-4 mr-1.5" />
+                Send to Client
+              </Button>
             </div>
           )}
 

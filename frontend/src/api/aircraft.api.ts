@@ -63,6 +63,30 @@ export function normalizeAircraft(raw: BackendAircraft): Aircraft {
   }
 }
 
+export interface BackendAircraftDetail extends BackendAircraft {
+  airframeHours: number | null
+  engineHours: number | null
+  ownerId: string | null
+  owner: { id: string; firstName: string; lastName: string } | null
+}
+
+export interface AircraftDetail extends Aircraft {
+  airframeHours: number | null
+  engineHours: number | null
+  ownerId: string | null
+  owner: { id: string; firstName: string; lastName: string } | null
+}
+
+export function normalizeAircraftDetail(raw: BackendAircraftDetail): AircraftDetail {
+  return {
+    ...normalizeAircraft(raw),
+    airframeHours: raw.airframeHours,
+    engineHours: raw.engineHours,
+    ownerId: raw.ownerId,
+    owner: raw.owner,
+  }
+}
+
 const AIRCRAFT_KEY = 'aircraft'
 
 export function useAircraftList(filters?: { page?: number; pageSize?: number; isActive?: boolean }) {
@@ -72,6 +96,30 @@ export function useAircraftList(filters?: { page?: number; pageSize?: number; is
       const response = await apiClient.get<{ data: BackendAircraft[]; meta: { total: number; page: number; pageSize: number; totalPages: number } }>('/aircraft', { params: filters })
       const raw = response.data as { data: BackendAircraft[]; meta: { total: number; page: number; pageSize: number; totalPages: number } }
       return { ...raw, data: raw.data.map(normalizeAircraft) }
+    },
+  })
+}
+
+export function useAircraft(id: string | null) {
+  return useQuery({
+    queryKey: [AIRCRAFT_KEY, id],
+    enabled: !!id,
+    queryFn: async () => {
+      const response = await apiClient.get<BackendAircraftDetail>(`/aircraft/${id}`)
+      return normalizeAircraftDetail(response.data as BackendAircraftDetail)
+    },
+  })
+}
+
+export function useUpdateAircraft() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<CreateAircraftInput> }) => {
+      const response = await apiClient.patch<BackendAircraft>(`/aircraft/${id}`, data)
+      return normalizeAircraft(response.data as BackendAircraft)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [AIRCRAFT_KEY] })
     },
   })
 }

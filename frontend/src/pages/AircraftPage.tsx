@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { PlusIcon } from '@heroicons/react/20/solid'
 import { AddAircraftModal } from '@/components/aircraft/AddAircraftModal'
+import { AircraftDetailModal } from '@/components/aircraft/AircraftDetailModal'
 import { normalizeAircraft, type Aircraft } from '@/api/aircraft.api'
 
 function useAircraft(filters: { page?: number; pageSize?: number; isActive?: boolean }) {
@@ -32,6 +33,7 @@ export default function AircraftPage() {
   const [page, setPage] = useState(1)
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('all')
   const [addOpen, setAddOpen] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const { data, isLoading } = useAircraft({
     page,
@@ -102,7 +104,7 @@ export default function AircraftPage() {
       header: 'Status',
       render: (a) => (
         <Badge variant={a.isActive ? 'success' : 'default'} size="sm">
-          {a.isActive ? 'Active' : 'Inactive'}
+          {a.isActive ? 'In Charter' : 'Out of Charter'}
         </Badge>
       ),
     },
@@ -124,18 +126,22 @@ export default function AircraftPage() {
 
       {/* Filter pills */}
       <div className="flex items-center gap-2">
-        {(['all', 'active', 'inactive'] as ActiveFilter[]).map((f) => (
+        {([
+          { value: 'all', label: 'All' },
+          { value: 'active', label: 'In Charter' },
+          { value: 'inactive', label: 'Out of Charter' },
+        ] as { value: ActiveFilter; label: string }[]).map((f) => (
           <button
-            key={f}
-            onClick={() => { setActiveFilter(f); setPage(1) }}
+            key={f.value}
+            onClick={() => { setActiveFilter(f.value); setPage(1) }}
             className={clsx(
-              'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors capitalize',
-              activeFilter === f
+              'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+              activeFilter === f.value
                 ? 'bg-gray-900 text-white border-gray-900'
                 : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400',
             )}
           >
-            {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}
+            {f.label}
           </button>
         ))}
       </div>
@@ -148,11 +154,17 @@ export default function AircraftPage() {
         emptyMessage="No aircraft found. Add your first aircraft to get started."
         pagination={data?.meta}
         onPageChange={setPage}
+        onRowClick={(a) => setSelectedId(a.id)}
       />
 
       <AddAircraftModal
         isOpen={addOpen}
         onClose={() => setAddOpen(false)}
+      />
+
+      <AircraftDetailModal
+        aircraftId={selectedId}
+        onClose={() => setSelectedId(null)}
       />
     </div>
   )

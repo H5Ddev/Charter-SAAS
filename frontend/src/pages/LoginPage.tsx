@@ -36,7 +36,9 @@ export default function LoginPage() {
         (import.meta.env.VITE_TENANT_ID as string | undefined) ||
         (() => {
           const parts = window.location.hostname.split('.')
-          return parts.length > 2 ? parts[0] : 'default'
+          if (parts.length > 2) return parts[0]
+          if (window.location.hostname === 'localhost') return 'tenant_aerocomm_demo'
+          return 'default'
         })()
       const result = await login.mutateAsync({ ...values, tenantId })
       if ('mfaRequired' in result && result.mfaRequired) {

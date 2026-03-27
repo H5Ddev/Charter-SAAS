@@ -5,7 +5,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: development
+      target: dev
     ports:
       - '3000:3000'
     environment:
@@ -30,16 +30,14 @@ services:
       FRONTEND_URL: 'http://localhost:5173'
       RATE_LIMIT_WINDOW_MS: '900000'
       RATE_LIMIT_MAX: '1000'
+    command: npx ts-node-dev --respawn --transpile-only src/server.ts
     volumes:
-      - ./backend/src:/app/src
-      - ./backend/prisma:/app/prisma
+      - ./backend:/app
+      - /app/node_modules
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-      azurite:
-        condition: service_started
+      - db
+      - redis
+      - azurite
     networks:
       - aerocomm
 
@@ -47,21 +45,24 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: development
+      target: dev
     ports:
       - '5173:5173'
     environment:
       VITE_API_URL: 'http://localhost:3000'
+      VITE_TENANT_ID: 'tenant_aerocomm_demo'
+      API_TARGET: 'http://backend:3000'
     volumes:
-      - ./frontend/src:/app/src
-      - ./frontend/public:/app/public
+      - ./frontend:/app
+      - /app/node_modules
     depends_on:
       - backend
     networks:
       - aerocomm
 
   db:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    platform: linux/arm64
     ports:
       - '1433:1433'
     environment:
@@ -71,7 +72,7 @@ services:
     volumes:
       - mssql_data:/var/opt/mssql
     healthcheck:
-      test: ['CMD-SHELL', '/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P AeroComm_Dev1! -Q "SELECT 1" -C -N -No || exit 1']
+      test: ['CMD-SHELL', 'bash -c "</dev/tcp/localhost/1433" 2>/dev/null && exit 0 || exit 1']
       interval: 10s
       timeout: 5s
       retries: 10

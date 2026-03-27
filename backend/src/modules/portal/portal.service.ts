@@ -4,6 +4,7 @@ import { createHash, randomInt } from 'crypto'
 import { z } from 'zod'
 import { env } from '../../config/env'
 import { AppError } from '../../shared/middleware/errorHandler'
+import { logger } from '../../shared/utils/logger'
 import { smsSender } from '../notifications/channels/sms.sender'
 import { emailSender } from '../notifications/channels/email.sender'
 
@@ -182,6 +183,12 @@ export class PortalService {
     const code = generateOtp()
     const challengeToken = generateOtpChallenge(contactId, tenantId, code)
     const message = `Your AeroComm verification code is: ${code}. It expires in 10 minutes. Do not share this code.`
+
+    // In development, skip real delivery and print the code to the server log
+    if (env.NODE_ENV !== 'production') {
+      logger.info(`[DEV] OTP for ${contact.email ?? contact.phone}: ${code}`)
+      return challengeToken
+    }
 
     // Prefer SMS; fall back to email
     if (contact.phone) {

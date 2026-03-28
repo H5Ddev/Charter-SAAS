@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAuthStore } from '../store/auth.store'
 import { useLogin } from '../api/auth.api'
+import { LoginPanelLogo, InlineLogoDark } from '../components/ui/AeroCommLogo'
 
 const loginSchema = z.object({
   email: z.string().email('Enter a valid email address'),
@@ -72,15 +73,7 @@ export default function LoginPage() {
         <div className="relative z-10 flex flex-col h-full p-12">
 
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center">
-              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-white" stroke="currentColor" strokeWidth="1.5">
-                <path strokeLinecap="round" strokeLinejoin="round"
-                  d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-              </svg>
-            </div>
-            <span className="text-white font-semibold text-lg tracking-tight">AeroComm</span>
-          </div>
+          <LoginPanelLogo />
 
           {/* Main copy */}
           <div className="flex-1 flex flex-col justify-center max-w-md">
@@ -121,14 +114,8 @@ export default function LoginPage() {
       <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-10 bg-white">
 
         {/* Mobile logo */}
-        <div className="lg:hidden flex items-center gap-2 mb-10">
-          <div className="w-8 h-8 rounded-lg bg-primary-700 flex items-center justify-center">
-            <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4 text-white" stroke="currentColor" strokeWidth="1.5">
-              <path strokeLinecap="round" strokeLinejoin="round"
-                d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-            </svg>
-          </div>
-          <span className="font-semibold text-gray-900 text-lg">AeroComm</span>
+        <div className="lg:hidden mb-10">
+          <InlineLogoDark size={30} />
         </div>
 
         <div className="w-full max-w-sm">

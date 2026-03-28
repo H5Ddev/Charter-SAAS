@@ -27,6 +27,7 @@ import {
   DevicePhoneMobileIcon,
   EnvelopeIcon,
 } from '@heroicons/react/24/outline'
+import { PortalWordmark } from '@/components/ui/AeroCommLogo'
 
 // ─── Formatters ──────────────────────────────────────────────────────────────
 
@@ -830,7 +831,7 @@ export default function PortalPage() {
       </main>
 
       <footer className="text-center py-8 text-xs text-gray-400">
-        {tenant?.name} · Powered by AeroComm
+        {tenant?.name} · Powered by <PortalWordmark />
       </footer>
     </div>
   )

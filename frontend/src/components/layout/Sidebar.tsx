@@ -18,6 +18,7 @@ import {
   UsersIcon as UsersManageIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/store/auth.store'
+import { SidebarLogo } from '@/components/ui/AeroCommLogo'
 
 interface NavItem {
   label: string
@@ -60,9 +61,7 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
     >
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b border-white/10">
-        <span className={clsx('text-white font-bold text-lg tracking-tight truncate', collapsed && 'lg:hidden')}>
-          AeroComm
-        </span>
+        <SidebarLogo collapsed={collapsed} />
         {/* Mobile close button */}
         <button
           onClick={onMobileClose}

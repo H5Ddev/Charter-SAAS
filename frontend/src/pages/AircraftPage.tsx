@@ -155,6 +155,30 @@ export default function AircraftPage() {
         pagination={data?.meta}
         onPageChange={setPage}
         onRowClick={(a) => setSelectedId(a.id)}
+        renderMobileCard={(a) => (
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-primary-50 flex items-center justify-center shrink-0">
+              <svg className="h-5 w-5 text-primary-600" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-mono font-bold text-gray-900 text-sm tracking-wide">{a.registration}</p>
+              <p className="text-xs text-gray-500">{a.make} {a.model}{a.year ? ` · ${a.year}` : ''}</p>
+              {a.homeBaseIcao && (
+                <p className="text-xs text-gray-400 font-mono">{a.homeBaseIcao} · {a.seatingCapacity} seats</p>
+              )}
+            </div>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <Badge variant={a.isActive ? 'success' : 'default'} size="sm">
+                {a.isActive ? 'In Charter' : 'Out'}
+              </Badge>
+              {a.hourlyRate != null && (
+                <span className="text-xs text-gray-600 tabular-nums">${a.hourlyRate.toLocaleString()}/hr</span>
+              )}
+            </div>
+          </div>
+        )}
       />
 
       <AddAircraftModal

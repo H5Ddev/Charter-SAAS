@@ -262,6 +262,27 @@ export default function ContactsPage() {
         emptyMessage="No contacts found. Add your first contact to get started."
         pagination={data?.meta}
         onPageChange={setPage}
+        onRowClick={(c) => openEdit(c)}
+        renderMobileCard={(c) => (
+          <div className="flex items-center gap-3">
+            <div
+              className={`h-10 w-10 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0 ${avatarColor(c.firstName)}`}
+            >
+              {initials(c.firstName, c.lastName)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-gray-900 text-sm">{c.firstName} {c.lastName}</p>
+              {c.email && <p className="text-xs text-gray-500 truncate">{c.email}</p>}
+              {c.phone && <p className="text-xs text-gray-400">{c.phone}</p>}
+            </div>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <Badge variant={TYPE_BADGE[c.type] ?? 'default'} size="sm">
+                {c.type.charAt(0) + c.type.slice(1).toLowerCase()}
+              </Badge>
+              <Badge variant="info" size="sm">{c.preferredChannel}</Badge>
+            </div>
+          </div>
+        )}
       />
 
       {/* Create/Edit Modal */}

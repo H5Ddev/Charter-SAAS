@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { clsx } from 'clsx'
 import { Table, type Column } from '@/components/ui/Table'
 import { Badge } from '@/components/ui/Badge'
@@ -7,6 +7,7 @@ import { PlusIcon, XMarkIcon } from '@heroicons/react/20/solid'
 import {
   useMaintenance,
   useCreateMaintenance,
+  useUpdateMaintenance,
   useDeleteMaintenance,
   type MaintenanceRecord,
   type MaintenanceType,
@@ -51,29 +52,56 @@ function formatDate(s: string | null) {
 interface AddMaintenanceModalProps {
   isOpen: boolean
   onClose: () => void
+  editingRecord?: MaintenanceRecord
 }
 
-function AddMaintenanceModal({ isOpen, onClose }: AddMaintenanceModalProps) {
+const EMPTY_FORM = {
+  aircraftId: '',
+  type: 'SCHEDULED' as MaintenanceType,
+  title: '',
+  description: '',
+  status: 'SCHEDULED' as MaintenanceStatus,
+  scheduledAt: '',
+  completedAt: '',
+  vendor: '',
+  cost: '',
+  airframeHoursAtService: '',
+  nextDueHours: '',
+  nextDueDate: '',
+  notes: '',
+}
+
+function AddMaintenanceModal({ isOpen, onClose, editingRecord }: AddMaintenanceModalProps) {
   const createMaintenance = useCreateMaintenance()
+  const updateMaintenance = useUpdateMaintenance()
   const { data: aircraftData } = useAircraftList({ pageSize: 100 })
 
-  const [form, setForm] = useState({
-    aircraftId: '',
-    type: 'SCHEDULED' as MaintenanceType,
-    title: '',
-    description: '',
-    status: 'SCHEDULED' as MaintenanceStatus,
-    scheduledAt: '',
-    completedAt: '',
-    vendor: '',
-    cost: '',
-    airframeHoursAtService: '',
-    nextDueHours: '',
-    nextDueDate: '',
-    notes: '',
-  })
-
+  const [form, setForm] = useState(EMPTY_FORM)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (editingRecord) {
+      setForm({
+        aircraftId: editingRecord.aircraftId,
+        type: editingRecord.type,
+        title: editingRecord.title,
+        description: editingRecord.description ?? '',
+        status: editingRecord.status,
+        scheduledAt: editingRecord.scheduledAt ? editingRecord.scheduledAt.split('T')[0] : '',
+        completedAt: editingRecord.completedAt ? editingRecord.completedAt.split('T')[0] : '',
+        vendor: editingRecord.vendor ?? '',
+        cost: editingRecord.cost != null ? String(editingRecord.cost) : '',
+        airframeHoursAtService: editingRecord.airframeHoursAtService != null ? String(editingRecord.airframeHoursAtService) : '',
+        nextDueHours: editingRecord.nextDueHours != null ? String(editingRecord.nextDueHours) : '',
+        nextDueDate: editingRecord.nextDueDate ? editingRecord.nextDueDate.split('T')[0] : '',
+        notes: editingRecord.notes ?? '',
+      })
+    } else {
+      setForm(EMPTY_FORM)
+    }
+    setError(null)
+  }, [isOpen, editingRecord])
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((f) => ({ ...f, [k]: v }))
@@ -85,32 +113,35 @@ function AddMaintenanceModal({ isOpen, onClose }: AddMaintenanceModalProps) {
     if (!form.aircraftId) { setError('Please select an aircraft.'); return }
     if (!form.title.trim()) { setError('Title is required.'); return }
 
+    const payload = {
+      aircraftId: form.aircraftId,
+      type: form.type,
+      title: form.title.trim(),
+      description: form.description.trim() || undefined,
+      status: form.status,
+      scheduledAt: form.scheduledAt || undefined,
+      completedAt: form.completedAt || undefined,
+      vendor: form.vendor.trim() || undefined,
+      cost: form.cost ? Number(form.cost) : undefined,
+      airframeHoursAtService: form.airframeHoursAtService ? Number(form.airframeHoursAtService) : undefined,
+      nextDueHours: form.nextDueHours ? Number(form.nextDueHours) : undefined,
+      nextDueDate: form.nextDueDate || undefined,
+      notes: form.notes.trim() || undefined,
+    }
+
     try {
-      await createMaintenance.mutateAsync({
-        aircraftId: form.aircraftId,
-        type: form.type,
-        title: form.title.trim(),
-        description: form.description.trim() || undefined,
-        status: form.status,
-        scheduledAt: form.scheduledAt || undefined,
-        completedAt: form.completedAt || undefined,
-        vendor: form.vendor.trim() || undefined,
-        cost: form.cost ? Number(form.cost) : undefined,
-        airframeHoursAtService: form.airframeHoursAtService ? Number(form.airframeHoursAtService) : undefined,
-        nextDueHours: form.nextDueHours ? Number(form.nextDueHours) : undefined,
-        nextDueDate: form.nextDueDate || undefined,
-        notes: form.notes.trim() || undefined,
-      })
+      if (editingRecord) {
+        await updateMaintenance.mutateAsync({ id: editingRecord.id, data: payload })
+      } else {
+        await createMaintenance.mutateAsync(payload)
+      }
       onClose()
-      setForm({
-        aircraftId: '', type: 'SCHEDULED', title: '', description: '', status: 'SCHEDULED',
-        scheduledAt: '', completedAt: '', vendor: '', cost: '', airframeHoursAtService: '',
-        nextDueHours: '', nextDueDate: '', notes: '',
-      })
     } catch {
-      setError('Failed to create maintenance record.')
+      setError(editingRecord ? 'Failed to update maintenance record.' : 'Failed to create maintenance record.')
     }
   }
+
+  const isPending = createMaintenance.isPending || updateMaintenance.isPending
 
   if (!isOpen) return null
 
@@ -120,7 +151,7 @@ function AddMaintenanceModal({ isOpen, onClose }: AddMaintenanceModalProps) {
         <div className="fixed inset-0 bg-gray-500/75 transition-opacity" onClick={onClose} />
         <div className="relative bg-white rounded-xl shadow-xl text-left w-full max-w-lg z-10 overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Add Maintenance Record</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{editingRecord ? 'Edit Maintenance Record' : 'Add Maintenance Record'}</h2>
             <button onClick={onClose} className="rounded p-1 text-gray-400 hover:text-gray-600">
               <XMarkIcon className="h-5 w-5" />
             </button>
@@ -287,8 +318,8 @@ function AddMaintenanceModal({ isOpen, onClose }: AddMaintenanceModalProps) {
 
           <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
             <Button variant="secondary" size="sm" type="button" onClick={onClose}>Cancel</Button>
-            <Button size="sm" type="submit" form="add-maintenance-form" disabled={createMaintenance.isPending}>
-              {createMaintenance.isPending ? 'Saving…' : 'Save Record'}
+            <Button size="sm" type="submit" form="add-maintenance-form" disabled={isPending}>
+              {isPending ? 'Saving…' : editingRecord ? 'Save Changes' : 'Save Record'}
             </Button>
           </div>
         </div>
@@ -303,6 +334,7 @@ export default function MaintenancePage() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [addOpen, setAddOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<MaintenanceRecord | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const deleteMaintenance = useDeleteMaintenance()
@@ -377,7 +409,7 @@ export default function MaintenancePage() {
       header: '',
       render: (r) => (
         <button
-          onClick={() => setDeleteId(r.id)}
+          onClick={(e) => { e.stopPropagation(); setDeleteId(r.id) }}
           className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors"
         >
           Delete
@@ -434,9 +466,34 @@ export default function MaintenancePage() {
         emptyMessage="No maintenance records found. Add your first record to get started."
         pagination={data?.meta}
         onPageChange={setPage}
+        onRowClick={(r) => setEditTarget(r)}
+        renderMobileCard={(r) => (
+          <div>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-gray-900 text-sm">{r.aircraft?.tailNumber ?? '—'}</span>
+                  <span className="text-xs text-gray-500">{TYPE_LABELS[r.type]}</span>
+                </div>
+                <p className="text-sm text-gray-700 font-medium mt-0.5 truncate">{r.title}</p>
+                {r.vendor && <p className="text-xs text-gray-400">{r.vendor}</p>}
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <Badge variant={STATUS_VARIANTS[r.status]} size="sm">{STATUS_LABELS[r.status]}</Badge>
+                {r.cost != null && (
+                  <span className="text-xs text-gray-600 tabular-nums">${Number(r.cost).toLocaleString()}</span>
+                )}
+              </div>
+            </div>
+            {r.scheduledAt && (
+              <p className="text-xs text-gray-400 mt-1">{formatDate(r.scheduledAt)}</p>
+            )}
+          </div>
+        )}
       />
 
       <AddMaintenanceModal isOpen={addOpen} onClose={() => setAddOpen(false)} />
+      <AddMaintenanceModal isOpen={!!editTarget} onClose={() => setEditTarget(null)} editingRecord={editTarget ?? undefined} />
 
       {/* Delete confirmation */}
       {deleteId && (

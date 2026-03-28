@@ -175,6 +175,27 @@ export default function QuotesPage() {
         pagination={data?.meta}
         onPageChange={setPage}
         onRowClick={(q) => setSelectedQuoteId(q.id)}
+        renderMobileCard={(q) => (
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-mono font-semibold text-gray-900 text-sm">
+                {q.reference ?? q.id.slice(0, 8).toUpperCase()}
+              </p>
+              <p className="text-sm text-gray-700">{q.contact.firstName} {q.contact.lastName}</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {new Date(q.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+              </p>
+            </div>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <Badge variant={quoteStatusBadge(q.status)} size="sm">
+                {q.status.charAt(0) + q.status.slice(1).toLowerCase()}
+              </Badge>
+              <span className="text-sm font-semibold text-gray-900 tabular-nums">
+                {formatCurrency(q.totalPrice, q.currency)}
+              </span>
+            </div>
+          </div>
+        )}
       />
 
       <NewQuoteModal

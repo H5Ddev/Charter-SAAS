@@ -1,11 +1,11 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { clsx } from 'clsx'
 import { Table, type Column } from '@/components/ui/Table'
 import { Badge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import {
-  useCrew, useCreateCrewMember, useDeleteCrewMember,
+  useCrew, useCreateCrewMember, useUpdateCrewMember, useDeleteCrewMember,
   type CrewMember, type CrewRole, type MedicalClass, type CreateCrewMemberInput,
 } from '@/api/crew.api'
 import { PlusIcon, TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
@@ -90,12 +90,46 @@ function DuplicateWarning({ label, name, confirmed, onConfirm }: {
   )
 }
 
-function AddCrewModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+function AddCrewModal({ isOpen, onClose, editingMember }: { isOpen: boolean; onClose: () => void; editingMember?: CrewMember }) {
   const [form, setForm] = useState<Partial<CreateCrewMemberInput>>({ role: 'CAPTAIN', isActive: true })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [typeRatingInput, setTypeRatingInput] = useState('')
   const [confirmed, setConfirmed] = useState<Record<string, boolean>>({})
   const createCrew = useCreateCrewMember()
+  const updateCrew = useUpdateCrewMember()
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (editingMember) {
+      setForm({
+        firstName: editingMember.firstName,
+        lastName: editingMember.lastName,
+        email: editingMember.email ?? undefined,
+        phone: editingMember.phone ?? undefined,
+        role: editingMember.role,
+        licenseNumber: editingMember.licenseNumber ?? undefined,
+        licenseType: editingMember.licenseType ?? undefined,
+        licenseExpiry: editingMember.licenseExpiry ?? undefined,
+        medicalClass: editingMember.medicalClass ?? undefined,
+        medicalExpiry: editingMember.medicalExpiry ?? undefined,
+        isActive: editingMember.isActive,
+        notes: editingMember.notes ?? undefined,
+      })
+      if (editingMember.typeRatings) {
+        try {
+          const parsed = JSON.parse(editingMember.typeRatings)
+          setTypeRatingInput(Array.isArray(parsed) ? parsed.join(', ') : '')
+        } catch { setTypeRatingInput('') }
+      } else {
+        setTypeRatingInput('')
+      }
+    } else {
+      setForm({ role: 'CAPTAIN', isActive: true })
+      setTypeRatingInput('')
+    }
+    setErrors({})
+    setConfirmed({})
+  }, [isOpen, editingMember])
 
   // Fetch all crew for duplicate detection
   const { data: allCrewData } = useCrew({ pageSize: 500 })
@@ -126,10 +160,11 @@ function AddCrewModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
     setConfirmed({})
   }
 
-  // Duplicate checks
+  // Duplicate checks (exclude the member being edited)
   function findDuplicate(field: 'email' | 'phone' | 'licenseNumber', value: string | undefined) {
     if (!value?.trim()) return null
     return allCrew.find((m) => {
+      if (editingMember && m.id === editingMember.id) return false
       const mv = m[field]
       return mv && mv.toLowerCase() === value.trim().toLowerCase()
     }) ?? null
@@ -166,20 +201,26 @@ function AddCrewModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
     const typeRatings = typeRatingInput.trim()
       ? typeRatingInput.split(',').map((s) => s.trim()).filter(Boolean)
       : undefined
-    await createCrew.mutateAsync({ ...form as CreateCrewMemberInput, typeRatings })
+    if (editingMember) {
+      await updateCrew.mutateAsync({ id: editingMember.id, data: { ...form as CreateCrewMemberInput, typeRatings } })
+    } else {
+      await createCrew.mutateAsync({ ...form as CreateCrewMemberInput, typeRatings })
+    }
     handleClose()
   }
 
   const inputCls = 'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500'
 
+  const isPending = createCrew.isPending || updateCrew.isPending
+
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Add Crew Member" size="xl"
+    <Modal isOpen={isOpen} onClose={handleClose} title={editingMember ? 'Edit Crew Member' : 'Add Crew Member'} size="xl"
       footer={
         <>
-          <Button variant="secondary" onClick={handleClose} disabled={createCrew.isPending}>Cancel</Button>
-          <Button variant="primary" onClick={handleSubmit} loading={createCrew.isPending}
+          <Button variant="secondary" onClick={handleClose} disabled={isPending}>Cancel</Button>
+          <Button variant="primary" onClick={handleSubmit} loading={isPending}
             disabled={!!hasPendingConflicts}>
-            Add Member
+            {editingMember ? 'Save Changes' : 'Add Member'}
           </Button>
         </>
       }
@@ -323,6 +364,7 @@ export default function CrewPage() {
   const [page, setPage] = useState(1)
   const [roleFilter, setRoleFilter] = useState<CrewRole | ''>('')
   const [addOpen, setAddOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<CrewMember | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<CrewMember | null>(null)
 
   const { data, isLoading } = useCrew({ role: roleFilter || undefined, page, pageSize: 20 })
@@ -394,7 +436,7 @@ export default function CrewPage() {
       key: 'actions',
       header: '',
       render: (m) => (
-        <button type="button" onClick={() => setDeleteTarget(m)}
+        <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteTarget(m) }}
           className="p-1.5 text-gray-300 hover:text-red-500 rounded transition-colors">
           <TrashIcon className="h-4 w-4" />
         </button>
@@ -446,9 +488,41 @@ export default function CrewPage() {
           })
           return expiring ? 'bg-red-50/40' : ''
         }}
+        onRowClick={(m) => setEditTarget(m)}
+        renderMobileCard={(m) => {
+          const expiring = [m.medicalExpiry, m.licenseExpiry].some((d) => {
+            const days = daysUntil(d)
+            return days !== null && days <= 60
+          })
+          return (
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-gray-900 text-sm">{m.firstName} {m.lastName}</p>
+                  {expiring && <ExclamationTriangleIcon className="h-4 w-4 text-amber-500 shrink-0" />}
+                </div>
+                {m.email && <p className="text-xs text-gray-400 truncate">{m.email}</p>}
+                {m.licenseNumber && (
+                  <p className="text-xs text-gray-500 font-mono">
+                    {m.licenseNumber}{m.licenseType ? ` (${m.licenseType})` : ''}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <span className={clsx('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', ROLE_BADGE[m.role])}>
+                  {ROLES.find((r) => r.value === m.role)?.label ?? m.role}
+                </span>
+                <Badge variant={m.isActive ? 'success' : 'default'} size="sm">
+                  {m.isActive ? 'Active' : 'Inactive'}
+                </Badge>
+              </div>
+            </div>
+          )
+        }}
       />
 
       <AddCrewModal isOpen={addOpen} onClose={() => setAddOpen(false)} />
+      <AddCrewModal isOpen={!!editTarget} onClose={() => setEditTarget(null)} editingMember={editTarget ?? undefined} />
 
       <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Remove Crew Member" size="sm"
         footer={

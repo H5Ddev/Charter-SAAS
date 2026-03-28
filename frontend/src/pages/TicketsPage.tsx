@@ -172,6 +172,28 @@ export default function TicketsPage() {
         onPageChange={setPage}
         rowClassName={(t) => t.slaBreach ? 'bg-red-50/40' : ''}
         onRowClick={(t) => setSelectedId(t.id)}
+        renderMobileCard={(t) => (
+          <div>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <p className="font-medium text-gray-900 text-sm truncate">{t.subject}</p>
+                {t.slaBreach && (
+                  <span className="shrink-0 inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold bg-red-100 text-red-700">
+                    <ExclamationTriangleIcon className="h-3 w-3" />SLA
+                  </span>
+                )}
+              </div>
+              <Badge variant={ticketStatusBadge(t.status)} size="sm">{t.status.replace('_', ' ')}</Badge>
+            </div>
+            <div className="mt-1 flex items-center gap-2 flex-wrap">
+              {t.contact && <span className="text-xs text-gray-500">{t.contact.firstName} {t.contact.lastName}</span>}
+              <span className={clsx('inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium', PRIORITY_BG[t.priority])}>
+                {t.priority.charAt(0) + t.priority.slice(1).toLowerCase()}
+              </span>
+              <span className="ml-auto text-xs font-mono text-gray-400">{t.reference}</span>
+            </div>
+          </div>
+        )}
       />
 
       <NewTicketModal

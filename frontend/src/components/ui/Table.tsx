@@ -32,6 +32,7 @@ export interface TableProps<T> {
   className?: string
   rowClassName?: (row: T) => string
   onRowClick?: (row: T) => void
+  renderMobileCard?: (row: T) => ReactNode
 }
 
 interface SortState {
@@ -51,6 +52,7 @@ export function Table<T>({
   className,
   rowClassName,
   onRowClick,
+  renderMobileCard,
 }: TableProps<T>) {
   const [sort, setSort] = useState<SortState | null>(null)
 
@@ -65,7 +67,43 @@ export function Table<T>({
 
   return (
     <div className={clsx('flex flex-col gap-4', className)}>
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
+      {/* Mobile card list — shown only when renderMobileCard is provided */}
+      {renderMobileCard && (
+        <div className="sm:hidden">
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <svg className="h-6 w-6 animate-spin text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            </div>
+          ) : data.length === 0 ? (
+            <p className="text-center text-sm text-gray-500 py-10">{emptyMessage}</p>
+          ) : (
+            <div className="space-y-2">
+              {data.map((row) => (
+                <div
+                  key={keyExtractor(row)}
+                  className={clsx(
+                    'bg-white rounded-lg border border-gray-200 px-4 py-3',
+                    onRowClick && 'cursor-pointer active:bg-gray-50',
+                    rowClassName?.(row)
+                  )}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                >
+                  <div className={clsx('flex items-center gap-2', onRowClick && '')}>
+                    <div className="flex-1 min-w-0">{renderMobileCard(row)}</div>
+                    {onRowClick && <ChevronRightIcon className="h-4 w-4 text-gray-300 shrink-0" />}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Desktop table */}
+      <div className={clsx('overflow-x-auto rounded-lg border border-gray-200', renderMobileCard && 'hidden sm:block')}>
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>

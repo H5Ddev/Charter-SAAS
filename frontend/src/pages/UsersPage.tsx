@@ -372,6 +372,24 @@ export default function UsersPage() {
         emptyMessage="No users found."
         pagination={data?.meta}
         onPageChange={setPage}
+        onRowClick={(u) => setEditUser(u)}
+        renderMobileCard={(u) => (
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
+              <span className="text-sm font-semibold text-primary-700">{initials(u)}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900">{u.firstName} {u.lastName}</p>
+              <p className="text-xs text-gray-400 truncate">{u.email}</p>
+            </div>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <Badge variant={ROLE_VARIANTS[u.role]} size="sm">{ROLE_LABELS[u.role]}</Badge>
+              <Badge variant={u.isActive ? 'success' : 'default'} size="sm">
+                {u.isActive ? 'Active' : 'Inactive'}
+              </Badge>
+            </div>
+          </div>
+        )}
       />
 
       <AddUserModal isOpen={addOpen} onClose={() => setAddOpen(false)} />

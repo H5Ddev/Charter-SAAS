@@ -19,6 +19,7 @@ export interface CreateQuoteInput {
   validUntil?: string
   basePrice: number
   currency: string
+  passengers?: number
   notes?: string
   lineItems: QuoteLineItemInput[]
 }

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { clsx } from 'clsx'
 import { useQuery } from '@tanstack/react-query'
 import { Modal } from '@/components/ui/Modal'
@@ -61,8 +61,26 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
   const [selectedHourlyRate, setSelectedHourlyRate] = useState<number | null>(null)
   const [showAircraftDropdown, setShowAircraftDropdown] = useState(false)
   const [estimatedHours, setEstimatedHours] = useState('')
+  const [passengers, setPassengers] = useState('')
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Auto-fill estimated hours when both airports are selected
+  useEffect(() => {
+    if (
+      originAirport?.latitudeDeg != null && originAirport?.longitudeDeg != null &&
+      destinationAirport?.latitudeDeg != null && destinationAirport?.longitudeDeg != null
+    ) {
+      const nm = distanceNm(originAirport.latitudeDeg, originAirport.longitudeDeg, destinationAirport.latitudeDeg, destinationAirport.longitudeDeg)
+      const hrs = calcEstimatedHours(nm)
+      const hoursStr = hrs.toFixed(1)
+      setEstimatedHours(hoursStr)
+      setSelectedHourlyRate((rate) => {
+        if (rate) setBasePrice((rate * hrs).toFixed(2))
+        return rate
+      })
+    }
+  }, [originAirport, destinationAirport])
 
   const { data: contactsData } = useContacts({
     search: contactSearch || undefined,
@@ -99,13 +117,15 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
   )
   const grandTotal = (parseFloat(basePrice) || 0) + lineItemsTotal
 
-  function selectAircraft(id: string, label: string, rate: number | null) {
+  function selectAircraft(id: string, label: string, rate: number | null, flat: number | null) {
     setAircraftId(id)
     setAircraftSearch(label)
     setSelectedHourlyRate(rate)
     setShowAircraftDropdown(false)
-    // Auto-fill base price if we have both rate and hours
-    if (rate && estimatedHours) {
+    // Flat base price takes priority; otherwise compute from hourly rate × estimated hours
+    if (flat) {
+      setBasePrice(flat.toFixed(2))
+    } else if (rate && estimatedHours) {
       setBasePrice((rate * parseFloat(estimatedHours)).toFixed(2))
     }
   }
@@ -166,6 +186,7 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
       basePrice: parseFloat(basePrice),
       currency,
       validUntil: validUntil ? new Date(validUntil).toISOString() : undefined,
+      passengers: passengers ? parseInt(passengers) : undefined,
       notes: notes.trim() || undefined,
       lineItems: lineItems.filter((item) => item.description.trim()),
     })
@@ -196,6 +217,7 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
     setSelectedHourlyRate(null)
     setShowAircraftDropdown(false)
     setEstimatedHours('')
+    setPassengers('')
     setErrors({})
     onClose()
   }, [onClose])
@@ -339,6 +361,20 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
           </div>
         </div>
 
+        {/* Passengers */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Passengers</label>
+          <input
+            type="number"
+            min="1"
+            step="1"
+            placeholder="e.g. 4"
+            value={passengers}
+            onChange={(e) => setPassengers(e.target.value)}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+
         {/* Aircraft + estimated hours (optional, auto-fills base price) */}
         <div className="grid grid-cols-2 gap-3">
           <div className="relative">
@@ -370,6 +406,7 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
                         a.id,
                         `${a.registration} — ${a.make} ${a.model}`,
                         a.hourlyRate,
+                        a.basePrice,
                       )}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 transition-colors"
                     >

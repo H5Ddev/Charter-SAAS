@@ -19,6 +19,7 @@ interface EditState {
   rangeNm: string
   homeBaseIcao: string
   hourlyRate: string
+  basePrice: string
   costPerHour: string
   airframeHours: string
   engineHours: string
@@ -47,6 +48,7 @@ export function AircraftDetailModal({ aircraftId, onClose }: Props) {
         rangeNm: aircraft.rangeNm?.toString() ?? '',
         homeBaseIcao: aircraft.homeBaseIcao ?? '',
         hourlyRate: aircraft.hourlyRate?.toString() ?? '',
+        basePrice: aircraft.basePrice?.toString() ?? '',
         costPerHour: aircraft.costPerHour?.toString() ?? '',
         airframeHours: aircraft.airframeHours?.toString() ?? '',
         engineHours: aircraft.engineHours?.toString() ?? '',
@@ -74,6 +76,7 @@ export function AircraftDetailModal({ aircraftId, onClose }: Props) {
         rangeNm: form.rangeNm ? parseFloat(form.rangeNm) : undefined,
         homeBaseIcao: form.homeBaseIcao || undefined,
         hourlyRate: form.hourlyRate ? parseFloat(form.hourlyRate) : undefined,
+        basePrice: form.basePrice ? parseFloat(form.basePrice) : undefined,
         costPerHour: form.costPerHour ? parseFloat(form.costPerHour) : undefined,
         ownerId: form.ownerId ?? undefined,
       },
@@ -192,7 +195,8 @@ export function AircraftDetailModal({ aircraftId, onClose }: Props) {
             {/* Financials */}
             <div>
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Financials</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
+                {field('Base Price ($)', aircraft.basePrice?.toString() ?? '', 'basePrice', 'number')}
                 {field('Client Rate ($/hr)', aircraft.hourlyRate?.toString() ?? '', 'hourlyRate', 'number')}
                 {field('Cost/Hr ($)', aircraft.costPerHour?.toString() ?? '', 'costPerHour', 'number')}
               </div>

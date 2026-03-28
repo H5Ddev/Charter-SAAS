@@ -28,6 +28,7 @@ export function AddAircraftModal({ isOpen, onClose, onCreated }: Props) {
   const [isActive, setIsActive] = useState(true)
   const [costPerHour, setCostPerHour] = useState('')
   const [hourlyRate, setHourlyRate] = useState('')
+  const [basePrice, setBasePrice] = useState('')
 
   const [ownerSearch, setOwnerSearch] = useState('')
   const [ownerId, setOwnerId] = useState('')
@@ -78,6 +79,7 @@ export function AddAircraftModal({ isOpen, onClose, onCreated }: Props) {
       isActive,
       costPerHour: costPerHour ? parseFloat(costPerHour) : undefined,
       hourlyRate: hourlyRate ? parseFloat(hourlyRate) : undefined,
+      basePrice: basePrice ? parseFloat(basePrice) : undefined,
     })
 
     onCreated?.(result.id)
@@ -95,6 +97,7 @@ export function AddAircraftModal({ isOpen, onClose, onCreated }: Props) {
     setIsActive(true)
     setCostPerHour('')
     setHourlyRate('')
+    setBasePrice('')
     setOwnerSearch('')
     setOwnerId('')
     setShowOwnerDropdown(false)
@@ -259,8 +262,44 @@ export function AddAircraftModal({ isOpen, onClose, onCreated }: Props) {
           </div>
         </div>
 
-        {/* Cost per hour + Hourly rate */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Pricing */}
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Base Price
+              <span className="ml-1.5 text-xs text-gray-400 font-normal">(flat charter fee)</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={basePrice}
+                onChange={(e) => setBasePrice(e.target.value)}
+                className="w-full rounded-md border border-gray-300 pl-6 pr-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Hourly Rate
+              <span className="ml-1.5 text-xs text-gray-400 font-normal">(client $/hr)</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={hourlyRate}
+                onChange={(e) => setHourlyRate(e.target.value)}
+                className="w-full rounded-md border border-gray-300 pl-6 pr-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Cost / Hour
@@ -275,24 +314,6 @@ export function AddAircraftModal({ isOpen, onClose, onCreated }: Props) {
                 placeholder="0.00"
                 value={costPerHour}
                 onChange={(e) => setCostPerHour(e.target.value)}
-                className="w-full rounded-md border border-gray-300 pl-6 pr-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Hourly Rate
-              <span className="ml-1.5 text-xs text-gray-400 font-normal">(charged to client)</span>
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                value={hourlyRate}
-                onChange={(e) => setHourlyRate(e.target.value)}
                 className="w-full rounded-md border border-gray-300 pl-6 pr-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>

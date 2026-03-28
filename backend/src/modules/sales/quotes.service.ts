@@ -22,6 +22,7 @@ export const CreateQuoteSchema = z.object({
   validUntil: z.string().datetime().optional().nullable(),
   basePrice: z.number().min(0),
   currency: z.string().default('USD'),
+  passengers: z.number().int().min(1).optional().nullable(),
   notes: z.string().optional().nullable(),
   lineItems: z.array(z.object({
     description: z.string().min(1),
@@ -116,6 +117,7 @@ export class QuotesService {
         basePrice: data.basePrice,
         totalPrice,
         currency: data.currency,
+        passengers: data.passengers ?? undefined,
         notes: data.notes ?? undefined,
         lineItems: {
           create: data.lineItems.map((item) => ({

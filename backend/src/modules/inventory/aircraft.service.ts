@@ -16,6 +16,7 @@ export const CreateAircraftSchema = z.object({
   amenities: z.record(z.unknown()).optional().nullable(),
   costPerHour: z.number().min(0).optional().nullable(),
   hourlyRate: z.number().min(0).optional().nullable(),
+  basePrice: z.number().min(0).optional().nullable(),
 })
 
 export const UpdateAircraftSchema = CreateAircraftSchema.partial()
@@ -88,6 +89,7 @@ export class AircraftService {
         amenities: data.amenities != null ? JSON.stringify(data.amenities) : null,
         costPerHour: data.costPerHour ?? undefined,
         hourlyRate: data.hourlyRate ?? undefined,
+        basePrice: data.basePrice ?? undefined,
       },
     })
   }

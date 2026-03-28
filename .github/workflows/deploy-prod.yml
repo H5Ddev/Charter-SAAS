@@ -272,6 +272,14 @@ jobs:
           DATABASE_URL: ${{ steps.kv.outputs.database-url }}
         run: npx prisma db seed
 
+      - name: Seed airports (OurAirports.com — safe to re-run)
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ steps.kv.outputs.database-url }}
+        run: |
+          npx ts-node --transpile-only scripts/seed-airports.ts
+          echo "✅ Airports seeded successfully"
+
   # ───────────────────────────────────────────────────────────────────────────
   # JOB 6 — Deploy backend App Service
   # ───────────────────────────────────────────────────────────────────────────

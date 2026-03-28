@@ -139,7 +139,6 @@ export class CrewGroupsService {
           crewMemberId: m.crewMemberId,
           role: m.crewMember.role,
         })),
-        skipDuplicates: true,
       })
     }
 

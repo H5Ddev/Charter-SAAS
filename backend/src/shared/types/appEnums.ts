@@ -51,6 +51,8 @@ export type TripStatus = (typeof TripStatus)[keyof typeof TripStatus]
 
 export const QuoteStatus = {
   DRAFT: 'DRAFT',
+  SENT: 'SENT',
+  VIEWED: 'VIEWED',
   PENDING: 'PENDING',
   ACCEPTED: 'ACCEPTED',
   DECLINED: 'DECLINED',

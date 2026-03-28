@@ -186,7 +186,7 @@ export class PortalService {
 
     // In development, skip real delivery and print the code to the server log
     if (env.NODE_ENV !== 'production') {
-      logger.info(`[DEV] OTP for ${contact.email ?? contact.phone}: ${code}`)
+      logger.info(`[DEV] OTP issued (sha256[:6]=${createHash('sha256').update(code).digest('hex').slice(0, 6)}) — check SMS/email delivery`)
       return challengeToken
     }
 

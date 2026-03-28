@@ -7,6 +7,9 @@ import { createEvent } from '../../shared/events/types'
 import { env } from '../../config/env'
 import { logger } from '../../shared/utils/logger'
 import { paginationMeta } from '../../shared/utils/response'
+import { generatePortalToken } from '../portal/portal.service'
+import { smsSender } from '../notifications/channels/sms.sender'
+import { emailSender } from '../notifications/channels/email.sender'
 
 export const CreateQuoteSchema = z.object({
   contactId: z.string().min(1),
@@ -167,6 +170,44 @@ export class QuotesService {
         ...(data.notes !== undefined && { notes: data.notes }),
       },
     })
+
+    // Send portal link to client when quote is first sent
+    if (data.status === QuoteStatus.SENT && existing.status !== QuoteStatus.SENT) {
+      try {
+        const [contact, tenant] = await Promise.all([
+          this.prisma.contact.findFirst({
+            where: { id: existing.contactId, tenantId },
+            select: { firstName: true, phone: true, email: true },
+          }),
+          this.prisma.tenant.findFirst({
+            where: { id: tenantId },
+            select: { name: true },
+          }),
+        ])
+
+        if (contact && (contact.phone || contact.email)) {
+          const portalToken = generatePortalToken(existing.contactId, tenantId)
+          const portalUrl = `${env.FRONTEND_URL}/portal/${portalToken}`
+          const company = tenant?.name ?? 'Your charter operator'
+          const validUntilStr = updated.validUntil
+            ? ` Valid until ${new Date(updated.validUntil).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.`
+            : ''
+
+          if (env.NODE_ENV !== 'production') {
+            logger.info(`[DEV] Quote portal link for ${contact.email ?? contact.phone}: ${portalUrl}`)
+          } else if (contact.phone) {
+            const body = `✈️ ${company} has sent you a quote for your upcoming flight. Review and respond here: ${portalUrl}${validUntilStr}`
+            await smsSender.send(contact.phone, body, tenantId)
+          } else if (contact.email) {
+            const subject = `Your charter quote from ${company}`
+            const body = `Hi ${contact.firstName},\n\n${company} has prepared a quote for your upcoming flight.\n\nReview, accept, or decline here:\n${portalUrl}${validUntilStr}\n\nThank you,\n${company}`
+            await emailSender.send(contact.email, subject, body)
+          }
+        }
+      } catch (err) {
+        logger.warn('Failed to send quote notification', { error: err, quoteId: id })
+      }
+    }
 
     // Publish events for status changes
     if (data.status && data.status !== existing.status) {

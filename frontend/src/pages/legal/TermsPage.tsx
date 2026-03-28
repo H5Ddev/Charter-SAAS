@@ -25,6 +25,8 @@ export default function TermsPage() {
               you may receive messages including:
             </p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
+              <li>Charter quote delivery with a secure link to review, accept, or decline</li>
+              <li>One-time verification codes (OTP) to access your secure client portal</li>
               <li>Booking confirmations</li>
               <li>Pre-flight reminders (7-day, 2-day, 24-hour, and 2-hour)</li>
               <li>Boarding and departure notifications</li>

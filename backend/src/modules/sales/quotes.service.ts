@@ -33,9 +33,25 @@ export const CreateQuoteSchema = z.object({
 })
 
 export const UpdateQuoteSchema = z.object({
+  // Status transition (always allowed)
   status: z.string().optional(),
+  // Content edits — only permitted while status is DRAFT
+  originIcao: z.string().length(4).toUpperCase().optional().nullable(),
+  destinationIcao: z.string().length(4).toUpperCase().optional().nullable(),
+  tripType: z.enum(['ONE_WAY', 'ROUND_TRIP']).optional().nullable(),
+  departureDate: z.string().datetime().optional().nullable(),
+  returnDate: z.string().datetime().optional().nullable(),
   validUntil: z.string().datetime().optional().nullable(),
+  basePrice: z.number().min(0).optional(),
+  currency: z.string().optional(),
+  passengers: z.number().int().min(1).optional().nullable(),
   notes: z.string().optional().nullable(),
+  lineItems: z.array(z.object({
+    description: z.string().min(1),
+    quantity: z.number().min(0),
+    unitPrice: z.number().min(0),
+    category: z.string().optional().nullable(),
+  })).optional(),
 })
 
 export const AddLineItemSchema = z.object({
@@ -177,14 +193,57 @@ export class QuotesService {
     const existing = await this.prisma.quote.findFirst({ where: { id, tenantId, deletedAt: null } })
     if (!existing) throw new AppError(404, 'QUOTE_NOT_FOUND', 'Quote not found')
 
+    // Content edits require DRAFT status
+    const contentFields = ['originIcao', 'destinationIcao', 'tripType', 'departureDate', 'returnDate',
+      'basePrice', 'currency', 'passengers', 'notes', 'validUntil', 'lineItems'] as const
+    const hasContentChange = contentFields.some((k) => data[k] !== undefined)
+    if (hasContentChange && existing.status !== QuoteStatus.DRAFT) {
+      throw new AppError(409, 'QUOTE_LOCKED', 'This quote is locked. Only draft quotes can be edited.')
+    }
+
+    // If line items are being replaced, soft-delete existing and recalculate total
+    if (data.lineItems !== undefined) {
+      await this.prisma.quoteLineItem.updateMany({
+        where: { quoteId: id, deletedAt: null },
+        data: { deletedAt: new Date() },
+      })
+    }
+
+    const basePrice = data.basePrice ?? Number(existing.basePrice)
+    const lineItemsTotal = (data.lineItems ?? []).reduce(
+      (sum, item) => sum + item.quantity * item.unitPrice, 0
+    )
+    const totalPrice = data.lineItems !== undefined
+      ? basePrice + lineItemsTotal
+      : undefined
+
     const updated = await this.prisma.quote.update({
       where: { id },
       data: {
         ...(data.status && { status: data.status }),
-        ...(data.validUntil !== undefined && {
-          validUntil: data.validUntil ? new Date(data.validUntil) : null,
-        }),
+        ...(data.originIcao !== undefined && { originIcao: data.originIcao }),
+        ...(data.destinationIcao !== undefined && { destinationIcao: data.destinationIcao }),
+        ...(data.tripType !== undefined && { tripType: data.tripType }),
+        ...(data.departureDate !== undefined && { departureDate: data.departureDate ? new Date(data.departureDate) : null }),
+        ...(data.returnDate !== undefined && { returnDate: data.returnDate ? new Date(data.returnDate) : null }),
+        ...(data.validUntil !== undefined && { validUntil: data.validUntil ? new Date(data.validUntil) : null }),
+        ...(data.basePrice !== undefined && { basePrice: data.basePrice }),
+        ...(totalPrice !== undefined && { totalPrice }),
+        ...(data.currency !== undefined && { currency: data.currency }),
+        ...(data.passengers !== undefined && { passengers: data.passengers }),
         ...(data.notes !== undefined && { notes: data.notes }),
+        ...(data.lineItems !== undefined && {
+          lineItems: {
+            create: data.lineItems.map((item) => ({
+              tenantId,
+              description: item.description,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              total: item.quantity * item.unitPrice,
+              category: item.category ?? undefined,
+            })),
+          },
+        }),
       },
     })
 

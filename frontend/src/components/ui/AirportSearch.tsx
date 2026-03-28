@@ -30,8 +30,8 @@ export function AirportSearch({ label, value, onChange, placeholder = 'KTEB', re
     function handler(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false)
-        // If user typed something that didn't resolve, keep the raw value
-        if (!results.find((a) => a.icaoCode === inputText.toUpperCase())) {
+        // Only fall back to raw value if user is actively typing (dirty=true means no dropdown selection made)
+        if (dirty && !results.find((a) => a.icaoCode === inputText.toUpperCase())) {
           const upper = inputText.toUpperCase()
           if (upper.length === 4) onChange(upper, null)
         }
@@ -39,7 +39,7 @@ export function AirportSearch({ label, value, onChange, placeholder = 'KTEB', re
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [inputText, results, onChange])
+  }, [inputText, results, onChange, dirty])
 
   function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
     const v = e.target.value.toUpperCase()

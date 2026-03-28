@@ -4,6 +4,7 @@ import { Modal } from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import { useContacts } from '@/api/contacts.api'
 import { useCreateAircraft } from '@/api/aircraft.api'
+import { AirportSearch } from '@/components/ui/AirportSearch'
 
 interface Props {
   isOpen: boolean
@@ -300,24 +301,16 @@ export function AddAircraftModal({ isOpen, onClose, onCreated }: Props) {
 
         {/* Home base + Owner */}
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Home Base (ICAO)</label>
-            <input
-              type="text"
-              maxLength={4}
-              placeholder="KTEB"
-              value={homeBaseIcao}
-              onChange={(e) => {
-                setHomeBaseIcao(e.target.value.toUpperCase())
-                setErrors((err) => ({ ...err, homeBaseIcao: '' }))
-              }}
-              className={clsx(
-                'w-full rounded-md border px-3 py-2 text-sm font-mono shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 uppercase',
-                errors.homeBaseIcao ? 'border-red-400' : 'border-gray-300',
-              )}
-            />
-            {errors.homeBaseIcao && <p className="mt-1 text-xs text-red-500">{errors.homeBaseIcao}</p>}
-          </div>
+          <AirportSearch
+            label="Home Base"
+            value={homeBaseIcao}
+            placeholder="KTEB"
+            error={errors.homeBaseIcao}
+            onChange={(icao) => {
+              setHomeBaseIcao(icao)
+              setErrors((err) => ({ ...err, homeBaseIcao: '' }))
+            }}
+          />
 
           {/* Owner contact search */}
           <div className="relative">

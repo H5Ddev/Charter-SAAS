@@ -15,9 +15,11 @@ import Modal from '@/components/ui/Modal'
 import Select from '@/components/ui/Select'
 import Input from '@/components/ui/Input'
 import { PlusIcon, FlagIcon } from '@heroicons/react/20/solid'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { AirportSearch } from '@/components/ui/AirportSearch'
+import { type Airport, distanceNm, estimatedHours, formatHours } from '@/api/airports.api'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -149,6 +151,8 @@ export default function TripsPage() {
   const [delayTrip, setDelayTrip] = useState<Trip | null>(null)
   const [statusTrip, setStatusTrip] = useState<Trip | null>(null)
   const [newTripOpen, setNewTripOpen] = useState(false)
+  const [originAirport, setOriginAirport] = useState<Airport | null>(null)
+  const [destinationAirport, setDestinationAirport] = useState<Airport | null>(null)
 
   const { data, isLoading } = useTrips({
     page,
@@ -206,6 +210,8 @@ export default function TripsPage() {
     })
     setNewTripOpen(false)
     newTripForm.reset()
+    setOriginAirport(null)
+    setDestinationAirport(null)
   }
 
   const columns: Column<Trip>[] = [
@@ -392,23 +398,46 @@ export default function TripsPage() {
         <form className="space-y-4" noValidate>
           {/* Route */}
           <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Origin ICAO"
-              required
-              placeholder="KTEB"
-              maxLength={4}
-              error={newTripForm.formState.errors.originIcao?.message}
-              {...newTripForm.register('originIcao')}
+            <Controller
+              name="originIcao"
+              control={newTripForm.control}
+              render={({ field, fieldState }) => (
+                <AirportSearch
+                  label="Origin"
+                  required
+                  value={field.value ?? ''}
+                  placeholder="KTEB"
+                  error={fieldState.error?.message}
+                  onChange={(icao, airport) => { field.onChange(icao); setOriginAirport(airport) }}
+                />
+              )}
             />
-            <Input
-              label="Destination ICAO"
-              required
-              placeholder="KFLL"
-              maxLength={4}
-              error={newTripForm.formState.errors.destinationIcao?.message}
-              {...newTripForm.register('destinationIcao')}
+            <Controller
+              name="destinationIcao"
+              control={newTripForm.control}
+              render={({ field, fieldState }) => (
+                <AirportSearch
+                  label="Destination"
+                  required
+                  value={field.value ?? ''}
+                  placeholder="KFLL"
+                  error={fieldState.error?.message}
+                  onChange={(icao, airport) => { field.onChange(icao); setDestinationAirport(airport) }}
+                />
+              )}
             />
           </div>
+          {originAirport?.latitudeDeg != null && destinationAirport?.latitudeDeg != null && (() => {
+            const nm = distanceNm(originAirport.latitudeDeg!, originAirport.longitudeDeg!, destinationAirport.latitudeDeg!, destinationAirport.longitudeDeg!)
+            const hrs = estimatedHours(nm)
+            return (
+              <p className="text-xs text-gray-500 bg-gray-50 rounded px-3 py-1.5">
+                ✈ Est. <span className="font-medium text-gray-700">{Math.round(nm).toLocaleString()} nm</span>
+                {' · '}
+                <span className="font-medium text-gray-700">{formatHours(hrs)}</span> flight time
+              </p>
+            )
+          })()}
 
           {/* Trip type toggle */}
           <div>

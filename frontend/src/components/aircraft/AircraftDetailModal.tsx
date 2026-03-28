@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { useAircraft, useUpdateAircraft } from '@/api/aircraft.api'
 import { useContacts } from '@/api/contacts.api'
+import { AirportSearch } from '@/components/ui/AirportSearch'
 
 interface Props {
   aircraftId: string | null
@@ -172,7 +173,19 @@ export function AircraftDetailModal({ aircraftId, onClose }: Props) {
                 {field('Year', aircraft.year?.toString() ?? '', 'year', 'number')}
                 {field('Seats', aircraft.seatingCapacity.toString(), 'seats', 'number')}
                 {field('Range (nm)', aircraft.rangeNm?.toString() ?? '', 'rangeNm', 'number')}
-                {field('Home Base (ICAO)', aircraft.homeBaseIcao ?? '', 'homeBaseIcao')}
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Home Base</p>
+                  {editing ? (
+                    <AirportSearch
+                      label=""
+                      value={form?.homeBaseIcao ?? ''}
+                      placeholder="KTEB"
+                      onChange={(icao) => setForm((f) => f ? { ...f, homeBaseIcao: icao } : f)}
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-900 font-mono">{aircraft.homeBaseIcao || <span className="text-gray-400 font-sans">—</span>}</p>
+                  )}
+                </div>
               </div>
             </div>
 

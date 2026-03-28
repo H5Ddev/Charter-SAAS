@@ -989,6 +989,27 @@ model ScheduledMessage {
 // Audit Logs
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Airport (shared reference data — no tenantId, seeded from OurAirports.com)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Airport {
+  id           Int     @id @default(autoincrement())
+  icaoCode     String  @unique
+  iataCode     String?
+  name         String
+  municipality String?
+  isoCountry   String
+  type         String
+  latitudeDeg  Float?
+  longitudeDeg Float?
+
+  @@index([icaoCode])
+  @@map("airports")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 model AuditLog {
   id         String    @id @default(cuid())
   tenantId   String

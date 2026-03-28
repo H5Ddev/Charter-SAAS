@@ -33,6 +33,7 @@ import { maintenanceRouter } from './modules/maintenance/maintenance.router'
 import { usersRouter } from './modules/users/users.router'
 import { integrationsRouter } from './modules/integrations/integrations.router'
 import { portalRouter } from './modules/portal/portal.router'
+import { airportsRouter } from './modules/airports/airports.router'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Express App
@@ -192,6 +193,7 @@ app.use('/api/maintenance', maintenanceRouter)
 app.use('/api/users', usersRouter)
 app.use('/api/integrations', integrationsRouter)
 app.use('/api/portal', portalRouter)
+app.use('/api/airports', airportsRouter)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 404 Handler

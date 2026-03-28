@@ -8,6 +8,8 @@ import { useCreateQuote, type QuoteLineItemInput } from '@/api/quotes.api'
 import { normalizeAircraft } from '@/api/aircraft.api'
 import { apiClient, getErrorMessage } from '@/api/client'
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { AirportSearch } from '@/components/ui/AirportSearch'
+import { type Airport, distanceNm, estimatedHours as calcEstimatedHours, formatHours } from '@/api/airports.api'
 
 interface Props {
   isOpen: boolean
@@ -39,7 +41,9 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
   const [showContactDropdown, setShowContactDropdown] = useState(false)
 
   const [originIcao, setOriginIcao] = useState('')
+  const [originAirport, setOriginAirport] = useState<Airport | null>(null)
   const [destinationIcao, setDestinationIcao] = useState('')
+  const [destinationAirport, setDestinationAirport] = useState<Airport | null>(null)
   const [tripType, setTripType] = useState<'ONE_WAY' | 'ROUND_TRIP'>('ONE_WAY')
   const [departureDate, setDepartureDate] = useState('')
   const [returnDate, setReturnDate] = useState('')
@@ -167,7 +171,9 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
     setContactName('')
     setShowContactDropdown(false)
     setOriginIcao('')
+    setOriginAirport(null)
     setDestinationIcao('')
+    setDestinationAirport(null)
     setTripType('ONE_WAY')
     setDepartureDate('')
     setReturnDate('')
@@ -258,29 +264,30 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
         {/* Route */}
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Origin ICAO</label>
-              <input
-                type="text"
-                maxLength={4}
-                placeholder="KTEB"
-                value={originIcao}
-                onChange={(e) => setOriginIcao(e.target.value.toUpperCase())}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 uppercase"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Destination ICAO</label>
-              <input
-                type="text"
-                maxLength={4}
-                placeholder="KFLL"
-                value={destinationIcao}
-                onChange={(e) => setDestinationIcao(e.target.value.toUpperCase())}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 uppercase"
-              />
-            </div>
+            <AirportSearch
+              label="Origin"
+              value={originIcao}
+              placeholder="KTEB"
+              onChange={(icao, airport) => { setOriginIcao(icao); setOriginAirport(airport) }}
+            />
+            <AirportSearch
+              label="Destination"
+              value={destinationIcao}
+              placeholder="KFLL"
+              onChange={(icao, airport) => { setDestinationIcao(icao); setDestinationAirport(airport) }}
+            />
           </div>
+          {originAirport?.latitudeDeg != null && destinationAirport?.latitudeDeg != null && (() => {
+            const nm = distanceNm(originAirport.latitudeDeg!, originAirport.longitudeDeg!, destinationAirport.latitudeDeg!, destinationAirport.longitudeDeg!)
+            const hrs = calcEstimatedHours(nm)
+            return (
+              <p className="text-xs text-gray-500 bg-gray-50 rounded px-3 py-1.5">
+                ✈ Est. <span className="font-medium text-gray-700">{Math.round(nm).toLocaleString()} nm</span>
+                {' · '}
+                <span className="font-medium text-gray-700">{formatHours(hrs)}</span> flight time
+              </p>
+            )
+          })()}
 
           {/* Trip type toggle */}
           <div className="flex rounded-md border border-gray-300 overflow-hidden">

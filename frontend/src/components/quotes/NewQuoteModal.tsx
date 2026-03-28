@@ -45,13 +45,6 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
   const [destinationIcao, setDestinationIcao] = useState('')
   const [destinationAirport, setDestinationAirport] = useState<Airport | null>(null)
 
-  const routeStats = (originAirport?.latitudeDeg != null && originAirport?.longitudeDeg != null &&
-    destinationAirport?.latitudeDeg != null && destinationAirport?.longitudeDeg != null)
-    ? (() => {
-        const nm = distanceNm(originAirport.latitudeDeg!, originAirport.longitudeDeg!, destinationAirport.latitudeDeg!, destinationAirport.longitudeDeg!)
-        return { nm: Math.round(nm), hours: formatHours(calcEstimatedHours(nm)) }
-      })()
-    : null
   const [tripType, setTripType] = useState<'ONE_WAY' | 'ROUND_TRIP'>('ONE_WAY')
   const [departureDate, setDepartureDate] = useState('')
   const [returnDate, setReturnDate] = useState('')
@@ -91,6 +84,14 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
   const aircraftList = aircraftListData ?? []
 
   const createQuote = useCreateQuote()
+
+  const routeStats = (originAirport?.latitudeDeg != null && originAirport?.longitudeDeg != null &&
+    destinationAirport?.latitudeDeg != null && destinationAirport?.longitudeDeg != null)
+    ? (() => {
+        const nm = distanceNm(originAirport.latitudeDeg!, originAirport.longitudeDeg!, destinationAirport.latitudeDeg!, destinationAirport.longitudeDeg!)
+        return { nm: Math.round(nm), hours: formatHours(calcEstimatedHours(nm)) }
+      })()
+    : null
 
   const lineItemsTotal = lineItems.reduce(
     (sum, item) => sum + item.quantity * item.unitPrice,

@@ -8,7 +8,9 @@ import {
   useCrew, useCreateCrewMember, useUpdateCrewMember, useDeleteCrewMember,
   type CrewMember, type CrewRole, type MedicalClass, type CreateCrewMemberInput,
 } from '@/api/crew.api'
-import { PlusIcon, TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, TrashIcon, ExclamationTriangleIcon, PencilSquareIcon } from '@heroicons/react/24/outline'
+import { useCrewGroups, useDeleteCrewGroup, type CrewGroup } from '@/api/crew-groups.api'
+import { CrewGroupModal } from '@/components/crew/CrewGroupModal'
 
 const ROLES: { value: CrewRole; label: string }[] = [
   { value: 'CAPTAIN', label: 'Captain' },
@@ -360,17 +362,151 @@ function AddCrewModal({ isOpen, onClose, editingMember }: { isOpen: boolean; onC
   )
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Groups Tab
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ROLE_INITIALS: Record<string, string> = {
+  CAPTAIN: 'CA', FIRST_OFFICER: 'FO', FLIGHT_ATTENDANT: 'FA',
+  DISPATCHER: 'DI', MECHANIC: 'ME', OTHER: 'OT',
+}
+
+const ROLE_AVATAR_COLOR: Record<string, string> = {
+  CAPTAIN: 'bg-primary-100 text-primary-800',
+  FIRST_OFFICER: 'bg-blue-100 text-blue-800',
+  FLIGHT_ATTENDANT: 'bg-purple-100 text-purple-800',
+  DISPATCHER: 'bg-amber-100 text-amber-800',
+  MECHANIC: 'bg-orange-100 text-orange-800',
+  OTHER: 'bg-gray-100 text-gray-600',
+}
+
+function CrewGroupCard({ group, onEdit, onDelete }: {
+  group: CrewGroup
+  onEdit: (g: CrewGroup) => void
+  onDelete: (g: CrewGroup) => void
+}) {
+  const visibleMembers = group.members.slice(0, 6)
+  const overflow = group.members.length - visibleMembers.length
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col gap-3 hover:shadow-md transition-shadow">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-semibold text-gray-900 text-sm truncate">{group.name}</h3>
+            {!group.isActive && (
+              <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-500 text-xs px-2 py-0.5 font-medium">Inactive</span>
+            )}
+          </div>
+          {group.description && (
+            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{group.description}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => onEdit(group)}
+            className="p-1.5 text-gray-400 hover:text-primary-600 rounded transition-colors"
+            title="Edit group"
+          >
+            <PencilSquareIcon className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(group)}
+            className="p-1.5 text-gray-300 hover:text-red-500 rounded transition-colors"
+            title="Delete group"
+          >
+            <TrashIcon className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Badges row */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {group.aircraft && (
+          <span className="inline-flex items-center rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs px-2.5 py-0.5 font-medium">
+            {group.aircraft.tailNumber}
+          </span>
+        )}
+        {(group.minPax != null || group.maxPax != null) && (
+          <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-600 text-xs px-2.5 py-0.5 font-medium">
+            {group.minPax != null && group.maxPax != null
+              ? `${group.minPax}–${group.maxPax} pax`
+              : group.minPax != null
+                ? `${group.minPax}+ pax`
+                : `up to ${group.maxPax} pax`}
+          </span>
+        )}
+      </div>
+
+      {/* Member avatar stack */}
+      {group.members.length === 0 ? (
+        <p className="text-xs text-gray-400 italic">No members assigned</p>
+      ) : (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {visibleMembers.map((m) => (
+            <span
+              key={m.id}
+              title={`${m.crewMember.firstName} ${m.crewMember.lastName} (${m.crewMember.role})`}
+              className={clsx(
+                'inline-flex items-center justify-center h-7 w-7 rounded-full text-[10px] font-bold shrink-0',
+                ROLE_AVATAR_COLOR[m.crewMember.role] ?? 'bg-gray-100 text-gray-600',
+              )}
+            >
+              {m.crewMember.firstName[0]}{m.crewMember.lastName[0]}
+            </span>
+          ))}
+          {overflow > 0 && (
+            <span className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-gray-100 text-gray-500 text-[10px] font-bold shrink-0">
+              +{overflow}
+            </span>
+          )}
+          <span className="text-xs text-gray-400 ml-1">
+            {group.members.length} {group.members.length === 1 ? 'member' : 'members'}
+          </span>
+        </div>
+      )}
+
+      {/* Role legend for this group */}
+      {group.members.length > 0 && (
+        <div className="flex flex-wrap gap-1 pt-1 border-t border-gray-100">
+          {Array.from(new Set(group.members.map((m) => m.crewMember.role))).map((role) => {
+            const count = group.members.filter((m) => m.crewMember.role === role).length
+            return (
+              <span key={role} className={clsx('inline-flex items-center gap-1 rounded-full text-xs px-2 py-0.5', ROLE_AVATAR_COLOR[role] ?? 'bg-gray-100 text-gray-600')}>
+                <span className="font-mono font-bold">{ROLE_INITIALS[role] ?? role.slice(0, 2)}</span>
+                <span className="font-normal opacity-75">×{count}</span>
+              </span>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function CrewPage() {
+  const [activeTab, setActiveTab] = useState<'members' | 'groups'>('members')
   const [page, setPage] = useState(1)
   const [roleFilter, setRoleFilter] = useState<CrewRole | ''>('')
   const [addOpen, setAddOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<CrewMember | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<CrewMember | null>(null)
 
+  // Groups state
+  const [groupModalOpen, setGroupModalOpen] = useState(false)
+  const [editingGroup, setEditingGroup] = useState<CrewGroup | null>(null)
+  const [deletingGroup, setDeletingGroup] = useState<CrewGroup | null>(null)
+
   const { data, isLoading } = useCrew({ role: roleFilter || undefined, page, pageSize: 20 })
   const deleteCrew = useDeleteCrewMember()
+  const { data: groupsData, isLoading: groupsLoading } = useCrewGroups()
+  const deleteGroup = useDeleteCrewGroup()
 
   const crew = data?.data ?? []
+  const groups = groupsData ?? []
 
   const columns: Column<CrewMember>[] = [
     {
@@ -446,81 +582,144 @@ export default function CrewPage() {
 
   return (
     <div className="space-y-4">
+      {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Crew</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{data?.meta?.total ?? 0} members</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {activeTab === 'members'
+              ? `${data?.meta?.total ?? 0} members`
+              : `${groups.length} group${groups.length !== 1 ? 's' : ''}`}
+          </p>
         </div>
-        <Button size="md" onClick={() => setAddOpen(true)}>
-          <PlusIcon className="h-4 w-4 mr-1.5" />
-          Add Crew Member
-        </Button>
+        {activeTab === 'members' ? (
+          <Button size="md" onClick={() => setAddOpen(true)}>
+            <PlusIcon className="h-4 w-4 mr-1.5" />
+            Add Crew Member
+          </Button>
+        ) : (
+          <Button size="md" onClick={() => { setEditingGroup(null); setGroupModalOpen(true) }}>
+            <PlusIcon className="h-4 w-4 mr-1.5" />
+            New Group
+          </Button>
+        )}
       </div>
 
-      {/* Role filter pills */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <button onClick={() => { setRoleFilter(''); setPage(1) }}
-          className={clsx('px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
-            !roleFilter ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400')}>
-          All
-        </button>
-        {ROLES.map((r) => (
-          <button key={r.value} onClick={() => { setRoleFilter(r.value); setPage(1) }}
-            className={clsx('px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
-              roleFilter === r.value ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400')}>
-            {r.label}
+      {/* Tab switcher */}
+      <div className="flex items-center gap-1 border-b border-gray-200">
+        {(['members', 'groups'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={clsx(
+              'px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
+              activeTab === tab
+                ? 'border-primary-600 text-primary-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+            )}
+          >
+            {tab === 'members' ? 'Members' : 'Groups'}
           </button>
         ))}
       </div>
 
-      <Table
-        columns={columns}
-        data={crew}
-        keyExtractor={(m) => m.id}
-        loading={isLoading}
-        emptyMessage="No crew members yet. Add your first crew member to get started."
-        pagination={data?.meta}
-        onPageChange={setPage}
-        rowClassName={(m) => {
-          const expiring = [m.medicalExpiry, m.licenseExpiry].some((d) => {
-            const days = daysUntil(d)
-            return days !== null && days < 0
-          })
-          return expiring ? 'bg-red-50/40' : ''
-        }}
-        onRowClick={(m) => setEditTarget(m)}
-        renderMobileCard={(m) => {
-          const expiring = [m.medicalExpiry, m.licenseExpiry].some((d) => {
-            const days = daysUntil(d)
-            return days !== null && days <= 60
-          })
-          return (
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="font-semibold text-gray-900 text-sm">{m.firstName} {m.lastName}</p>
-                  {expiring && <ExclamationTriangleIcon className="h-4 w-4 text-amber-500 shrink-0" />}
-                </div>
-                {m.email && <p className="text-xs text-gray-400 truncate">{m.email}</p>}
-                {m.licenseNumber && (
-                  <p className="text-xs text-gray-500 font-mono">
-                    {m.licenseNumber}{m.licenseType ? ` (${m.licenseType})` : ''}
-                  </p>
-                )}
-              </div>
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                <span className={clsx('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', ROLE_BADGE[m.role])}>
-                  {ROLES.find((r) => r.value === m.role)?.label ?? m.role}
-                </span>
-                <Badge variant={m.isActive ? 'success' : 'default'} size="sm">
-                  {m.isActive ? 'Active' : 'Inactive'}
-                </Badge>
-              </div>
-            </div>
-          )
-        }}
-      />
+      {activeTab === 'members' && (
+        <>
+          {/* Role filter pills */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={() => { setRoleFilter(''); setPage(1) }}
+              className={clsx('px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+                !roleFilter ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400')}>
+              All
+            </button>
+            {ROLES.map((r) => (
+              <button key={r.value} onClick={() => { setRoleFilter(r.value); setPage(1) }}
+                className={clsx('px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+                  roleFilter === r.value ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400')}>
+                {r.label}
+              </button>
+            ))}
+          </div>
 
+          <Table
+            columns={columns}
+            data={crew}
+            keyExtractor={(m) => m.id}
+            loading={isLoading}
+            emptyMessage="No crew members yet. Add your first crew member to get started."
+            pagination={data?.meta}
+            onPageChange={setPage}
+            rowClassName={(m) => {
+              const expiring = [m.medicalExpiry, m.licenseExpiry].some((d) => {
+                const days = daysUntil(d)
+                return days !== null && days < 0
+              })
+              return expiring ? 'bg-red-50/40' : ''
+            }}
+            onRowClick={(m) => setEditTarget(m)}
+            renderMobileCard={(m) => {
+              const expiring = [m.medicalExpiry, m.licenseExpiry].some((d) => {
+                const days = daysUntil(d)
+                return days !== null && days <= 60
+              })
+              return (
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-gray-900 text-sm">{m.firstName} {m.lastName}</p>
+                      {expiring && <ExclamationTriangleIcon className="h-4 w-4 text-amber-500 shrink-0" />}
+                    </div>
+                    {m.email && <p className="text-xs text-gray-400 truncate">{m.email}</p>}
+                    {m.licenseNumber && (
+                      <p className="text-xs text-gray-500 font-mono">
+                        {m.licenseNumber}{m.licenseType ? ` (${m.licenseType})` : ''}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className={clsx('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', ROLE_BADGE[m.role])}>
+                      {ROLES.find((r) => r.value === m.role)?.label ?? m.role}
+                    </span>
+                    <Badge variant={m.isActive ? 'success' : 'default'} size="sm">
+                      {m.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
+                </div>
+              )
+            }}
+          />
+        </>
+      )}
+
+      {activeTab === 'groups' && (
+        <>
+          {groupsLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 animate-pulse h-40" />
+              ))}
+            </div>
+          ) : groups.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <p className="text-sm font-medium">No crew groups yet.</p>
+              <p className="text-xs mt-1">Create a group to bulk-assign crew to trips.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {groups.map((g) => (
+                <CrewGroupCard
+                  key={g.id}
+                  group={g}
+                  onEdit={(group) => { setEditingGroup(group); setGroupModalOpen(true) }}
+                  onDelete={(group) => setDeletingGroup(group)}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Members tab modals */}
       <AddCrewModal isOpen={addOpen} onClose={() => setAddOpen(false)} />
       <AddCrewModal isOpen={!!editTarget} onClose={() => setEditTarget(null)} editingMember={editTarget ?? undefined} />
 
@@ -540,6 +739,32 @@ export default function CrewPage() {
         }>
         <p className="text-sm text-gray-700">
           Remove <span className="font-semibold">{deleteTarget?.firstName} {deleteTarget?.lastName}</span> from the crew roster?
+        </p>
+      </Modal>
+
+      {/* Groups tab modals */}
+      <CrewGroupModal
+        isOpen={groupModalOpen}
+        group={editingGroup}
+        onClose={() => { setGroupModalOpen(false); setEditingGroup(null) }}
+      />
+
+      <Modal isOpen={!!deletingGroup} onClose={() => setDeletingGroup(null)} title="Delete Crew Group" size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDeletingGroup(null)}>Cancel</Button>
+            <Button variant="danger" loading={deleteGroup.isPending}
+              onClick={async () => {
+                if (!deletingGroup) return
+                await deleteGroup.mutateAsync(deletingGroup.id)
+                setDeletingGroup(null)
+              }}>
+              Delete
+            </Button>
+          </>
+        }>
+        <p className="text-sm text-gray-700">
+          Delete group <span className="font-semibold">{deletingGroup?.name}</span>? This cannot be undone.
         </p>
       </Modal>
     </div>

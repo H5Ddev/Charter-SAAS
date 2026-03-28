@@ -44,6 +44,7 @@ model Tenant {
   auditLogs             AuditLog[]
   organizations         Organization[]
   crewMembers           CrewMember[]
+  crewGroups            CrewGroup[]
 
   @@index([slug])
   @@index([isActive])
@@ -315,6 +316,7 @@ model Aircraft {
   trips              Trip[]
   tripLegs           TripLeg[]
   maintenanceRecords MaintenanceRecord[]
+  crewGroups         CrewGroup[]
 
   @@unique([tenantId, tailNumber])
   @@index([tenantId])
@@ -385,9 +387,10 @@ model CrewMember {
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
 
-  tenant          Tenant               @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  tripAssignments TripCrewAssignment[]
-  documents       CrewDocument[]
+  tenant           Tenant               @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tripAssignments  TripCrewAssignment[]
+  documents        CrewDocument[]
+  groupMemberships CrewGroupMember[]
 
   @@index([tenantId])
   @@index([tenantId, role])
@@ -429,6 +432,44 @@ model TripCrewAssignment {
   @@index([tenantId])
   @@index([tripId])
   @@map("trip_crew_assignments")
+}
+
+model CrewGroup {
+  id          String    @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  aircraftId  String?
+  minPax      Int?
+  maxPax      Int?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  aircraft Aircraft?         @relation(fields: [aircraftId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  members  CrewGroupMember[]
+
+  @@index([tenantId])
+  @@index([aircraftId])
+  @@map("crew_groups")
+}
+
+model CrewGroupMember {
+  id           String   @id @default(cuid())
+  tenantId     String
+  groupId      String
+  crewMemberId String
+  createdAt    DateTime @default(now())
+
+  group      CrewGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  crewMember CrewMember @relation(fields: [crewMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, crewMemberId])
+  @@index([tenantId])
+  @@index([crewMemberId])
+  @@map("crew_group_members")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

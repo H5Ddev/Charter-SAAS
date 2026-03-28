@@ -22,7 +22,15 @@ export class ContactsService {
       deletedAt: null,
     }
 
-    if (filters.type) where.type = filters.type
+    if (filters.type) {
+      // BOTH contacts satisfy both OWNER and PASSENGER roles, so include them
+      // when either role is filtered. Filtering for BOTH returns only BOTH contacts.
+      if (filters.type === 'OWNER' || filters.type === 'PASSENGER') {
+        where.type = { in: [filters.type, 'BOTH'] }
+      } else {
+        where.type = filters.type
+      }
+    }
     if (filters.doNotContact !== undefined) where.doNotContact = filters.doNotContact
     if (filters.organizationId) where.organizationId = filters.organizationId
 

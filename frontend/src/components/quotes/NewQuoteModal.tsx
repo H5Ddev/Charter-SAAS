@@ -44,6 +44,14 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
   const [originAirport, setOriginAirport] = useState<Airport | null>(null)
   const [destinationIcao, setDestinationIcao] = useState('')
   const [destinationAirport, setDestinationAirport] = useState<Airport | null>(null)
+
+  const routeStats = (originAirport?.latitudeDeg != null && originAirport?.longitudeDeg != null &&
+    destinationAirport?.latitudeDeg != null && destinationAirport?.longitudeDeg != null)
+    ? (() => {
+        const nm = distanceNm(originAirport.latitudeDeg!, originAirport.longitudeDeg!, destinationAirport.latitudeDeg!, destinationAirport.longitudeDeg!)
+        return { nm: Math.round(nm), hours: formatHours(calcEstimatedHours(nm)) }
+      })()
+    : null
   const [tripType, setTripType] = useState<'ONE_WAY' | 'ROUND_TRIP'>('ONE_WAY')
   const [departureDate, setDepartureDate] = useState('')
   const [returnDate, setReturnDate] = useState('')
@@ -277,17 +285,13 @@ export function NewQuoteModal({ isOpen, onClose, onCreated }: Props) {
               onChange={(icao, airport) => { setDestinationIcao(icao); setDestinationAirport(airport) }}
             />
           </div>
-          {originAirport?.latitudeDeg != null && destinationAirport?.latitudeDeg != null && (() => {
-            const nm = distanceNm(originAirport.latitudeDeg!, originAirport.longitudeDeg!, destinationAirport.latitudeDeg!, destinationAirport.longitudeDeg!)
-            const hrs = calcEstimatedHours(nm)
-            return (
-              <p className="text-xs text-gray-500 bg-gray-50 rounded px-3 py-1.5">
-                ✈ Est. <span className="font-medium text-gray-700">{Math.round(nm).toLocaleString()} nm</span>
-                {' · '}
-                <span className="font-medium text-gray-700">{formatHours(hrs)}</span> flight time
-              </p>
-            )
-          })()}
+          {routeStats && (
+            <p className="text-xs text-gray-500 bg-gray-50 rounded px-3 py-1.5">
+              ✈ Est. <span className="font-medium text-gray-700">{routeStats.nm.toLocaleString()} nm</span>
+              {' · '}
+              <span className="font-medium text-gray-700">{routeStats.hours}</span> flight time
+            </p>
+          )}
 
           {/* Trip type toggle */}
           <div className="flex rounded-md border border-gray-300 overflow-hidden">

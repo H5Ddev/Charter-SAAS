@@ -156,6 +156,14 @@ export default function TripsPage() {
   const [originAirport, setOriginAirport] = useState<Airport | null>(null)
   const [destinationAirport, setDestinationAirport] = useState<Airport | null>(null)
 
+  const routeStats = (originAirport?.latitudeDeg != null && originAirport?.longitudeDeg != null &&
+    destinationAirport?.latitudeDeg != null && destinationAirport?.longitudeDeg != null)
+    ? (() => {
+        const nm = distanceNm(originAirport.latitudeDeg!, originAirport.longitudeDeg!, destinationAirport.latitudeDeg!, destinationAirport.longitudeDeg!)
+        return { nm: Math.round(nm), hours: formatHours(estimatedHours(nm)) }
+      })()
+    : null
+
   // Aircraft picker state
   const [aircraftSearch, setAircraftSearch] = useState('')
   const [selectedAircraftId, setSelectedAircraftId] = useState('')
@@ -471,17 +479,13 @@ export default function TripsPage() {
               )}
             />
           </div>
-          {originAirport?.latitudeDeg != null && destinationAirport?.latitudeDeg != null && (() => {
-            const nm = distanceNm(originAirport.latitudeDeg!, originAirport.longitudeDeg!, destinationAirport.latitudeDeg!, destinationAirport.longitudeDeg!)
-            const hrs = estimatedHours(nm)
-            return (
-              <p className="text-xs text-gray-500 bg-gray-50 rounded px-3 py-1.5">
-                ✈ Est. <span className="font-medium text-gray-700">{Math.round(nm).toLocaleString()} nm</span>
-                {' · '}
-                <span className="font-medium text-gray-700">{formatHours(hrs)}</span> flight time
-              </p>
-            )
-          })()}
+          {routeStats && (
+            <p className="text-xs text-gray-500 bg-gray-50 rounded px-3 py-1.5">
+              ✈ Est. <span className="font-medium text-gray-700">{routeStats.nm.toLocaleString()} nm</span>
+              {' · '}
+              <span className="font-medium text-gray-700">{routeStats.hours}</span> flight time
+            </p>
+          )}
 
           {/* Trip type toggle */}
           <div>

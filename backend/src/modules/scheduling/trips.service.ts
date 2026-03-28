@@ -24,6 +24,9 @@ export const CreateTripSchema = z.object({
   notes: z.string().optional().nullable(),
   quoteId: z.string().optional().nullable(),
   passengerIds: z.array(z.string()).default([]),
+  crewIds: z.array(z.string()).default([]),
+  distanceNm: z.number().optional().nullable(),
+  estimatedHours: z.number().optional().nullable(),
 })
 
 export const UpdateTripStatusSchema = z.object({
@@ -143,6 +146,21 @@ export class TripsService {
             })),
           },
         }),
+        ...(data.crewIds.length > 0 && {
+          crewAssignments: {
+            create: data.crewIds.map((crewMemberId) => ({
+              tenantId,
+              crewMemberId,
+              role: 'ASSIGNED', // actual role is on the CrewMember record itself
+            })),
+          },
+        }),
+      },
+      include: {
+        aircraft: { select: { id: true, tailNumber: true, make: true, model: true } },
+        crewAssignments: {
+          include: { crewMember: { select: { id: true, firstName: true, lastName: true, role: true } } },
+        },
       },
     })
 

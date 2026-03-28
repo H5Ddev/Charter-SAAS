@@ -14,12 +14,14 @@ import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import Select from '@/components/ui/Select'
 import Input from '@/components/ui/Input'
-import { PlusIcon, FlagIcon } from '@heroicons/react/20/solid'
+import { PlusIcon, FlagIcon, XMarkIcon } from '@heroicons/react/20/solid'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { AirportSearch } from '@/components/ui/AirportSearch'
 import { type Airport, distanceNm, estimatedHours, formatHours } from '@/api/airports.api'
+import { useCrew, type CrewMember } from '@/api/crew.api'
+import { useAircraftList } from '@/api/aircraft.api'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -154,6 +156,16 @@ export default function TripsPage() {
   const [originAirport, setOriginAirport] = useState<Airport | null>(null)
   const [destinationAirport, setDestinationAirport] = useState<Airport | null>(null)
 
+  // Aircraft picker state
+  const [aircraftSearch, setAircraftSearch] = useState('')
+  const [selectedAircraftId, setSelectedAircraftId] = useState('')
+  const [selectedAircraftLabel, setSelectedAircraftLabel] = useState('')
+  const [showAircraftDropdown, setShowAircraftDropdown] = useState(false)
+
+  // Crew picker state
+  const [crewSearch, setCrewSearch] = useState('')
+  const [selectedCrew, setSelectedCrew] = useState<Pick<CrewMember, 'id' | 'firstName' | 'lastName' | 'role'>[]>([])
+
   const { data, isLoading } = useTrips({
     page,
     pageSize: 20,
@@ -172,6 +184,22 @@ export default function TripsPage() {
   })
 
   const watchTripType = newTripForm.watch('tripType')
+
+  // Aircraft search query (only when modal is open)
+  const { data: aircraftListData } = useAircraftList(
+    newTripOpen ? { isActive: true, pageSize: 50 } : undefined
+  )
+  const aircraftList = aircraftListData?.data ?? []
+
+  // Crew search query (only when modal is open)
+  const { data: crewData } = useCrew(
+    newTripOpen ? { isActive: true, pageSize: 50 } : undefined
+  )
+  const allCrew = crewData?.data ?? []
+  const filteredCrew = allCrew.filter((m) =>
+    !selectedCrew.find((s) => s.id === m.id) &&
+    (crewSearch === '' || `${m.firstName} ${m.lastName} ${m.role}`.toLowerCase().includes(crewSearch.toLowerCase()))
+  )
 
   async function handleFlagDelay(values: DelayForm) {
     if (!delayTrip) return
@@ -192,8 +220,23 @@ export default function TripsPage() {
     statusForm.reset({ status: trip.status })
   }
 
+  function resetNewTripForm() {
+    setNewTripOpen(false)
+    newTripForm.reset()
+    setOriginAirport(null)
+    setDestinationAirport(null)
+    setSelectedAircraftId('')
+    setSelectedAircraftLabel('')
+    setAircraftSearch('')
+    setSelectedCrew([])
+    setCrewSearch('')
+  }
+
   async function handleCreateTrip(values: NewTripForm) {
     const isRoundTrip = values.tripType === 'ROUND_TRIP'
+    const nm = (originAirport?.latitudeDeg != null && destinationAirport?.latitudeDeg != null)
+      ? distanceNm(originAirport.latitudeDeg, originAirport.longitudeDeg!, destinationAirport.latitudeDeg, destinationAirport.longitudeDeg!)
+      : undefined
     await createTrip.mutateAsync({
       originIcao: values.originIcao,
       destinationIcao: values.destinationIcao,
@@ -207,11 +250,12 @@ export default function TripsPage() {
         : undefined,
       paxCount: values.paxCount,
       notes: values.notes || undefined,
+      aircraftId: selectedAircraftId || undefined,
+      crewIds: selectedCrew.map((c) => c.id),
+      distanceNm: nm ? Math.round(nm) : undefined,
+      estimatedHours: nm ? Math.round(estimatedHours(nm) * 10) / 10 : undefined,
     })
-    setNewTripOpen(false)
-    newTripForm.reset()
-    setOriginAirport(null)
-    setDestinationAirport(null)
+    resetNewTripForm()
   }
 
   const columns: Column<Trip>[] = [
@@ -378,12 +422,12 @@ export default function TripsPage() {
       {/* New Trip Modal */}
       <Modal
         isOpen={newTripOpen}
-        onClose={() => { setNewTripOpen(false); newTripForm.reset() }}
+        onClose={resetNewTripForm}
         title="New Trip"
         size="md"
         footer={
           <>
-            <Button variant="secondary" onClick={() => { setNewTripOpen(false); newTripForm.reset() }}>
+            <Button variant="secondary" onClick={resetNewTripForm}>
               Cancel
             </Button>
             <Button
@@ -522,6 +566,102 @@ export default function TripsPage() {
             error={newTripForm.formState.errors.paxCount?.message}
             {...newTripForm.register('paxCount')}
           />
+
+          {/* Aircraft picker */}
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Aircraft</label>
+            <input
+              type="text"
+              placeholder="Search by tail number or make/model…"
+              value={selectedAircraftLabel || aircraftSearch}
+              onChange={(e) => {
+                setAircraftSearch(e.target.value)
+                setSelectedAircraftId('')
+                setSelectedAircraftLabel('')
+                setShowAircraftDropdown(true)
+              }}
+              onFocus={() => setShowAircraftDropdown(true)}
+              onBlur={() => setTimeout(() => setShowAircraftDropdown(false), 150)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            {showAircraftDropdown && aircraftList.length > 0 && (
+              <ul className="absolute z-20 mt-1 w-full bg-white rounded-md border border-gray-200 shadow-lg max-h-48 overflow-y-auto">
+                {aircraftList
+                  .filter((a) => !aircraftSearch || `${a.registration} ${a.make} ${a.model}`.toLowerCase().includes(aircraftSearch.toLowerCase()))
+                  .map((a) => (
+                    <li key={a.id}>
+                      <button
+                        type="button"
+                        onMouseDown={() => {
+                          setSelectedAircraftId(a.id)
+                          setSelectedAircraftLabel(`${a.registration} — ${a.make} ${a.model}`)
+                          setAircraftSearch('')
+                          setShowAircraftDropdown(false)
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 flex items-center gap-3"
+                      >
+                        <span className="font-mono font-bold text-gray-900 w-16 shrink-0">{a.registration}</span>
+                        <span className="text-gray-600">{a.make} {a.model}</span>
+                        {a.seatingCapacity && <span className="ml-auto text-xs text-gray-400">{a.seatingCapacity} seats</span>}
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            )}
+            {selectedAircraftId && (
+              <button
+                type="button"
+                onClick={() => { setSelectedAircraftId(''); setSelectedAircraftLabel(''); setAircraftSearch('') }}
+                className="absolute right-2 top-8 text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Crew picker */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Crew</label>
+            {selectedCrew.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {selectedCrew.map((m) => (
+                  <span key={m.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary-50 text-primary-700 text-xs font-medium">
+                    {m.firstName} {m.lastName}
+                    <span className="text-primary-400">· {m.role.replace('_', ' ')}</span>
+                    <button type="button" onClick={() => setSelectedCrew((prev) => prev.filter((c) => c.id !== m.id))}>
+                      <XMarkIcon className="h-3 w-3 ml-0.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <input
+              type="text"
+              placeholder="Search crew by name or role…"
+              value={crewSearch}
+              onChange={(e) => setCrewSearch(e.target.value)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            {filteredCrew.length > 0 && crewSearch.length > 0 && (
+              <ul className="mt-1 w-full bg-white rounded-md border border-gray-200 shadow-sm max-h-36 overflow-y-auto">
+                {filteredCrew.map((m) => (
+                  <li key={m.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCrew((prev) => [...prev, { id: m.id, firstName: m.firstName, lastName: m.lastName, role: m.role }])
+                        setCrewSearch('')
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 flex items-center gap-2"
+                    >
+                      <span className="font-medium text-gray-900">{m.firstName} {m.lastName}</span>
+                      <span className="text-xs text-gray-400 ml-auto">{m.role.replace('_', ' ')}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
             <textarea

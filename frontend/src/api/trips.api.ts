@@ -73,6 +73,7 @@ export interface TripFilters {
 
 export interface CreateTripInput {
   aircraftId?: string
+  crewIds?: string[]
   originIcao: string
   destinationIcao: string
   departureAt: string
@@ -81,6 +82,8 @@ export interface CreateTripInput {
   returnArrivalAt?: string
   paxCount: number
   notes?: string
+  distanceNm?: number
+  estimatedHours?: number
 }
 
 interface PaginatedResponse<T> {

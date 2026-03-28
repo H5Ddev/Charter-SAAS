@@ -1,11 +1,11 @@
-import { Router } from 'express'
+import { Router, type IRouter } from 'express'
 import { PrismaClient } from '@prisma/client'
 import { requireAuth } from '../../shared/middleware/auth'
 import { successResponse } from '../../shared/utils/response'
 
 const prisma = new PrismaClient()
 
-export const airportsRouter = Router()
+export const airportsRouter: IRouter = Router()
 
 /**
  * GET /api/airports/search?q=KTEB&limit=8

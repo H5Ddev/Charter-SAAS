@@ -8,6 +8,13 @@ import { apiClient } from '@/api/client'
 import { useGeneratePortalLink } from '@/api/portal.api'
 import { PrinterIcon, LinkIcon, CheckIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline'
 
+interface AirportInfo {
+  icaoCode: string
+  name: string
+  municipality: string | null
+  isoCountry: string
+}
+
 interface QuoteDetail {
   id: string
   reference: string | null
@@ -20,9 +27,12 @@ interface QuoteDetail {
   basePrice: number
   totalPrice: number
   currency: string
+  passengers: number | null
   validUntil: string | null
   notes: string | null
   createdAt: string
+  originAirport: AirportInfo | null
+  destinationAirport: AirportInfo | null
   contact: {
     id: string
     firstName: string
@@ -149,16 +159,36 @@ export function QuoteDetailModal({ quoteId, onClose }: Props) {
               <p className="font-semibold text-gray-900">{quote.contact.firstName} {quote.contact.lastName}</p>
               {quote.contact.email && <p className="text-sm text-gray-500">{quote.contact.email}</p>}
               {quote.contact.phone && <p className="text-sm text-gray-500">{quote.contact.phone}</p>}
+              {quote.passengers && (
+                <p className="text-sm text-gray-500 mt-1">
+                  {quote.passengers} passenger{quote.passengers !== 1 ? 's' : ''}
+                </p>
+              )}
             </div>
 
             {(quote.originIcao || quote.destinationIcao) && (
               <div>
                 <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Route</p>
                 <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-gray-900 text-lg">{quote.originIcao}</span>
-                  <span className="text-gray-400">{isRoundTrip ? '⇄' : '→'}</span>
-                  <span className="font-mono font-bold text-gray-900 text-lg">{quote.destinationIcao}</span>
+                  <div className="text-center">
+                    <span className="font-mono font-bold text-gray-900 text-lg">{quote.originIcao}</span>
+                    {quote.originAirport?.municipality && (
+                      <p className="text-xs text-gray-400 leading-tight">{quote.originAirport.municipality}</p>
+                    )}
+                  </div>
+                  <span className="text-gray-400 text-lg">{isRoundTrip ? '⇄' : '→'}</span>
+                  <div className="text-center">
+                    <span className="font-mono font-bold text-gray-900 text-lg">{quote.destinationIcao}</span>
+                    {quote.destinationAirport?.municipality && (
+                      <p className="text-xs text-gray-400 leading-tight">{quote.destinationAirport.municipality}</p>
+                    )}
+                  </div>
                 </div>
+                {(quote.originAirport || quote.destinationAirport) && (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {[quote.originAirport?.name, quote.destinationAirport?.name].filter(Boolean).join(' → ')}
+                  </p>
+                )}
                 <p className="text-sm text-gray-500 mt-1">
                   {isRoundTrip ? 'Round Trip' : 'One Way'}
                   {quote.departureDate && ` · Depart ${fmtDate(quote.departureDate)}`}

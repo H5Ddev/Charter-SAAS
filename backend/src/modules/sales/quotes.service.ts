@@ -93,7 +93,22 @@ export class QuotesService {
       },
     })
     if (!quote) throw new AppError(404, 'QUOTE_NOT_FOUND', 'Quote not found')
-    return quote
+
+    // Enrich with airport details for display
+    const icaos = [quote.originIcao, quote.destinationIcao].filter(Boolean) as string[]
+    const airports = icaos.length > 0
+      ? await this.prisma.airport.findMany({
+          where: { icaoCode: { in: icaos } },
+          select: { icaoCode: true, name: true, municipality: true, isoCountry: true },
+        })
+      : []
+    const airportMap = Object.fromEntries(airports.map((a: { icaoCode: string; name: string; municipality: string | null; isoCountry: string }) => [a.icaoCode, a]))
+
+    return {
+      ...quote,
+      originAirport: quote.originIcao ? (airportMap[quote.originIcao] ?? null) : null,
+      destinationAirport: quote.destinationIcao ? (airportMap[quote.destinationIcao] ?? null) : null,
+    }
   }
 
   async create(tenantId: string, userId: string, data: CreateQuoteDto) {

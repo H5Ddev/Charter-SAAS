@@ -4,6 +4,7 @@ import { TripStatus } from '../../shared/types/appEnums'
 import {
   TripsService,
   CreateTripSchema,
+  UpdateTripSchema,
   UpdateTripStatusSchema,
   FlagDelaySchema,
 } from './trips.service'
@@ -35,6 +36,14 @@ export class TripsController {
       const data = CreateTripSchema.parse(req.body)
       const trip = await service.create(req.tenantId!, req.user!.id, data)
       res.status(201).json(successResponse(trip))
+    } catch (err) { next(err) }
+  }
+
+  async update(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = UpdateTripSchema.parse(req.body)
+      const trip = await service.update(req.tenantId!, req.params.id!, data)
+      res.json(successResponse(trip))
     } catch (err) { next(err) }
   }
 

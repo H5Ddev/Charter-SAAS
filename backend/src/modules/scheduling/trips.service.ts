@@ -29,6 +29,23 @@ export const CreateTripSchema = z.object({
   estimatedHours: z.number().optional().nullable(),
 })
 
+export const UpdateTripSchema = z.object({
+  aircraftId: z.string().optional().nullable(),
+  originIcao: z.string().length(4).toUpperCase().optional(),
+  destinationIcao: z.string().length(4).toUpperCase().optional(),
+  departureAt: z.string().datetime().optional(),
+  arrivalAt: z.string().datetime().optional().nullable(),
+  returnDepartureAt: z.string().datetime().optional().nullable(),
+  returnArrivalAt: z.string().datetime().optional().nullable(),
+  paxCount: z.number().min(0).optional(),
+  notes: z.string().optional().nullable(),
+  fboName: z.string().optional().nullable(),
+  boardingTime: z.string().datetime().optional().nullable(),
+  crewIds: z.array(z.string()).optional(),
+})
+
+export type UpdateTripDto = z.infer<typeof UpdateTripSchema>
+
 export const UpdateTripStatusSchema = z.object({
   status: z.string(),
   notes: z.string().optional().nullable(),
@@ -88,6 +105,47 @@ export class TripsService {
       },
     })
     if (!trip) throw new AppError(404, 'TRIP_NOT_FOUND', 'Trip not found')
+    return trip
+  }
+
+  async update(tenantId: string, id: string, data: UpdateTripDto) {
+    const existing = await this.prisma.trip.findFirst({ where: { id, tenantId, deletedAt: null } })
+    if (!existing) throw new AppError(404, 'TRIP_NOT_FOUND', 'Trip not found')
+
+    const trip = await this.prisma.trip.update({
+      where: { id },
+      data: {
+        ...(data.aircraftId !== undefined && { aircraftId: data.aircraftId ?? undefined }),
+        ...(data.originIcao && { originIcao: data.originIcao }),
+        ...(data.destinationIcao && { destinationIcao: data.destinationIcao }),
+        ...(data.departureAt && { departureAt: new Date(data.departureAt) }),
+        ...(data.arrivalAt !== undefined && { arrivalAt: data.arrivalAt ? new Date(data.arrivalAt) : null }),
+        ...(data.returnDepartureAt !== undefined && { returnDepartureAt: data.returnDepartureAt ? new Date(data.returnDepartureAt) : null }),
+        ...(data.returnArrivalAt !== undefined && { returnArrivalAt: data.returnArrivalAt ? new Date(data.returnArrivalAt) : null }),
+        ...(data.paxCount !== undefined && { paxCount: data.paxCount }),
+        ...(data.notes !== undefined && { notes: data.notes ?? undefined }),
+        ...(data.fboName !== undefined && { fboName: data.fboName ?? undefined }),
+        ...(data.boardingTime !== undefined && { boardingTime: data.boardingTime ? new Date(data.boardingTime) : null }),
+      },
+      include: {
+        aircraft: { select: { id: true, tailNumber: true, make: true, model: true } },
+        crewAssignments: {
+          include: { crewMember: { select: { id: true, firstName: true, lastName: true, role: true } } },
+        },
+        passengers: { include: { contact: { select: { id: true, firstName: true, lastName: true, email: true } } } },
+      },
+    })
+
+    // Replace crew assignments if provided
+    if (data.crewIds !== undefined) {
+      await this.prisma.tripCrewAssignment.deleteMany({ where: { tripId: id } })
+      if (data.crewIds.length > 0) {
+        await this.prisma.tripCrewAssignment.createMany({
+          data: data.crewIds.map((crewMemberId) => ({ tenantId, tripId: id, crewMemberId, role: 'ASSIGNED' })),
+        })
+      }
+    }
+
     return trip
   }
 

@@ -19,6 +19,7 @@ import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { AirportSearch } from '@/components/ui/AirportSearch'
+import { TripDetailModal } from '@/components/trips/TripDetailModal'
 import { type Airport, distanceNm, estimatedHours, formatHours } from '@/api/airports.api'
 import { useCrew, type CrewMember } from '@/api/crew.api'
 import { useAircraftList } from '@/api/aircraft.api'
@@ -153,6 +154,7 @@ export default function TripsPage() {
   const [delayTrip, setDelayTrip] = useState<Trip | null>(null)
   const [statusTrip, setStatusTrip] = useState<Trip | null>(null)
   const [newTripOpen, setNewTripOpen] = useState(false)
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(null)
   const [originAirport, setOriginAirport] = useState<Airport | null>(null)
   const [destinationAirport, setDestinationAirport] = useState<Airport | null>(null)
 
@@ -425,6 +427,12 @@ export default function TripsPage() {
         emptyMessage="No trips found."
         pagination={data?.meta}
         onPageChange={setPage}
+        onRowClick={(t) => setSelectedTripId(t.id)}
+      />
+
+      <TripDetailModal
+        tripId={selectedTripId}
+        onClose={() => setSelectedTripId(null)}
       />
 
       {/* New Trip Modal */}

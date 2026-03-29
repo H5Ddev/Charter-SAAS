@@ -21,7 +21,7 @@ import { z } from 'zod'
 import { AirportSearch } from '@/components/ui/AirportSearch'
 import { TripDetailModal } from '@/components/trips/TripDetailModal'
 import { type Airport, distanceNm, estimatedHours, formatHours } from '@/api/airports.api'
-import { useCrew, type CrewMember } from '@/api/crew.api'
+import { CrewPicker, type SelectedCrewMember } from '@/components/crew/CrewPicker'
 import { useAircraftList } from '@/api/aircraft.api'
 
 function toDatetimeLocal(date: Date): string {
@@ -192,8 +192,7 @@ export default function TripsPage() {
   }, [showAircraftDropdown])
 
   // Crew picker state
-  const [crewSearch, setCrewSearch] = useState('')
-  const [selectedCrew, setSelectedCrew] = useState<Pick<CrewMember, 'id' | 'firstName' | 'lastName' | 'role'>[]>([])
+  const [selectedCrew, setSelectedCrew] = useState<SelectedCrewMember[]>([])
 
   const { data, isLoading } = useTrips({
     page,
@@ -237,15 +236,6 @@ export default function TripsPage() {
   )
   const aircraftList = aircraftListData?.data ?? []
 
-  // Crew search query (only when modal is open)
-  const { data: crewData } = useCrew(
-    newTripOpen ? { isActive: true, pageSize: 50 } : undefined
-  )
-  const allCrew = crewData?.data ?? []
-  const filteredCrew = allCrew.filter((m) =>
-    !selectedCrew.find((s) => s.id === m.id) &&
-    (crewSearch === '' || `${m.firstName} ${m.lastName} ${m.role}`.toLowerCase().includes(crewSearch.toLowerCase()))
-  )
 
   async function handleFlagDelay(values: DelayForm) {
     if (!delayTrip) return
@@ -275,7 +265,6 @@ export default function TripsPage() {
     setSelectedAircraftLabel('')
     setAircraftSearch('')
     setSelectedCrew([])
-    setCrewSearch('')
   }
 
   async function handleCreateTrip(values: NewTripForm) {
@@ -677,45 +666,7 @@ export default function TripsPage() {
           {/* Crew picker */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Crew</label>
-            {selectedCrew.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {selectedCrew.map((m) => (
-                  <span key={m.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary-50 text-primary-700 text-xs font-medium">
-                    {m.firstName} {m.lastName}
-                    <span className="text-primary-400">· {m.role.replace('_', ' ')}</span>
-                    <button type="button" onClick={() => setSelectedCrew((prev) => prev.filter((c) => c.id !== m.id))}>
-                      <XMarkIcon className="h-3 w-3 ml-0.5" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <input
-              type="text"
-              placeholder="Search crew by name or role…"
-              value={crewSearch}
-              onChange={(e) => setCrewSearch(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-            {filteredCrew.length > 0 && crewSearch.length > 0 && (
-              <ul className="mt-1 w-full bg-white rounded-md border border-gray-200 shadow-sm max-h-36 overflow-y-auto">
-                {filteredCrew.map((m) => (
-                  <li key={m.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedCrew((prev) => [...prev, { id: m.id, firstName: m.firstName, lastName: m.lastName, role: m.role }])
-                        setCrewSearch('')
-                      }}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 flex items-center gap-2"
-                    >
-                      <span className="font-medium text-gray-900">{m.firstName} {m.lastName}</span>
-                      <span className="text-xs text-gray-400 ml-auto">{m.role.replace('_', ' ')}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <CrewPicker selectedCrew={selectedCrew} onChange={setSelectedCrew} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>

@@ -64,7 +64,7 @@ export function CrewPicker({ selectedCrew, onChange }: Props) {
         id: m.crewMemberId,
         firstName: m.crewMember.firstName,
         lastName: m.crewMember.lastName,
-        role: m.crewMember.role,
+        role: m.crewMember.role as SelectedCrewMember['role'],
       }))
     onChange([...selectedCrew, ...newMembers])
     setGroupSearch('')

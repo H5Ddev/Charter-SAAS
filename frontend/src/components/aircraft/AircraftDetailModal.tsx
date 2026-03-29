@@ -49,7 +49,7 @@ export function AircraftDetailModal({ aircraftId, onClose }: Props) {
         make: aircraft.make,
         model: aircraft.model,
         year: aircraft.year?.toString() ?? '',
-        seats: aircraft.seatingCapacity.toString(),
+        seats: aircraft.seatingCapacity?.toString() ?? '',
         rangeNm: aircraft.rangeNm?.toString() ?? '',
         homeBaseIcao: aircraft.homeBaseIcao ?? '',
         hourlyRate: aircraft.hourlyRate?.toString() ?? '',
@@ -181,7 +181,7 @@ export function AircraftDetailModal({ aircraftId, onClose }: Props) {
                 {field('Make', aircraft.make, 'make')}
                 {field('Model', aircraft.model, 'model')}
                 {field('Year', aircraft.year?.toString() ?? '', 'year', 'number')}
-                {field('Seats', aircraft.seatingCapacity.toString(), 'seats', 'number')}
+                {field('Seats', aircraft.seatingCapacity?.toString() ?? '', 'seats', 'number')}
                 {field('Range (nm)', aircraft.rangeNm?.toString() ?? '', 'rangeNm', 'number')}
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Home Base</p>

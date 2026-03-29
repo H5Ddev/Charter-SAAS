@@ -121,9 +121,7 @@ export default function Dashboard() {
   const trips = tripsData?.data ?? []
 
   // Only poll AirLabs when at least one trip is actively airborne
-  const hasAirborneTrips = trips.some(
-    (t) => t.status === 'IN_FLIGHT' || t.status === 'BOARDING',
-  )
+  const hasAirborneTrips = trips.some((t) => t.status === 'DEPARTED')
 
   const activeCount = trips.filter(
     (t) => t.status === 'CONFIRMED' || t.status === 'MANIFEST_LOCKED',

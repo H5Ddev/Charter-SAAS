@@ -3,6 +3,7 @@ import { useTrips } from '@/api/trips.api'
 import { useContacts } from '@/api/contacts.api'
 import { Badge, tripStatusBadge } from '@/components/ui/Badge'
 import { useNavigate } from 'react-router-dom'
+import { LiveFlightTracker } from '@/components/dashboard/LiveFlightTracker'
 
 // ── Greeting ────────────────────────────────────────────────────────────────
 
@@ -219,6 +220,9 @@ export default function Dashboard() {
           }
         />
       </div>
+
+      {/* Live flight tracker — only renders when aircraft are airborne */}
+      <LiveFlightTracker />
 
       {/* Recent Trips */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">

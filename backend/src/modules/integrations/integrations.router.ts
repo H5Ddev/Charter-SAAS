@@ -5,6 +5,9 @@ import { smsSender } from '../notifications/channels/sms.sender'
 import { successResponse } from '../../shared/utils/response'
 import { requireAuth } from '../../shared/middleware/auth'
 import { AppError } from '../../shared/middleware/errorHandler'
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
 
 export const integrationsRouter: Router = Router()
 integrationsRouter.use(requireAuth)
@@ -29,7 +32,105 @@ integrationsRouter.get('/status', async (_req: Request, res: Response, next: Nex
         fromEmail: env.SENDGRID_FROM_EMAIL ?? null,
         fromName: env.SENDGRID_FROM_NAME,
       },
+      airlabs: {
+        configured: !!env.AIRLABS_API_KEY,
+      },
     }))
+  } catch (err) { next(err) }
+})
+
+/**
+ * GET /api/integrations/airlabs/live
+ * Returns live ADS-B positions for tenant aircraft that are currently airborne.
+ * Queries AirLabs by tail number (reg parameter).
+ * Results are keyed by tail number, containing position + flight data.
+ */
+integrationsRouter.get('/airlabs/live', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!env.AIRLABS_API_KEY) {
+      throw new AppError(400, 'AIRLABS_NOT_CONFIGURED', 'AIRLABS_API_KEY is not set.')
+    }
+
+    const tenantId = req.user!.tenantId
+
+    // Fetch all active tenant aircraft tail numbers
+    const aircraft = await prisma.aircraft.findMany({
+      where: { tenantId, deletedAt: null, isActive: true },
+      select: { id: true, tailNumber: true, make: true, model: true },
+    })
+
+    if (aircraft.length === 0) {
+      return res.json(successResponse([]))
+    }
+
+    // Query AirLabs flights endpoint — one call returns all airborne flights,
+    // we filter by our tail numbers client-side to avoid N+1 API calls.
+    // AirLabs free tier: use reg_number filter to limit response size.
+    const tailNumbers = aircraft.map((a) => a.tailNumber.replace(/^N/, 'N').toUpperCase())
+
+    const url = new URL(`${env.AIRLABS_BASE_URL}/flights`)
+    url.searchParams.set('api_key', env.AIRLABS_API_KEY)
+    // Filter by registration prefix if all share one (best-effort size reduction)
+    // Full filter not available on free tier; we post-filter below.
+
+    const response = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(8000),
+    })
+
+    if (!response.ok) {
+      throw new AppError(502, 'AIRLABS_ERROR', `AirLabs returned ${response.status}`)
+    }
+
+    interface AirlabsFlight {
+      reg_number?: string
+      hex?: string
+      flight_icao?: string
+      flight_iata?: string
+      dep_icao?: string
+      arr_icao?: string
+      lat?: number
+      lng?: number
+      alt?: number
+      dir?: number
+      speed?: number
+      status?: string
+      updated?: number
+    }
+
+    const data = await response.json() as { response?: AirlabsFlight[]; error?: { message: string } }
+
+    if (data.error) {
+      throw new AppError(502, 'AIRLABS_ERROR', data.error.message)
+    }
+
+    const flights = data.response ?? []
+
+    // Build tail → aircraft map for fast lookup
+    const tailMap = new Map(aircraft.map((a) => [a.tailNumber.toUpperCase(), a]))
+
+    const live = flights
+      .filter((f) => f.reg_number && tailMap.has(f.reg_number.toUpperCase()))
+      .map((f) => {
+        const ac = tailMap.get(f.reg_number!.toUpperCase())!
+        return {
+          aircraftId: ac.id,
+          tailNumber: ac.tailNumber,
+          make: ac.make,
+          model: ac.model,
+          flightIcao: f.flight_icao ?? null,
+          depIcao: f.dep_icao ?? null,
+          arrIcao: f.arr_icao ?? null,
+          lat: f.lat ?? null,
+          lng: f.lng ?? null,
+          altFt: f.alt ?? null,
+          heading: f.dir ?? null,
+          speedKts: f.speed ?? null,
+          status: f.status ?? null,
+          updatedAt: f.updated ? new Date(f.updated * 1000).toISOString() : null,
+        }
+      })
+
+    res.json(successResponse(live))
   } catch (err) { next(err) }
 })
 

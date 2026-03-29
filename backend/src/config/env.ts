@@ -78,6 +78,10 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
 
+  // AirLabs flight tracking
+  AIRLABS_API_KEY: z.string().optional(),
+  AIRLABS_BASE_URL: z.string().url().default('https://airlabs.co/api/v9'),
+
   // ForeFlight (stub)
   FOREFLIGHT_API_KEY: z.string().optional(),
   FOREFLIGHT_BASE_URL: z.string().url().default('https://plan.foreflight.com/api'),

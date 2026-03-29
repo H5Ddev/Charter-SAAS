@@ -110,6 +110,13 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
         ))}
       </nav>
 
+      {/* Copyright */}
+      {!collapsed && (
+        <p className="px-3 pb-1 text-center text-[10px] text-white/25 leading-tight">
+          © {new Date().getFullYear()} H5 Enterprises
+        </p>
+      )}
+
       {/* User */}
       {user && (
         <div

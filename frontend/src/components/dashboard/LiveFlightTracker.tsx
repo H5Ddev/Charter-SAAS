@@ -73,8 +73,12 @@ function FlightCard({ flight }: { flight: LiveFlight }) {
   )
 }
 
-export function LiveFlightTracker() {
-  const { data: flights, isLoading, isError } = useLiveFlights()
+interface Props {
+  enabled: boolean
+}
+
+export function LiveFlightTracker({ enabled }: Props) {
+  const { data: flights, isLoading, isError } = useLiveFlights(enabled)
 
   // Don't render the section at all if no aircraft are airborne and not loading
   if (!isLoading && !isError && (!flights || flights.length === 0)) return null

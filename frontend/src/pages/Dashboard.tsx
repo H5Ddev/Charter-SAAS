@@ -120,6 +120,11 @@ export default function Dashboard() {
 
   const trips = tripsData?.data ?? []
 
+  // Only poll AirLabs when at least one trip is actively airborne
+  const hasAirborneTrips = trips.some(
+    (t) => t.status === 'IN_FLIGHT' || t.status === 'BOARDING',
+  )
+
   const activeCount = trips.filter(
     (t) => t.status === 'CONFIRMED' || t.status === 'MANIFEST_LOCKED',
   ).length
@@ -221,8 +226,8 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Live flight tracker — only renders when aircraft are airborne */}
-      <LiveFlightTracker />
+      {/* Live flight tracker — only polls AirLabs when a trip is IN_FLIGHT or BOARDING */}
+      <LiveFlightTracker enabled={hasAirborneTrips} />
 
       {/* Recent Trips */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">

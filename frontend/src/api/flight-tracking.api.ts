@@ -18,16 +18,15 @@ export interface LiveFlight {
   updatedAt: string | null
 }
 
-export function useLiveFlights() {
+export function useLiveFlights(enabled: boolean) {
   return useQuery({
     queryKey: ['live-flights'],
     queryFn: async () => {
       const response = await apiClient.get<LiveFlight[]>('/integrations/airlabs/live')
       return response.data as LiveFlight[]
     },
-    // Poll every 60 seconds — AirLabs updates roughly every 15–30s on paid tiers
-    refetchInterval: 60_000,
-    // Keep stale data visible while refetching
+    enabled,
+    refetchInterval: enabled ? 60_000 : false,
     staleTime: 30_000,
   })
 }

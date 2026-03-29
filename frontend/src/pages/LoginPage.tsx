@@ -70,6 +70,14 @@ export default function LoginPage() {
         <div className="absolute bottom-[-60px] right-[-60px] w-96 h-96 rounded-full opacity-15"
              style={{ background: 'radial-gradient(circle, #38bdf8, transparent 70%)' }} />
 
+        {/* Watermark airplane */}
+        <div className="absolute inset-0 flex items-center justify-end pr-8 pointer-events-none select-none">
+          <svg viewBox="0 0 100 100" className="w-[70%] max-w-[480px] opacity-[0.06]" fill="white" xmlns="http://www.w3.org/2000/svg">
+            {/* Wide-body commercial airplane, top-down view */}
+            <path d="M50 2 C46 2 43 5 43 10 L43 38 L10 58 L10 66 L43 56 L43 72 L32 78 L32 84 L50 80 L68 84 L68 78 L57 72 L57 56 L90 66 L90 58 L57 38 L57 10 C57 5 54 2 50 2 Z" />
+          </svg>
+        </div>
+
         <div className="relative z-10 flex flex-col h-full p-12">
 
           {/* Logo */}

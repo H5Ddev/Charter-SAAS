@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { clsx } from 'clsx'
 import {
   useTrips,
@@ -23,6 +23,11 @@ import { TripDetailModal } from '@/components/trips/TripDetailModal'
 import { type Airport, distanceNm, estimatedHours, formatHours } from '@/api/airports.api'
 import { useCrew, type CrewMember } from '@/api/crew.api'
 import { useAircraftList } from '@/api/aircraft.api'
+
+function toDatetimeLocal(date: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -162,7 +167,8 @@ export default function TripsPage() {
     destinationAirport?.latitudeDeg != null && destinationAirport?.longitudeDeg != null)
     ? (() => {
         const nm = distanceNm(originAirport.latitudeDeg!, originAirport.longitudeDeg!, destinationAirport.latitudeDeg!, destinationAirport.longitudeDeg!)
-        return { nm: Math.round(nm), hours: formatHours(estimatedHours(nm)) }
+        const rawHours = estimatedHours(nm)
+        return { nm: Math.round(nm), hours: formatHours(rawHours), rawHours }
       })()
     : null
 
@@ -194,6 +200,23 @@ export default function TripsPage() {
   })
 
   const watchTripType = newTripForm.watch('tripType')
+  const watchDepartureAt = newTripForm.watch('departureAt')
+  const watchReturnDepartureAt = newTripForm.watch('returnDepartureAt')
+
+  // Auto-calculate arrival times from departure + estimated flight time
+  useEffect(() => {
+    if (!watchDepartureAt || !routeStats) return
+    const dep = new Date(watchDepartureAt)
+    if (isNaN(dep.getTime())) return
+    newTripForm.setValue('arrivalAt', toDatetimeLocal(new Date(dep.getTime() + routeStats.rawHours * 3600_000)))
+  }, [watchDepartureAt, routeStats?.rawHours])
+
+  useEffect(() => {
+    if (!watchReturnDepartureAt || !routeStats) return
+    const dep = new Date(watchReturnDepartureAt)
+    if (isNaN(dep.getTime())) return
+    newTripForm.setValue('returnArrivalAt', toDatetimeLocal(new Date(dep.getTime() + routeStats.rawHours * 3600_000)))
+  }, [watchReturnDepartureAt, routeStats?.rawHours])
 
   // Aircraft search query (only when modal is open)
   const { data: aircraftListData } = useAircraftList(
@@ -535,7 +558,12 @@ export default function TripsPage() {
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Arrival</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Arrival
+                {routeStats && watchDepartureAt && (
+                  <span className="ml-1.5 text-xs font-normal text-primary-600">· est. {routeStats.hours}</span>
+                )}
+              </label>
               <input
                 type="datetime-local"
                 className="form-input w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -560,6 +588,9 @@ export default function TripsPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Return Arrival
+                  {routeStats && watchReturnDepartureAt && (
+                    <span className="ml-1.5 text-xs font-normal text-primary-600">· est. {routeStats.hours}</span>
+                  )}
                 </label>
                 <input
                   type="datetime-local"
@@ -597,7 +628,10 @@ export default function TripsPage() {
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
             {showAircraftDropdown && aircraftList.length > 0 && (
-              <ul className="absolute z-20 mt-1 w-full bg-white rounded-md border border-gray-200 shadow-lg max-h-48 overflow-y-auto">
+              <ul
+                className="absolute z-20 mt-1 w-full bg-white rounded-md border border-gray-200 shadow-lg max-h-48 overflow-y-auto"
+                onMouseDown={(e) => e.preventDefault()}
+              >
                 {aircraftList
                   .filter((a) => !aircraftSearch || `${a.registration} ${a.make} ${a.model}`.toLowerCase().includes(aircraftSearch.toLowerCase()))
                   .map((a) => (

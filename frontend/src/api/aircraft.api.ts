@@ -100,6 +100,7 @@ const AIRCRAFT_KEY = 'aircraft'
 export function useAircraftList(filters?: { page?: number; pageSize?: number; isActive?: boolean }) {
   return useQuery({
     queryKey: [AIRCRAFT_KEY, filters],
+    enabled: !!filters,
     queryFn: async () => {
       const response = await apiClient.get<{ data: BackendAircraft[]; meta: { total: number; page: number; pageSize: number; totalPages: number } }>('/aircraft', { params: filters })
       const raw = response.data as { data: BackendAircraft[]; meta: { total: number; page: number; pageSize: number; totalPages: number } }

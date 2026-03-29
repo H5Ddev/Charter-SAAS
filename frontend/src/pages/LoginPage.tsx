@@ -250,7 +250,7 @@ export default function LoginPage() {
           </button>
 
           <p className="mt-8 text-center text-xs text-gray-400">
-            © {new Date().getFullYear()} AeroComm · All rights reserved
+            © {new Date().getFullYear()} H5 Enterprises · All rights reserved
           </p>
         </div>
       </div>

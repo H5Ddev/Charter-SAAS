@@ -21,6 +21,8 @@ export interface ActionConfig {
   toPath?: string
   to?: string
   body?: string
+  // 'TRIP_PASSENGERS' — send to each passenger's contact phone/email
+  recipientType?: string
 
   // SEND_EMAIL
   subject?: string
@@ -156,58 +158,103 @@ export class ActionExecutor {
     throw new AppError(400, 'NO_RECIPIENT', 'Action config missing "to" or "toPath"')
   }
 
-  private async executeSendSms(config: ActionConfig, context: Record<string, unknown>, tenantId: string): Promise<void> {
-    const to = this.resolveRecipient(config, context)
-    let body: string
+  /**
+   * Resolve one or more recipients and their per-recipient context.
+   * Returns an array of { address, context } — one per recipient.
+   *
+   * Supported recipientType values:
+   *   'TRIP_PASSENGERS' — iterates context.passengers[], uses contact.phone / contact.email
+   */
+  private resolveRecipients(
+    config: ActionConfig,
+    context: Record<string, unknown>,
+    field: 'phone' | 'email',
+  ): Array<{ address: string; ctx: Record<string, unknown> }> {
+    if (config.recipientType === 'TRIP_PASSENGERS') {
+      const passengers = context['passengers'] as Array<{
+        contact: { phone?: string | null; email?: string | null; firstName?: string; lastName?: string }
+      }> | undefined
 
-    if (config.templateId) {
-      const template = await this.getTemplate(config.templateId, tenantId)
-      body = render(template.body, context)
-    } else if (config.body) {
-      body = render(config.body, context)
-    } else {
+      if (!passengers?.length) {
+        logger.warn('TRIP_PASSENGERS recipientType: no passengers in context')
+        return []
+      }
+
+      const results: Array<{ address: string; ctx: Record<string, unknown> }> = []
+      for (const p of passengers) {
+        const address = field === 'phone' ? p.contact.phone : p.contact.email
+        if (address) results.push({ address, ctx: { ...context, passenger: p.contact } })
+      }
+      return results
+    }
+
+    // Fall back to single-recipient resolution
+    const address = this.resolveRecipient(config, context)
+    return [{ address, ctx: context }]
+  }
+
+  private async executeSendSms(config: ActionConfig, context: Record<string, unknown>, tenantId: string): Promise<void> {
+    if (!config.templateId && !config.body) {
       throw new AppError(400, 'NO_SMS_BODY', 'SEND_SMS action requires templateId or body')
     }
 
-    await smsSender.send(to, body, tenantId)
+    const recipients = this.resolveRecipients(config, context, 'phone')
+    if (recipients.length === 0) {
+      logger.warn('SEND_SMS: no recipients resolved, skipping', { tenantId })
+      return
+    }
+
+    for (const { address, ctx } of recipients) {
+      const body = config.templateId
+        ? render((await this.getTemplate(config.templateId, tenantId)).body, ctx)
+        : render(config.body!, ctx)
+      await smsSender.send(address, body, tenantId)
+    }
   }
 
   private async executeSendEmail(config: ActionConfig, context: Record<string, unknown>, tenantId: string): Promise<void> {
-    const to = this.resolveRecipient(config, context)
-
     if (!config.templateId && !config.body) {
       throw new AppError(400, 'NO_EMAIL_BODY', 'SEND_EMAIL action requires templateId or body')
     }
 
-    let subject: string
-    let body: string
-
-    if (config.templateId) {
-      const template = await this.getTemplate(config.templateId, tenantId)
-      body = render(template.body, context)
-      subject = template.subject ? render(template.subject, context) : config.subject ?? '(No subject)'
-    } else {
-      body = render(config.body!, context)
-      subject = config.subject ? render(config.subject, context) : '(No subject)'
+    const recipients = this.resolveRecipients(config, context, 'email')
+    if (recipients.length === 0) {
+      logger.warn('SEND_EMAIL: no recipients resolved, skipping', { tenantId })
+      return
     }
 
-    await emailSender.send(to, subject, body)
+    for (const { address, ctx } of recipients) {
+      let subject: string
+      let body: string
+      if (config.templateId) {
+        const template = await this.getTemplate(config.templateId, tenantId)
+        body = render(template.body, ctx)
+        subject = template.subject ? render(template.subject, ctx) : config.subject ?? '(No subject)'
+      } else {
+        body = render(config.body!, ctx)
+        subject = config.subject ? render(config.subject, ctx) : '(No subject)'
+      }
+      await emailSender.send(address, subject, body)
+    }
   }
 
   private async executeSendWhatsApp(config: ActionConfig, context: Record<string, unknown>, tenantId: string): Promise<void> {
-    const to = this.resolveRecipient(config, context)
-    let body: string
-
-    if (config.templateId) {
-      const template = await this.getTemplate(config.templateId, tenantId)
-      body = render(template.body, context)
-    } else if (config.body) {
-      body = render(config.body, context)
-    } else {
+    if (!config.templateId && !config.body) {
       throw new AppError(400, 'NO_WHATSAPP_BODY', 'SEND_WHATSAPP action requires templateId or body')
     }
 
-    await whatsappSender.send(to, body, tenantId)
+    const recipients = this.resolveRecipients(config, context, 'phone')
+    if (recipients.length === 0) {
+      logger.warn('SEND_WHATSAPP: no recipients resolved, skipping', { tenantId })
+      return
+    }
+
+    for (const { address, ctx } of recipients) {
+      const body = config.templateId
+        ? render((await this.getTemplate(config.templateId, tenantId)).body, ctx)
+        : render(config.body!, ctx)
+      await whatsappSender.send(address, body, tenantId)
+    }
   }
 
   private async executeSendSlack(config: ActionConfig, context: Record<string, unknown>): Promise<void> {

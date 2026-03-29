@@ -174,11 +174,18 @@ export class AutomationEngine {
     if (payload['tripId']) {
       const trip = await this.prisma.trip.findFirst({
         where: { id: payload['tripId'] as string, tenantId, deletedAt: null },
-        include: { aircraft: true },
+        include: {
+          aircraft: true,
+          passengers: {
+            where: { deletedAt: null },
+            include: { contact: true },
+          },
+        },
       })
       if (trip) {
         context['trip'] = trip
         context['aircraft'] = trip.aircraft
+        context['passengers'] = trip.passengers
       }
     }
 

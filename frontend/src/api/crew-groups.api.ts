@@ -47,8 +47,8 @@ export function useCrewGroups() {
   return useQuery<CrewGroup[]>({
     queryKey: [KEY],
     queryFn: async () => {
-      const res = await apiClient.get<{ data: CrewGroup[] }>('/crew-groups')
-      return (res.data as { data: CrewGroup[] }).data
+      const res = await apiClient.get<CrewGroup[]>('/crew-groups')
+      return res.data as CrewGroup[]
     },
   })
 }

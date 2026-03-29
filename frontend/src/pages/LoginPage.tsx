@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useAuthStore } from '../store/auth.store'
 import { useLogin } from '../api/auth.api'
-import { LoginPanelLogo, InlineLogoDark } from '../components/ui/AeroCommLogo'
+import { LoginPanelLogo, InlineLogoDark } from '../components/ui/AeroPulseLogo'
 
 const loginSchema = z.object({
   email: z.string().email('Enter a valid email address'),
@@ -96,7 +96,7 @@ export default function LoginPage() {
               and conversation.
             </h1>
             <p className="text-white/60 text-lg leading-relaxed">
-              From inquiry to post-flight survey — AeroComm handles the
+              From inquiry to post-flight survey — AeroPulse handles the
               communications so your team stays focused on the sky.
             </p>
           </div>

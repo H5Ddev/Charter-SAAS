@@ -137,7 +137,7 @@ function SlackPreview({ body, data }: { body: string; data: Record<string, strin
         </div>
         <div>
           <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-white font-semibold text-sm">AeroComm Bot</span>
+            <span className="text-white font-semibold text-sm">AeroPulse Bot</span>
             <span className="text-gray-500 text-xs">Today at {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
           <p className="text-[#D1D2D3] whitespace-pre-wrap leading-relaxed">
@@ -157,7 +157,7 @@ function TeamsPreview({ body, data }: { body: string; data: Record<string, strin
         <div className="w-6 h-6 bg-white rounded flex items-center justify-center">
           <span className="text-[#6264A7] font-bold text-xs">T</span>
         </div>
-        <span className="text-white text-sm font-medium">AeroComm</span>
+        <span className="text-white text-sm font-medium">AeroPulse</span>
       </div>
       <div className="px-4 py-3 border-l-4 border-[#6264A7]">
         <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
@@ -179,7 +179,7 @@ function InAppPreview({ body, data }: { body: string; data: Record<string, strin
           </svg>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-gray-900 mb-0.5">AeroComm Notification</p>
+          <p className="text-xs font-semibold text-gray-900 mb-0.5">AeroPulse Notification</p>
           <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">
             {rendered || <span className="text-gray-300 italic">In-app notification…</span>}
           </p>

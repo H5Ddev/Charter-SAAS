@@ -12,7 +12,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-semibold text-gray-900 mb-3">1. Acceptance of Terms</h2>
             <p>
-              By providing your phone number and consenting to receive SMS communications from AeroComm
+              By providing your phone number and consenting to receive SMS communications from AeroPulse
               or any charter operator using our platform, you agree to these Terms and Conditions. If you
               do not agree, do not provide your consent.
             </p>
@@ -21,7 +21,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-semibold text-gray-900 mb-3">2. SMS Messaging Program</h2>
             <p>
-              AeroComm provides SMS notifications on behalf of charter aviation companies. By opting in,
+              AeroPulse provides SMS notifications on behalf of charter aviation companies. By opting in,
               you may receive messages including:
             </p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
@@ -48,7 +48,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-semibold text-gray-900 mb-3">4. Message and Data Rates</h2>
             <p>
-              Message and data rates may apply depending on your mobile carrier and plan. AeroComm does
+              Message and data rates may apply depending on your mobile carrier and plan. AeroPulse does
               not charge for SMS messages, but your carrier may. Check with your carrier for details.
             </p>
           </section>

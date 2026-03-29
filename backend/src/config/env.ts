@@ -61,7 +61,7 @@ const envSchema = z.object({
   // SendGrid
   SENDGRID_API_KEY: z.string().optional(),
   SENDGRID_FROM_EMAIL: z.string().email().optional(),
-  SENDGRID_FROM_NAME: z.string().default('AeroComm'),
+  SENDGRID_FROM_NAME: z.string().default('AeroPulse'),
 
   // Slack
   SLACK_SIGNING_SECRET: z.string().optional(),
@@ -91,8 +91,8 @@ const envSchema = z.object({
   WEATHER_API_BASE_URL: z.string().url().default('https://api.weather.gov'),
 
   // MFA / TOTP
-  TOTP_APP_NAME: z.string().default('AeroComm'),
-  TOTP_ISSUER: z.string().default('AeroComm'),
+  TOTP_APP_NAME: z.string().default('AeroPulse'),
+  TOTP_ISSUER: z.string().default('AeroPulse'),
 
   // Rate Limiting
   RATE_LIMIT_WINDOW_MS: z.string().default('900000').transform(Number),

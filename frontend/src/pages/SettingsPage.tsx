@@ -233,7 +233,7 @@ function IntegrationsTab() {
           {[
             { key: 'SENDGRID_API_KEY', hint: 'From SendGrid → Settings → API Keys' },
             { key: 'SENDGRID_FROM_EMAIL', hint: 'Verified sender address, e.g. ops@yourdomain.com' },
-            { key: 'SENDGRID_FROM_NAME', hint: 'Display name, e.g. AeroComm Ops' },
+            { key: 'SENDGRID_FROM_NAME', hint: 'Display name, e.g. AeroPulse Ops' },
           ].map(({ key, hint }) => (
             <div key={key}>
               <div className="flex items-center gap-2">

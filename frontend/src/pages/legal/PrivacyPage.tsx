@@ -12,7 +12,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-semibold text-gray-900 mb-3">1. Introduction</h2>
             <p>
-              AeroComm ("we," "us," or "our") operates a charter aviation communications and operations
+              AeroPulse ("we," "us," or "our") operates a charter aviation communications and operations
               platform. This Privacy Policy explains how we collect, use, disclose, and safeguard your
               information when you use our services or receive communications from us on behalf of charter
               companies using our platform.

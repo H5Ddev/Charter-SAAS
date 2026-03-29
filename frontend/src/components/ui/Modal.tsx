@@ -1,4 +1,4 @@
-import { useEffect, useRef, ReactNode, KeyboardEvent } from 'react'
+import { useEffect, useRef, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { clsx } from 'clsx'
 import { XMarkIcon } from '@heroicons/react/24/outline'
@@ -35,6 +35,10 @@ export function Modal({
   footer,
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
+  // Keep a stable ref to onClose so the focus-trap effect doesn't re-run on every render
+  // (callers often pass inline functions that get a new reference each render)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
   // Lock scroll when open
   useEffect(() => {
@@ -48,7 +52,7 @@ export function Modal({
     }
   }, [isOpen])
 
-  // Focus trap
+  // Focus trap — depends only on isOpen so it doesn't re-run on every parent render
   useEffect(() => {
     if (!isOpen) return
     const el = dialogRef.current
@@ -62,7 +66,7 @@ export function Modal({
 
     const handleKeyDown = (e: globalThis.KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose()
+        onCloseRef.current()
         return
       }
       if (e.key === 'Tab') {
@@ -86,7 +90,7 @@ export function Modal({
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isOpen, onClose])
+  }, [isOpen])
 
   if (!isOpen) return null
 

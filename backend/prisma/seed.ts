@@ -61,7 +61,7 @@ const SMS_TEMPLATES = [
     channel: "SMS",
     subject: null,
     body: "✈️ Your trip is confirmed! Thank you for booking with {{tenant.companyName}}. If you have any special requests (snacks, pillows, etc.), reply here or contact our team. We're excited to serve you!",
-    description: "Sent immediately when a trip is marked BOOKED.",
+    description: "Sent immediately when a trip is marked CONFIRMED.",
   },
   {
     id: "tmpl_s02_7day_reminder",
@@ -145,7 +145,7 @@ const AUTOMATION_RULES = [
     enabled: true,
     trigger: {
       eventType: "TRIP_STATUS_CHANGED",
-      filters: { toStatus: "BOOKED" },
+      filters: { toStatus: "CONFIRMED" },
     },
     conditionGroups: [], // No additional conditions — fire for all bookings
     actions: [
@@ -170,7 +170,7 @@ const AUTOMATION_RULES = [
     enabled: true,
     trigger: {
       eventType: "TRIP_STATUS_CHANGED",
-      filters: { toStatus: "BOOKED" },
+      filters: { toStatus: "CONFIRMED" },
     },
     conditionGroups: [],
     actions: [
@@ -195,7 +195,7 @@ const AUTOMATION_RULES = [
     enabled: true,
     trigger: {
       eventType: "TRIP_STATUS_CHANGED",
-      filters: { toStatus: "BOOKED" },
+      filters: { toStatus: "CONFIRMED" },
     },
     conditionGroups: [],
     actions: [
@@ -220,7 +220,7 @@ const AUTOMATION_RULES = [
     enabled: true,
     trigger: {
       eventType: "TRIP_STATUS_CHANGED",
-      filters: { toStatus: "BOOKED" },
+      filters: { toStatus: "CONFIRMED" },
     },
     conditionGroups: [],
     actions: [
@@ -245,7 +245,7 @@ const AUTOMATION_RULES = [
     enabled: true,
     trigger: {
       eventType: "TRIP_STATUS_CHANGED",
-      filters: { toStatus: "BOOKED" },
+      filters: { toStatus: "CONFIRMED" },
     },
     conditionGroups: [],
     actions: [
@@ -270,7 +270,7 @@ const AUTOMATION_RULES = [
     enabled: true,
     trigger: {
       eventType: "TRIP_STATUS_CHANGED",
-      filters: { toStatus: "DEPARTED" },
+      filters: { toStatus: "IN_FLIGHT" },
     },
     conditionGroups: [
       {

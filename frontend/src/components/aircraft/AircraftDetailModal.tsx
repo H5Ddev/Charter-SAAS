@@ -40,7 +40,7 @@ export function AircraftDetailModal({ aircraftId, onClose }: Props) {
   const allClasses = classesData ?? []
 
   const { data: ownerResults } = useContacts(
-    editing ? { type: 'OWNER', search: ownerSearch || undefined, pageSize: 20 } : undefined
+    editing && ownerSearch ? { type: 'OWNER', search: ownerSearch, pageSize: 20 } : undefined
   )
 
   useEffect(() => {

@@ -5,6 +5,7 @@ import Button from '@/components/ui/Button'
 import { useAircraft, useUpdateAircraft } from '@/api/aircraft.api'
 import { useContacts } from '@/api/contacts.api'
 import { AirportSearch } from '@/components/ui/AirportSearch'
+import { useAircraftClasses } from '@/api/aircraft-classes.api'
 
 interface Props {
   aircraftId: string | null
@@ -24,6 +25,7 @@ interface EditState {
   airframeHours: string
   engineHours: string
   ownerId: string | null
+  aircraftClassId: string
 }
 
 export function AircraftDetailModal({ aircraftId, onClose }: Props) {
@@ -33,6 +35,9 @@ export function AircraftDetailModal({ aircraftId, onClose }: Props) {
   const [form, setForm] = useState<EditState | null>(null)
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [ownerSearch, setOwnerSearch] = useState('')
+
+  const { data: classesData } = useAircraftClasses()
+  const allClasses = classesData ?? []
 
   const { data: ownerResults } = useContacts(
     editing ? { type: 'OWNER', search: ownerSearch || undefined, pageSize: 20 } : undefined
@@ -53,6 +58,7 @@ export function AircraftDetailModal({ aircraftId, onClose }: Props) {
         airframeHours: aircraft.airframeHours?.toString() ?? '',
         engineHours: aircraft.engineHours?.toString() ?? '',
         ownerId: aircraft.ownerId ?? null,
+        aircraftClassId: aircraft.aircraftClassId ?? '',
       })
       setOwnerSearch('')
     }
@@ -79,6 +85,7 @@ export function AircraftDetailModal({ aircraftId, onClose }: Props) {
         basePrice: form.basePrice ? parseFloat(form.basePrice) : undefined,
         costPerHour: form.costPerHour ? parseFloat(form.costPerHour) : undefined,
         ownerId: form.ownerId ?? undefined,
+        aircraftClassId: form.aircraftClassId || null,
       },
     })
     setEditing(false)
@@ -189,6 +196,30 @@ export function AircraftDetailModal({ aircraftId, onClose }: Props) {
                     <p className="text-sm text-gray-900 font-mono">{aircraft.homeBaseIcao || <span className="text-gray-400 font-sans">—</span>}</p>
                   )}
                 </div>
+              </div>
+            </div>
+
+            {/* Aircraft Class */}
+            <div>
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Classification</h3>
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Aircraft Class</p>
+                {editing ? (
+                  <select
+                    value={form?.aircraftClassId ?? ''}
+                    onChange={(e) => setForm((f) => f ? { ...f, aircraftClassId: e.target.value } : f)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  >
+                    <option value="">— None —</option>
+                    {allClasses.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}{c.regulatoryCategory ? ` (${c.regulatoryCategory})` : ''}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-sm text-gray-900">
+                    {allClasses.find((c) => c.id === aircraft.aircraftClassId)?.name ?? <span className="text-gray-400">—</span>}
+                  </p>
+                )}
               </div>
             </div>
 

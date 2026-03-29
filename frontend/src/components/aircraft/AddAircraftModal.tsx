@@ -5,6 +5,7 @@ import Button from '@/components/ui/Button'
 import { useContacts } from '@/api/contacts.api'
 import { useCreateAircraft } from '@/api/aircraft.api'
 import { AirportSearch } from '@/components/ui/AirportSearch'
+import { useAircraftClasses } from '@/api/aircraft-classes.api'
 
 interface Props {
   isOpen: boolean
@@ -29,12 +30,16 @@ export function AddAircraftModal({ isOpen, onClose, onCreated }: Props) {
   const [costPerHour, setCostPerHour] = useState('')
   const [hourlyRate, setHourlyRate] = useState('')
   const [basePrice, setBasePrice] = useState('')
+  const [aircraftClassId, setAircraftClassId] = useState('')
 
   const [ownerSearch, setOwnerSearch] = useState('')
   const [ownerId, setOwnerId] = useState('')
   const [showOwnerDropdown, setShowOwnerDropdown] = useState(false)
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const { data: classesData } = useAircraftClasses()
+  const allClasses = classesData ?? []
 
   const { data: contactsData } = useContacts({
     search: ownerSearch || undefined,
@@ -80,6 +85,7 @@ export function AddAircraftModal({ isOpen, onClose, onCreated }: Props) {
       costPerHour: costPerHour ? parseFloat(costPerHour) : undefined,
       hourlyRate: hourlyRate ? parseFloat(hourlyRate) : undefined,
       basePrice: basePrice ? parseFloat(basePrice) : undefined,
+      aircraftClassId: aircraftClassId || null,
     })
 
     onCreated?.(result.id)
@@ -98,6 +104,7 @@ export function AddAircraftModal({ isOpen, onClose, onCreated }: Props) {
     setCostPerHour('')
     setHourlyRate('')
     setBasePrice('')
+    setAircraftClassId('')
     setOwnerSearch('')
     setOwnerId('')
     setShowOwnerDropdown(false)
@@ -318,6 +325,21 @@ export function AddAircraftModal({ isOpen, onClose, onCreated }: Props) {
               />
             </div>
           </div>
+        </div>
+
+        {/* Aircraft Class */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Aircraft Class</label>
+          <select
+            value={aircraftClassId}
+            onChange={(e) => setAircraftClassId(e.target.value)}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="">— None —</option>
+            {allClasses.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}{c.regulatoryCategory ? ` (${c.regulatoryCategory})` : ''}</option>
+            ))}
+          </select>
         </div>
 
         {/* Home base + Owner */}

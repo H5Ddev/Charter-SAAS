@@ -45,6 +45,7 @@ model Tenant {
   organizations         Organization[]
   crewMembers           CrewMember[]
   crewGroups            CrewGroup[]
+  aircraftClasses       AircraftClass[]
 
   @@index([slug])
   @@index([isActive])
@@ -317,6 +318,8 @@ model Aircraft {
   tripLegs           TripLeg[]
   maintenanceRecords MaintenanceRecord[]
   crewGroups         CrewGroup[]
+  aircraftClassId    String?
+  aircraftClass      AircraftClass?         @relation(fields: [aircraftClassId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([tenantId, tailNumber])
   @@index([tenantId])
@@ -470,6 +473,47 @@ model CrewGroupMember {
   @@index([tenantId])
   @@index([crewMemberId])
   @@map("crew_group_members")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Aircraft Classes
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AircraftClass {
+  id                 String    @id @default(cuid())
+  tenantId           String
+  name               String                        // e.g. "Heavy Jet", "Light Jet"
+  description        String?
+  regulatoryCategory String?                       // e.g. "Part 135", "Part 121"
+  minSeats           Int?
+  maxSeats           Int?
+  minRangeNm         Int?
+  maxRangeNm         Int?
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  tenant       Tenant                  @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  crewReqs     AircraftClassCrewReq[]
+  aircraft     Aircraft[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("aircraft_classes")
+}
+
+model AircraftClassCrewReq {
+  id          String  @id @default(cuid())
+  classId     String
+  role        String                              // CAPTAIN, FIRST_OFFICER, FLIGHT_ATTENDANT, etc.
+  minCount    Int     @default(1)                 // minimum crew members of this role
+  perPax      Int?                                // if set: add 1 of this role per N pax (e.g. 1 FA per 20 pax)
+
+  aircraftClass AircraftClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId])
+  @@map("aircraft_class_crew_reqs")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -30,6 +30,7 @@ import { notificationsRouter } from './modules/notifications/notifications.route
 import { webhooksRouter } from './modules/webhooks/router'
 import { crewRouter } from './modules/crew/crew.router'
 import { crewGroupsRouter } from './modules/crew/crew-groups.router'
+import { aircraftClassesRouter } from './modules/inventory/aircraft-classes.router'
 import { maintenanceRouter } from './modules/maintenance/maintenance.router'
 import { usersRouter } from './modules/users/users.router'
 import { integrationsRouter } from './modules/integrations/integrations.router'
@@ -191,6 +192,7 @@ app.use('/api/notifications', notificationsRouter)
 app.use('/api/webhooks', webhooksRouter)
 app.use('/api/crew', crewRouter)
 app.use('/api/crew-groups', crewGroupsRouter)
+app.use('/api/aircraft-classes', aircraftClassesRouter)
 app.use('/api/maintenance', maintenanceRouter)
 app.use('/api/users', usersRouter)
 app.use('/api/integrations', integrationsRouter)

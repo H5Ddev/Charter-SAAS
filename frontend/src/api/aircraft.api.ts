@@ -14,6 +14,7 @@ export interface CreateAircraftInput {
   costPerHour?: number
   hourlyRate?: number
   basePrice?: number
+  aircraftClassId?: string | null
 }
 
 // Backend returns tailNumber/seats; AircraftPage expects registration/seatingCapacity
@@ -30,6 +31,7 @@ interface BackendAircraft {
   costPerHour: number | string | null
   hourlyRate: number | string | null
   basePrice: number | string | null
+  aircraftClassId: string | null
   createdAt: string
 }
 
@@ -46,6 +48,7 @@ export interface Aircraft {
   costPerHour: number | null
   hourlyRate: number | null
   basePrice: number | null
+  aircraftClassId: string | null
   createdAt: string
 }
 
@@ -63,6 +66,7 @@ export function normalizeAircraft(raw: BackendAircraft): Aircraft {
     costPerHour: raw.costPerHour != null ? Number(raw.costPerHour) : null,
     hourlyRate: raw.hourlyRate != null ? Number(raw.hourlyRate) : null,
     basePrice: raw.basePrice != null ? Number(raw.basePrice) : null,
+    aircraftClassId: raw.aircraftClassId ?? null,
     createdAt: raw.createdAt,
   }
 }

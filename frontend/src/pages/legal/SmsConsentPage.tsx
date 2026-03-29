@@ -14,7 +14,7 @@ export default function SmsConsentPage() {
         <div className="space-y-6 mb-12">
           <h2 className="text-lg font-semibold text-gray-900">How Opt-In Works</h2>
           <p className="text-sm text-gray-600">
-            AeroPulse collects SMS consent at the time a passenger is added to a charter flight booking.
+            AeroComm collects SMS consent at the time a passenger is added to a charter flight booking.
             Consent is explicit — passengers are never enrolled automatically.
           </p>
 
@@ -23,18 +23,18 @@ export default function SmsConsentPage() {
               {
                 step: '1',
                 title: 'Passenger Added to Trip',
-                description: 'A charter operator adds a passenger\'s contact information (name and phone number) when creating or modifying a booking in AeroPulse.',
+                description: 'A charter operator adds a passenger\'s contact information (name and phone number) when creating or modifying a booking in AeroComm.',
               },
               {
                 step: '2',
                 title: 'Opt-In Presented',
                 description: 'The operator presents the passenger with opt-in language either verbally, via email, or through a paper/digital form. The opt-in language reads:',
-                quote: '"By providing your phone number, you agree to receive SMS flight notifications from [Charter Company] powered by AeroPulse, including booking confirmations, reminders, boarding times, and delay alerts. Message and data rates may apply. Reply STOP to opt out at any time. Reply HELP for help. View our Privacy Policy and Terms."',
+                quote: '"By providing your phone number, you agree to receive SMS flight notifications from [Charter Company] powered by AeroComm, including booking confirmations, reminders, boarding times, and delay alerts. Message and data rates may apply. Reply STOP to opt out at any time. Reply HELP for help. View our Privacy Policy and Terms."',
               },
               {
                 step: '3',
                 title: 'Consent Recorded',
-                description: 'The operator records consent in AeroPulse by enabling the SMS opt-in flag on the passenger\'s contact record. No SMS messages are sent until this step is completed.',
+                description: 'The operator records consent in AeroComm by enabling the SMS opt-in flag on the passenger\'s contact record. No SMS messages are sent until this step is completed.',
               },
               {
                 step: '4',

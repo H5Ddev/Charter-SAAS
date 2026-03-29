@@ -18,7 +18,7 @@ import {
   UsersIcon as UsersManageIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/store/auth.store'
-import { SidebarLogo } from '@/components/ui/AeroPulseLogo'
+import { SidebarLogo } from '@/components/ui/AeroCommLogo'
 
 interface NavItem {
   label: string

@@ -27,7 +27,7 @@ import {
   DevicePhoneMobileIcon,
   EnvelopeIcon,
 } from '@heroicons/react/24/outline'
-import { PortalWordmark } from '@/components/ui/AeroPulseLogo'
+import { PortalWordmark } from '@/components/ui/AeroCommLogo'
 
 // ─── Formatters ──────────────────────────────────────────────────────────────
 

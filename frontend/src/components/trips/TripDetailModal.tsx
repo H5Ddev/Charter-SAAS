@@ -8,7 +8,7 @@ import { apiClient } from '@/api/client'
 import { AirportSearch } from '@/components/ui/AirportSearch'
 import { type Airport, distanceNm, estimatedHours, formatHours } from '@/api/airports.api'
 import { useAircraftList } from '@/api/aircraft.api'
-import { useCrew, type CrewMember } from '@/api/crew.api'
+import { CrewPicker, type SelectedCrewMember } from '@/components/crew/CrewPicker'
 
 interface Props {
   tripId: string | null
@@ -43,18 +43,11 @@ export function TripDetailModal({ tripId, onClose }: Props) {
   const [destinationAirport, setDestinationAirport] = useState<Airport | null>(null)
   const [showAircraftDropdown, setShowAircraftDropdown] = useState(false)
   const [aircraftSearch, setAircraftSearch] = useState('')
-  const [crewSearch, setCrewSearch] = useState('')
-  const [selectedCrew, setSelectedCrew] = useState<Pick<CrewMember, 'id' | 'firstName' | 'lastName' | 'role'>[]>([])
+  const [selectedCrew, setSelectedCrew] = useState<SelectedCrewMember[]>([])
 
   const { data: aircraftListData } = useAircraftList(editing ? { isActive: true, pageSize: 50 } : undefined)
   const aircraftList = aircraftListData?.data ?? []
 
-  const { data: crewData } = useCrew(editing ? { isActive: true, pageSize: 50 } : undefined)
-  const allCrew = crewData?.data ?? []
-  const filteredCrew = allCrew.filter((m) =>
-    !selectedCrew.find((s) => s.id === m.id) &&
-    (crewSearch === '' || `${m.firstName} ${m.lastName} ${m.role}`.toLowerCase().includes(crewSearch.toLowerCase()))
-  )
 
   const update = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
@@ -80,7 +73,7 @@ export function TripDetailModal({ tripId, onClose }: Props) {
         aircraftId: trip.aircraft?.id ?? '',
         aircraftLabel: trip.aircraft ? `${trip.aircraft.tailNumber} — ${trip.aircraft.make} ${trip.aircraft.model}` : '',
       })
-      const crewAssignments = (trip as unknown as { crewAssignments?: { crewMember: Pick<CrewMember, 'id' | 'firstName' | 'lastName' | 'role'> }[] }).crewAssignments ?? []
+      const crewAssignments = (trip as unknown as { crewAssignments?: { crewMember: SelectedCrewMember }[] }).crewAssignments ?? []
       setSelectedCrew(crewAssignments.map((a) => a.crewMember))
       setOriginAirport(null)
       setDestinationAirport(null)
@@ -294,37 +287,7 @@ export function TripDetailModal({ tripId, onClose }: Props) {
             <div>
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Crew</h3>
               {editing ? (
-                <div>
-                  {selectedCrew.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-2">
-                      {selectedCrew.map((m) => (
-                        <span key={m.id} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary-50 text-primary-700 text-xs font-medium">
-                          {m.firstName} {m.lastName}
-                          <span className="text-primary-400">· {m.role.replace('_', ' ')}</span>
-                          <button type="button" onClick={() => setSelectedCrew((prev) => prev.filter((c) => c.id !== m.id))}>
-                            <XMarkIcon className="h-3 w-3 ml-0.5" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <input type="text" placeholder="Search crew by name or role…" value={crewSearch}
-                    onChange={(e) => setCrewSearch(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-                  {filteredCrew.length > 0 && crewSearch.length > 0 && (
-                    <ul className="mt-1 bg-white rounded-md border border-gray-200 shadow-sm max-h-36 overflow-y-auto">
-                      {filteredCrew.map((m) => (
-                        <li key={m.id}>
-                          <button type="button" onClick={() => { setSelectedCrew((prev) => [...prev, { id: m.id, firstName: m.firstName, lastName: m.lastName, role: m.role }]); setCrewSearch('') }}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 flex items-center gap-2">
-                            <span className="font-medium text-gray-900">{m.firstName} {m.lastName}</span>
-                            <span className="text-xs text-gray-400 ml-auto">{m.role.replace('_', ' ')}</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+                <CrewPicker selectedCrew={selectedCrew} onChange={setSelectedCrew} />
               ) : selectedCrew.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
                   {selectedCrew.map((m) => (

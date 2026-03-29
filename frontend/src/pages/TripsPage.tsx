@@ -23,6 +23,16 @@ import { TripDetailModal } from '@/components/trips/TripDetailModal'
 import { type Airport, distanceNm, estimatedHours, formatHours } from '@/api/airports.api'
 import { CrewPicker, type SelectedCrewMember } from '@/components/crew/CrewPicker'
 import { useAircraftList } from '@/api/aircraft.api'
+import { useAircraftClasses } from '@/api/aircraft-classes.api'
+
+const ROLE_LABELS: Record<string, string> = {
+  CAPTAIN: 'Captain',
+  FIRST_OFFICER: 'First Officer',
+  FLIGHT_ATTENDANT: 'Flight Attendant',
+  DISPATCHER: 'Dispatcher',
+  MECHANIC: 'Mechanic',
+  OTHER: 'Other',
+}
 
 function toDatetimeLocal(date: Date): string {
   const pad = (n: number) => n.toString().padStart(2, '0')
@@ -235,6 +245,25 @@ export default function TripsPage() {
     newTripOpen ? { isActive: true, pageSize: 50 } : undefined
   )
   const aircraftList = aircraftListData?.data ?? []
+
+  const { data: allClasses } = useAircraftClasses()
+  const watchPaxCount = newTripForm.watch('paxCount')
+
+  // Derive crew requirements from selected aircraft's class + current pax count
+  const selectedAircraft = aircraftList.find((a) => a.id === selectedAircraftId) ?? null
+  const selectedClass = selectedAircraft?.aircraftClassId
+    ? (allClasses ?? []).find((c) => c.id === selectedAircraft.aircraftClassId) ?? null
+    : null
+  const pax = Number(watchPaxCount) || 1
+  const crewRequirements = selectedClass?.crewReqs.length
+    ? selectedClass.crewReqs.map((req) => ({
+        role: req.role,
+        required: req.perPax
+          ? Math.max(req.minCount, Math.ceil(pax / req.perPax))
+          : req.minCount,
+        perPax: req.perPax,
+      }))
+    : null
 
 
   async function handleFlagDelay(values: DelayForm) {
@@ -662,6 +691,29 @@ export default function TripsPage() {
               </button>
             )}
           </div>
+
+          {/* Class crew requirements hint */}
+          {crewRequirements && (
+            <div className="rounded-md bg-blue-50 border border-blue-100 px-3 py-2.5 text-xs">
+              <p className="font-semibold text-blue-800 mb-1.5">
+                {selectedClass!.name} · {pax} pax
+              </p>
+              <div className="flex flex-wrap gap-x-5 gap-y-1">
+                {crewRequirements.map((req) => {
+                  const have = selectedCrew.filter((c) => c.role === req.role).length
+                  const met = have >= req.required
+                  return (
+                    <span key={req.role} className={met ? 'text-green-700' : 'text-blue-700'}>
+                      {met ? '✓' : '·'} {req.required}× {ROLE_LABELS[req.role] ?? req.role}
+                      {req.perPax && (
+                        <span className="text-blue-400 ml-1">(1 per {req.perPax} pax)</span>
+                      )}
+                    </span>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Crew picker */}
           <div>

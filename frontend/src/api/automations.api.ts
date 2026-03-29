@@ -11,11 +11,11 @@ export type AutomationTriggerType =
   | 'QUOTE_DECLINED'
   | 'QUOTE_EXPIRED'
   | 'TICKET_OPENED'
-  | 'TICKET_STATUS_CHANGED'
-  | 'PAYMENT_RECEIVED'
-  | 'DOCUMENT_SIGNED'
-  | 'SCHEDULED'
-  | 'MANUAL'
+  | 'TICKET_SLA_BREACHED'
+  | 'TICKET_ESCALATED'
+  | 'PAYMENT_STATUS_CHANGED'
+  | 'INBOUND_WEBHOOK'
+  | 'SCHEDULE_CRON'
 
 export type AutomationActionType =
   | 'SEND_SMS'
@@ -23,14 +23,15 @@ export type AutomationActionType =
   | 'SEND_WHATSAPP'
   | 'SEND_SLACK'
   | 'SEND_TEAMS'
-  | 'SEND_IN_APP'
+  | 'UPDATE_TRIP_FIELD'
   | 'UPDATE_CONTACT_FIELD'
   | 'CREATE_TICKET'
-  | 'ADD_TAG'
-  | 'REMOVE_TAG'
+  | 'ASSIGN_TICKET'
   | 'WAIT_DELAY'
-  | 'TRIGGER_AUTOMATION'
-  | 'WEBHOOK'
+  | 'CHAIN_AUTOMATION'
+  | 'FIRE_WEBHOOK'
+  | 'GENERATE_PDF'
+  | 'ADD_NOTE'
 
 export type ConditionOperator =
   | 'EQUALS'
@@ -120,14 +121,15 @@ export interface CreateAutomationInput {
 export interface ExecutionLog {
   id: string
   automationId: string
-  triggerEventType: string
-  referenceEntityId: string | null
-  status: 'RUNNING' | 'COMPLETED' | 'FAILED'
-  actionsExecuted: number
+  tenantId: string
+  entityType: string | null
+  entityId: string | null
+  status: 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'SKIPPED'
+  actionsRun: number
   errorMessage: string | null
-  startedAt: string
-  completedAt: string | null
-  context: Record<string, unknown>
+  duration: number | null
+  triggeredAt: string
+  createdAt: string
 }
 
 export interface DryRunResult {

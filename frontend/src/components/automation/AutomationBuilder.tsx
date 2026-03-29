@@ -118,7 +118,7 @@ function TriggerConfigPanel({
     );
   }
 
-  if (triggerType === 'SCHEDULED') {
+  if (triggerType === 'SCHEDULE_CRON') {
     return (
       <div className="mt-4 space-y-1">
         <label className="text-sm font-medium text-gray-700">Cron Expression</label>
@@ -134,7 +134,7 @@ function TriggerConfigPanel({
     );
   }
 
-  if (triggerType === 'CONTACT_FIELD_UPDATED' || triggerType === 'TICKET_STATUS_CHANGED') {
+  if (triggerType === 'CONTACT_FIELD_UPDATED' || triggerType === 'TICKET_ESCALATED') {
     return (
       <div className="mt-4 space-y-1">
         <label className="text-sm font-medium text-gray-700">Field / Status filter (optional)</label>

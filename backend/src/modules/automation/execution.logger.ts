@@ -17,7 +17,7 @@ export class ExecutionLogger {
         automationId,
         entityType,
         entityId,
-        status: AutomationExecutionStatus.SUCCESS,
+        status: AutomationExecutionStatus.RUNNING,
         actionsRun: 0,
         triggeredAt: new Date(),
       },

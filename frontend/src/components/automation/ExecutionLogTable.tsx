@@ -8,18 +8,22 @@ interface ExecutionLogTableProps {
   automationId?: string;
 }
 
-type StatusFilter = 'ALL' | 'COMPLETED' | 'FAILED' | 'RUNNING';
+type StatusFilter = 'ALL' | 'SUCCESS' | 'FAILED' | 'RUNNING' | 'SKIPPED';
 
 const STATUS_BADGE: Record<string, BadgeVariant> = {
-  COMPLETED: 'success',
+  SUCCESS: 'success',
   FAILED: 'danger',
   RUNNING: 'warning',
+  SKIPPED: 'default',
+  PENDING: 'default',
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  COMPLETED: 'SUCCESS',
-  FAILED: 'FAILED',
-  RUNNING: 'RUNNING',
+  SUCCESS: 'Success',
+  FAILED: 'Failed',
+  RUNNING: 'Running',
+  SKIPPED: 'Skipped',
+  PENDING: 'Pending',
 };
 
 function formatDateTime(iso: string): string {
@@ -35,9 +39,8 @@ function formatDateTime(iso: string): string {
 }
 
 function calcDurationMs(log: ExecutionLog): string {
-  if (!log.completedAt) return '—';
-  const ms = new Date(log.completedAt).getTime() - new Date(log.startedAt).getTime();
-  return `${ms.toLocaleString()} ms`;
+  if (!log.duration) return '—';
+  return `${log.duration.toLocaleString()} ms`;
 }
 
 interface PaginatedResponse<T> {
@@ -149,21 +152,18 @@ export function ExecutionLogTable({ automationId }: ExecutionLogTableProps) {
               logs.map(log => (
                 <tr key={log.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
-                    {formatDateTime(log.startedAt)}
+                    {formatDateTime(log.triggeredAt)}
                   </td>
                   <td className="px-4 py-3">
-                    {log.referenceEntityId ? (
+                    {log.entityId ? (
                       <div>
                         <span className="text-xs text-gray-400 uppercase">
-                          {log.triggerEventType.split('_')[0]}
+                          {log.entityType ?? '—'}
                         </span>
                         <div>
-                          <a
-                            href={`#entity-${log.referenceEntityId}`}
-                            className="text-sm text-primary-600 hover:underline font-mono"
-                          >
-                            {log.referenceEntityId.slice(0, 12)}...
-                          </a>
+                          <span className="text-sm text-primary-600 font-mono">
+                            {log.entityId.slice(0, 12)}...
+                          </span>
                         </div>
                       </div>
                     ) : (
@@ -176,7 +176,7 @@ export function ExecutionLogTable({ automationId }: ExecutionLogTableProps) {
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-700 text-center">
-                    {log.actionsExecuted}
+                    {log.actionsRun}
                   </td>
                   <td className="px-4 py-3">
                     <TruncatedCell text={log.errorMessage} />

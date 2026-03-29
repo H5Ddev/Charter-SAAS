@@ -54,8 +54,8 @@ export function tripStatusBadge(status: string) {
     INQUIRY: 'default',
     QUOTED: 'info',
     CONFIRMED: 'primary',
-    MANIFEST_LOCKED: 'purple',
-    DEPARTED: 'warning',
+    BOARDING: 'purple',
+    IN_FLIGHT: 'warning',
     COMPLETED: 'success',
     CANCELLED: 'danger',
   }

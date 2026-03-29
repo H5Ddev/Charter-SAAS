@@ -71,6 +71,7 @@ export class ActionExecutor {
     context: Record<string, unknown>,
     tenantId: string,
     executionLogId: string,
+    nextAction?: { type: AutomationActionType; config: ActionConfig; order: number },
   ): Promise<void> {
     logger.debug(`Executing action ${action.type}`, { order: action.order, tenantId })
 
@@ -99,6 +100,10 @@ export class ActionExecutor {
         await this.executeCreateTicket(action.config, context, tenantId)
         break
 
+      case AutomationActionType.ASSIGN_TICKET:
+        await this.executeAssignTicket(action.config, context, tenantId)
+        break
+
       case AutomationActionType.UPDATE_TRIP_FIELD:
         await this.executeUpdateTripField(action.config, context, tenantId)
         break
@@ -116,7 +121,7 @@ export class ActionExecutor {
         break
 
       case AutomationActionType.WAIT_DELAY:
-        await this.executeWaitDelay(action.config, context, tenantId, executionLogId)
+        await this.executeWaitDelay(action.config, context, tenantId, executionLogId, nextAction)
         break
 
       case AutomationActionType.GENERATE_PDF:
@@ -271,6 +276,17 @@ export class ActionExecutor {
     await teamsSender.send(webhookUrl, body, config.subject ? render(config.subject, context) : undefined)
   }
 
+  private async executeAssignTicket(config: ActionConfig, context: Record<string, unknown>, tenantId: string): Promise<void> {
+    const ticket = context['ticket'] as { id?: string } | undefined
+    if (!ticket?.id) throw new AppError(400, 'NO_TICKET', 'ASSIGN_TICKET requires ticket in context')
+    if (!config.assignedTo) throw new AppError(400, 'NO_ASSIGNEE', 'ASSIGN_TICKET requires assignedTo in config')
+
+    await this.prisma.ticket.updateMany({
+      where: { id: ticket.id, tenantId },
+      data: { assignedTo: config.assignedTo },
+    })
+  }
+
   private async executeCreateTicket(config: ActionConfig, context: Record<string, unknown>, tenantId: string): Promise<void> {
     const trip = context['trip'] as { id?: string } | undefined
     const contact = context['contact'] as { id?: string } | undefined
@@ -378,9 +394,14 @@ export class ActionExecutor {
     context: Record<string, unknown>,
     tenantId: string,
     executionLogId: string,
+    nextAction?: { type: AutomationActionType; config: ActionConfig; order: number },
   ): Promise<void> {
     const duration = config.duration
     if (!duration) throw new AppError(400, 'NO_DURATION', 'WAIT_DELAY action requires duration (ISO 8601)')
+    if (!nextAction) {
+      logger.warn('WAIT_DELAY has no following action — nothing will be scheduled', { tenantId })
+      return
+    }
 
     const deliverAt = parseDuration(duration)
     const trip = context['trip'] as { id?: string } | undefined
@@ -393,8 +414,8 @@ export class ActionExecutor {
       (context['automationId'] as string) ?? '',
       executionLogId,
       tenantId,
-      AutomationActionType.SEND_SMS, // next action type — should come from next action in chain
-      config as never,
+      nextAction.type,
+      nextAction.config as never,
       context,
       deliverAt,
       refEntityType,

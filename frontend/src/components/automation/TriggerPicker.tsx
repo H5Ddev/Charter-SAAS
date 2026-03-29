@@ -11,11 +11,11 @@ const TRIGGER_OPTIONS: { value: AutomationTriggerType; label: string; group: str
   { value: 'QUOTE_DECLINED', label: 'Quote Declined', group: 'Quotes' },
   { value: 'QUOTE_EXPIRED', label: 'Quote Expired', group: 'Quotes' },
   { value: 'TICKET_OPENED', label: 'Ticket Opened', group: 'Tickets' },
-  { value: 'TICKET_STATUS_CHANGED', label: 'Ticket Status Changed', group: 'Tickets' },
-  { value: 'PAYMENT_RECEIVED', label: 'Payment Received', group: 'Payments' },
-  { value: 'DOCUMENT_SIGNED', label: 'Document Signed', group: 'Documents' },
-  { value: 'SCHEDULED', label: 'Scheduled (Cron)', group: 'Schedule' },
-  { value: 'MANUAL', label: 'Manual Trigger', group: 'Other' },
+  { value: 'TICKET_SLA_BREACHED', label: 'Ticket SLA Breached', group: 'Tickets' },
+  { value: 'TICKET_ESCALATED', label: 'Ticket Escalated', group: 'Tickets' },
+  { value: 'PAYMENT_STATUS_CHANGED', label: 'Payment Status Changed', group: 'Payments' },
+  { value: 'INBOUND_WEBHOOK', label: 'Inbound Webhook', group: 'Other' },
+  { value: 'SCHEDULE_CRON', label: 'Scheduled (Cron)', group: 'Schedule' },
 ]
 
 interface TriggerPickerProps {

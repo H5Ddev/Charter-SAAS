@@ -5,8 +5,8 @@ export type TripStatus =
   | 'INQUIRY'
   | 'QUOTED'
   | 'CONFIRMED'
-  | 'MANIFEST_LOCKED'
-  | 'DEPARTED'
+  | 'BOARDING'
+  | 'IN_FLIGHT'
   | 'COMPLETED'
   | 'CANCELLED'
 

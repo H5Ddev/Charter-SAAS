@@ -114,19 +114,24 @@ export class AutomationEngine {
       let actionsRun = 0
 
       if (!automation.isDryRun) {
-        for (const action of automation.actions) {
-          const parsedAction = {
-            type: action.actionType as AutomationActionType,
-            config: (() => { try { return JSON.parse(action.config) as Record<string, unknown> } catch { return {} } })(),
-            order: action.sequence,
-          }
-          // Stop if WAIT_DELAY is encountered — remaining actions are scheduled
+        const parsedActions = automation.actions.map((action) => ({
+          type: action.actionType as AutomationActionType,
+          config: (() => { try { return JSON.parse(action.config) as Record<string, unknown> } catch { return {} } })(),
+          order: action.sequence,
+        }))
+
+        for (let i = 0; i < parsedActions.length; i++) {
+          const parsedAction = parsedActions[i]
+          const nextAction = parsedActions[i + 1]
+
+          // Stop if WAIT_DELAY is encountered — the next action is scheduled for later
           if (parsedAction.type === 'WAIT_DELAY') {
             await this.actionExecutor.execute(
               parsedAction as never,
               automationContext,
               tenantId,
               logId,
+              nextAction as never,
             )
             break
           }
@@ -197,12 +202,33 @@ export class AutomationEngine {
       if (contact) context['contact'] = contact
     }
 
-    // Fetch quote if quoteId in payload
+    // Fetch quote if quoteId in payload; also pull its related contact and first trip
     if (payload['quoteId']) {
       const quote = await this.prisma.quote.findFirst({
         where: { id: payload['quoteId'] as string, tenantId, deletedAt: null },
+        include: {
+          contact: true,
+          trips: {
+            where: { deletedAt: null },
+            include: {
+              aircraft: true,
+              passengers: { where: { deletedAt: null }, include: { contact: true } },
+            },
+            take: 1,
+          },
+        },
       })
-      if (quote) context['quote'] = quote
+      if (quote) {
+        context['quote'] = quote
+        if (quote.contact) context['contact'] = quote.contact
+        // Surface the first associated trip so {{trip.*}} templates resolve on quote events
+        const firstTrip = quote.trips[0]
+        if (firstTrip && !context['trip']) {
+          context['trip'] = firstTrip
+          context['aircraft'] = firstTrip.aircraft
+          context['passengers'] = firstTrip.passengers
+        }
+      }
     }
 
     // Fetch ticket if ticketId in payload

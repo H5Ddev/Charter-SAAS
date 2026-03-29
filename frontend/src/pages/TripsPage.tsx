@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { clsx } from 'clsx'
 import {
   useTrips,
@@ -173,6 +173,7 @@ export default function TripsPage() {
     : null
 
   // Aircraft picker state
+  const aircraftContainerRef = useRef<HTMLDivElement>(null)
   const [aircraftSearch, setAircraftSearch] = useState('')
   const [selectedAircraftId, setSelectedAircraftId] = useState('')
   const [selectedAircraftLabel, setSelectedAircraftLabel] = useState('')
@@ -611,7 +612,7 @@ export default function TripsPage() {
           />
 
           {/* Aircraft picker */}
-          <div className="relative">
+          <div className="relative" ref={aircraftContainerRef}>
             <label className="block text-sm font-medium text-gray-700 mb-1">Aircraft</label>
             <input
               type="text"
@@ -624,21 +625,21 @@ export default function TripsPage() {
                 setShowAircraftDropdown(true)
               }}
               onFocus={() => setShowAircraftDropdown(true)}
-              onBlur={() => setTimeout(() => setShowAircraftDropdown(false), 150)}
+              onBlur={(e) => {
+                if (aircraftContainerRef.current?.contains(e.relatedTarget as Node)) return
+                setShowAircraftDropdown(false)
+              }}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
             {showAircraftDropdown && aircraftList.length > 0 && (
-              <ul
-                className="absolute z-20 mt-1 w-full bg-white rounded-md border border-gray-200 shadow-lg max-h-48 overflow-y-auto"
-                onMouseDown={(e) => e.preventDefault()}
-              >
+              <ul className="absolute z-20 mt-1 w-full bg-white rounded-md border border-gray-200 shadow-lg max-h-48 overflow-y-auto">
                 {aircraftList
                   .filter((a) => !aircraftSearch || `${a.registration} ${a.make} ${a.model}`.toLowerCase().includes(aircraftSearch.toLowerCase()))
                   .map((a) => (
                     <li key={a.id}>
                       <button
                         type="button"
-                        onMouseDown={() => {
+                        onClick={() => {
                           setSelectedAircraftId(a.id)
                           setSelectedAircraftLabel(`${a.registration} — ${a.make} ${a.model}`)
                           setAircraftSearch('')

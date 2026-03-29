@@ -61,9 +61,16 @@ integrationsRouter.get('/airlabs/live', async (req: Request, res: Response, next
         { id: 'demo-1', tailNumber: 'N123AB', make: 'Bombardier', model: 'Challenger 350' },
         { id: 'demo-2', tailNumber: 'N456CD', make: 'Gulfstream', model: 'G550' },
       ]
+      const now = Date.now()
+      // Flight 1: KLAS → KLAX, 2.5 hr flight, 40% complete
+      const dep1 = new Date(now - 60 * 60 * 1000)         // departed 1 hr ago
+      const arr1 = new Date(now + 90 * 60 * 1000)         // arrives in 1.5 hr
+      // Flight 2: KMIA → KTEB, 3 hr flight, 60% complete
+      const dep2 = new Date(now - 108 * 60 * 1000)        // departed 1h48 ago
+      const arr2 = new Date(now + 72 * 60 * 1000)         // arrives in 1h12
       const demos = [
-        { aircraftId: demoAircraft[0].id, tailNumber: demoAircraft[0].tailNumber, make: demoAircraft[0].make, model: demoAircraft[0].model, flightIcao: 'AEX1', depIcao: 'KLAS', arrIcao: 'KLAX', lat: 35.9, lng: -115.2, altFt: 41000, heading: 270, speedKts: 480, status: 'en-route', updatedAt: new Date().toISOString() },
-        ...(demoAircraft.length > 1 ? [{ aircraftId: demoAircraft[1].id, tailNumber: demoAircraft[1].tailNumber, make: demoAircraft[1].make, model: demoAircraft[1].model, flightIcao: 'AEX2', depIcao: 'KMIA', arrIcao: 'KTEB', lat: 32.1, lng: -81.4, altFt: 45000, heading: 15, speedKts: 510, status: 'en-route', updatedAt: new Date().toISOString() }] : []),
+        { aircraftId: demoAircraft[0].id, tailNumber: demoAircraft[0].tailNumber, make: demoAircraft[0].make, model: demoAircraft[0].model, flightIcao: 'AEX1', depIcao: 'KLAS', arrIcao: 'KLAX', lat: 35.9, lng: -115.2, altFt: 41000, heading: 270, speedKts: 480, status: 'en-route', updatedAt: new Date().toISOString(), departureAt: dep1.toISOString(), arrivalAt: arr1.toISOString() },
+        ...(demoAircraft.length > 1 ? [{ aircraftId: demoAircraft[1].id, tailNumber: demoAircraft[1].tailNumber, make: demoAircraft[1].make, model: demoAircraft[1].model, flightIcao: 'AEX2', depIcao: 'KMIA', arrIcao: 'KTEB', lat: 32.1, lng: -81.4, altFt: 45000, heading: 15, speedKts: 510, status: 'en-route', updatedAt: new Date().toISOString(), departureAt: dep2.toISOString(), arrivalAt: arr2.toISOString() }] : []),
       ]
       return res.json(successResponse(demos))
     }
@@ -116,11 +123,25 @@ integrationsRouter.get('/airlabs/live', async (req: Request, res: Response, next
 
     // Build tail → aircraft map for fast lookup
     const tailMap = new Map(aircraft.map((a) => [a.tailNumber.toUpperCase(), a]))
+    const aircraftIds = aircraft.map((a) => a.id)
+
+    // Cross-reference active trips to get departure/arrival times
+    const activeTrips = await prisma.trip.findMany({
+      where: {
+        tenantId,
+        aircraftId: { in: aircraftIds },
+        status: { in: ['IN_FLIGHT', 'BOARDING'] },
+        deletedAt: null,
+      },
+      select: { aircraftId: true, departureAt: true, arrivalAt: true },
+    })
+    const tripByAircraftId = new Map(activeTrips.map((t) => [t.aircraftId!, t]))
 
     const live = flights
       .filter((f) => f.reg_number && tailMap.has(f.reg_number.toUpperCase()))
       .map((f) => {
         const ac = tailMap.get(f.reg_number!.toUpperCase())!
+        const trip = tripByAircraftId.get(ac.id)
         return {
           aircraftId: ac.id,
           tailNumber: ac.tailNumber,
@@ -136,6 +157,8 @@ integrationsRouter.get('/airlabs/live', async (req: Request, res: Response, next
           speedKts: f.speed ?? null,
           status: f.status ?? null,
           updatedAt: f.updated ? new Date(f.updated * 1000).toISOString() : null,
+          departureAt: trip?.departureAt?.toISOString() ?? null,
+          arrivalAt: trip?.arrivalAt?.toISOString() ?? null,
         }
       })
 

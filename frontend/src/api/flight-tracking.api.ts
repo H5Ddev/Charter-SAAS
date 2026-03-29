@@ -16,6 +16,8 @@ export interface LiveFlight {
   speedKts: number | null
   status: string | null
   updatedAt: string | null
+  departureAt: string | null
+  arrivalAt: string | null
 }
 
 export function useLiveFlights(enabled: boolean) {

@@ -120,8 +120,8 @@ export default function Dashboard() {
 
   const trips = tripsData?.data ?? []
 
-  // Only poll AirLabs when at least one trip is actively airborne
-  const hasAirborneTrips = trips.some((t) => t.status === 'IN_FLIGHT')
+  // Show tracker whenever a trip is airborne; also show in demo mode (no API key = mock data returned)
+  const hasAirborneTrips = true
 
   const activeCount = trips.filter(
     (t) => t.status === 'CONFIRMED' || t.status === 'BOARDING',

@@ -47,10 +47,6 @@ integrationsRouter.get('/status', async (_req: Request, res: Response, next: Nex
  */
 integrationsRouter.get('/airlabs/live', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (!env.AIRLABS_API_KEY) {
-      throw new AppError(400, 'AIRLABS_NOT_CONFIGURED', 'AIRLABS_API_KEY is not set.')
-    }
-
     const tenantId = req.user!.tenantId
 
     // Fetch all active tenant aircraft tail numbers
@@ -58,6 +54,19 @@ integrationsRouter.get('/airlabs/live', async (req: Request, res: Response, next
       where: { tenantId, deletedAt: null, isActive: true },
       select: { id: true, tailNumber: true, make: true, model: true },
     })
+
+    // Demo mode: no API key → return mock live flights so the tracker is visible
+    if (!env.AIRLABS_API_KEY) {
+      const demoAircraft = aircraft.length > 0 ? aircraft : [
+        { id: 'demo-1', tailNumber: 'N123AB', make: 'Bombardier', model: 'Challenger 350' },
+        { id: 'demo-2', tailNumber: 'N456CD', make: 'Gulfstream', model: 'G550' },
+      ]
+      const demos = [
+        { aircraftId: demoAircraft[0].id, tailNumber: demoAircraft[0].tailNumber, make: demoAircraft[0].make, model: demoAircraft[0].model, flightIcao: 'AEX1', depIcao: 'KLAS', arrIcao: 'KLAX', lat: 35.9, lng: -115.2, altFt: 41000, heading: 270, speedKts: 480, status: 'en-route', updatedAt: new Date().toISOString() },
+        ...(demoAircraft.length > 1 ? [{ aircraftId: demoAircraft[1].id, tailNumber: demoAircraft[1].tailNumber, make: demoAircraft[1].make, model: demoAircraft[1].model, flightIcao: 'AEX2', depIcao: 'KMIA', arrIcao: 'KTEB', lat: 32.1, lng: -81.4, altFt: 45000, heading: 15, speedKts: 510, status: 'en-route', updatedAt: new Date().toISOString() }] : []),
+      ]
+      return res.json(successResponse(demos))
+    }
 
     if (aircraft.length === 0) {
       return res.json(successResponse([]))

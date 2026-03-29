@@ -168,6 +168,7 @@ interface BackendAutomation {
   enabled?: boolean
   isActive?: boolean
   triggerType?: string
+  triggerConfig?: string
   trigger?: { id: string; eventType: string; filters?: string }
   triggers?: AutomationTrigger[]
   _count?: { actions?: number; executionLogs?: number }
@@ -180,14 +181,47 @@ interface BackendAutomation {
   updatedAt: string
 }
 
+function parseJson(s: string | null | undefined): Record<string, unknown> {
+  try { return s ? (JSON.parse(s) as Record<string, unknown>) : {} } catch { return {} }
+}
+
 function normalizeAutomation(raw: BackendAutomation): Automation {
   const triggers: AutomationTrigger[] = raw.triggers?.length
     ? raw.triggers
     : raw.trigger
-      ? [{ id: raw.trigger.id, eventType: raw.trigger.eventType as AutomationTriggerType, config: {} }]
+      ? [{
+          id: raw.trigger.id,
+          eventType: raw.trigger.eventType as AutomationTriggerType,
+          config: parseJson(raw.trigger.filters),
+        }]
       : raw.triggerType
-        ? [{ id: raw.id, eventType: raw.triggerType as AutomationTriggerType, config: {} }]
+        ? [{ id: raw.id, eventType: raw.triggerType as AutomationTriggerType, config: parseJson(raw.triggerConfig) }]
         : []
+
+  // Normalize condition groups: DB uses `operator`, frontend expects `logicOperator`
+  const conditionGroups: AutomationConditionGroup[] = (raw.conditionGroups ?? []).map((g) => ({
+    ...g,
+    logicOperator: (g.logicOperator ?? (g as unknown as { operator: string }).operator ?? 'AND') as 'AND' | 'OR',
+  }))
+
+  // Normalize actions: DB uses `actionType`/`sequence`, frontend expects `type`/`order`
+  const actions: AutomationAction[] = (raw.actions ?? []).map((a) => {
+    const raw_a = a as unknown as { actionType?: string; sequence?: number; type?: string; order?: number; config?: Record<string, unknown> | string }
+    return {
+      ...a,
+      type: (raw_a.type ?? raw_a.actionType ?? '') as AutomationActionType,
+      order: raw_a.order ?? raw_a.sequence ?? 0,
+      config: typeof raw_a.config === 'string' ? parseJson(raw_a.config) : (raw_a.config ?? {}),
+      templateId: (a as unknown as { templateId?: string }).templateId ?? null,
+    }
+  })
+
+  // lastExecutedAt: prefer direct field, else derive from included executionLogs
+  const rawAny = raw as unknown as { executionLogs?: Array<{ triggeredAt: string }> }
+  const lastExecutedAt =
+    raw.lastExecutedAt ??
+    rawAny.executionLogs?.[0]?.triggeredAt ??
+    null
 
   return {
     id: raw.id,
@@ -195,10 +229,10 @@ function normalizeAutomation(raw: BackendAutomation): Automation {
     description: raw.description,
     isActive: raw.isActive ?? raw.enabled ?? false,
     triggers,
-    conditionGroups: raw.conditionGroups ?? [],
-    actions: raw.actions ?? [],
+    conditionGroups,
+    actions,
     executionCount: raw.executionCount ?? raw._count?.executionLogs ?? 0,
-    lastExecutedAt: raw.lastExecutedAt ?? null,
+    lastExecutedAt,
     tenantId: raw.tenantId,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,

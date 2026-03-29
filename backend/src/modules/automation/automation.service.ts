@@ -6,19 +6,45 @@ import { AutomationEngine } from './engine'
 import { createEvent } from '../../shared/events/types'
 import { logger } from '../../shared/utils/logger'
 
+// ─── Schemas ─────────────────────────────────────────────────────────────────
+
+const TriggerInputSchema = z.object({
+  eventType: z.string(),
+  config: z.record(z.unknown()).default({}),
+})
+
+const ConditionInputSchema = z.object({
+  field: z.string(),
+  operator: z.string(),
+  value: z.string().optional().nullable(),
+})
+
+const ConditionGroupInputSchema = z.object({
+  logicOperator: z.enum(['AND', 'OR']).default('AND'),
+  conditions: z.array(ConditionInputSchema).default([]),
+})
+
+const ActionInputSchema = z.object({
+  type: z.string(),
+  order: z.number().int(),
+  config: z.record(z.unknown()).default({}),
+})
+
 export const CreateAutomationSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().optional().nullable(),
-  isEnabled: z.boolean().default(true),
-  isDryRun: z.boolean().default(false),
-  triggerType: z.string(),
-  triggerConfig: z.record(z.unknown()).default({}),
-  conditions: z.array(z.unknown()).default([]),
+  isActive: z.boolean().default(true),
+  triggers: z.array(TriggerInputSchema).min(1),
+  conditionGroups: z.array(ConditionGroupInputSchema).default([]),
+  actions: z.array(ActionInputSchema).default([]),
 })
 
 export const UpdateAutomationSchema = CreateAutomationSchema.partial()
+
 export type CreateAutomationDto = z.infer<typeof CreateAutomationSchema>
 export type UpdateAutomationDto = z.infer<typeof UpdateAutomationSchema>
+
+// ─── Service ─────────────────────────────────────────────────────────────────
 
 export class AutomationService {
   private readonly engine: AutomationEngine
@@ -34,7 +60,13 @@ export class AutomationService {
       this.prisma.automation.findMany({
         where,
         include: {
+          trigger: true,
           _count: { select: { actions: true, executionLogs: true } },
+          executionLogs: {
+            orderBy: { triggeredAt: 'desc' },
+            take: 1,
+            select: { triggeredAt: true },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
@@ -48,6 +80,7 @@ export class AutomationService {
     const automation = await this.prisma.automation.findFirst({
       where: { id, tenantId, deletedAt: null },
       include: {
+        trigger: true,
         conditionGroups: {
           where: { deletedAt: null },
           include: { conditions: { where: { deletedAt: null } } },
@@ -64,17 +97,57 @@ export class AutomationService {
   }
 
   async create(tenantId: string, data: CreateAutomationDto) {
-    return this.prisma.automation.create({
-      data: {
-        tenantId,
-        name: data.name,
-        description: data.description ?? undefined,
-        enabled: data.isEnabled,
-        isDryRun: data.isDryRun,
-        triggerType: data.triggerType,
-        triggerConfig: JSON.stringify(data.triggerConfig),
-        conditions: JSON.stringify(data.conditions),
-      },
+    const firstTrigger = data.triggers[0]
+
+    return this.prisma.$transaction(async (tx) => {
+      const automation = await tx.automation.create({
+        data: {
+          tenantId,
+          name: data.name,
+          description: data.description ?? undefined,
+          enabled: data.isActive,
+          triggerType: firstTrigger.eventType,
+          triggerConfig: JSON.stringify(firstTrigger.config ?? {}),
+          conditions: '[]',
+        },
+      })
+
+      await tx.automationTrigger.create({
+        data: {
+          automationId: automation.id,
+          eventType: firstTrigger.eventType,
+          filters: JSON.stringify(firstTrigger.config ?? {}),
+        },
+      })
+
+      for (const group of data.conditionGroups) {
+        const condGroup = await tx.automationConditionGroup.create({
+          data: { automationId: automation.id, operator: group.logicOperator },
+        })
+        for (const cond of group.conditions) {
+          await tx.automationCondition.create({
+            data: {
+              conditionGroupId: condGroup.id,
+              field: cond.field,
+              operator: cond.operator,
+              value: cond.value ?? null,
+            },
+          })
+        }
+      }
+
+      for (const action of data.actions) {
+        await tx.automationAction.create({
+          data: {
+            automationId: automation.id,
+            sequence: action.order,
+            actionType: action.type,
+            config: JSON.stringify(action.config ?? {}),
+          },
+        })
+      }
+
+      return this.findById(tenantId, automation.id)
     })
   }
 
@@ -82,16 +155,89 @@ export class AutomationService {
     const existing = await this.prisma.automation.findFirst({ where: { id, tenantId, deletedAt: null } })
     if (!existing) throw new AppError(404, 'AUTOMATION_NOT_FOUND', 'Automation not found')
 
-    return this.prisma.automation.update({
-      where: { id },
-      data: {
-        ...(data.name && { name: data.name }),
-        ...(data.description !== undefined && { description: data.description }),
-        ...(data.isEnabled !== undefined && { enabled: data.isEnabled }),
-        ...(data.isDryRun !== undefined && { isDryRun: data.isDryRun }),
-        ...(data.triggerType && { triggerType: data.triggerType }),
-        ...(data.triggerConfig && { triggerConfig: JSON.stringify(data.triggerConfig) }),
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const firstTrigger = data.triggers?.[0]
+
+      // Update Automation flat fields
+      await tx.automation.update({
+        where: { id },
+        data: {
+          ...(data.name !== undefined && { name: data.name }),
+          ...(data.description !== undefined && { description: data.description }),
+          ...(data.isActive !== undefined && { enabled: data.isActive }),
+          ...(firstTrigger && { triggerType: firstTrigger.eventType }),
+          ...(firstTrigger && { triggerConfig: JSON.stringify(firstTrigger.config ?? {}) }),
+        },
+      })
+
+      // Update trigger
+      if (firstTrigger) {
+        await tx.automationTrigger.upsert({
+          where: { automationId: id },
+          update: {
+            eventType: firstTrigger.eventType,
+            filters: JSON.stringify(firstTrigger.config ?? {}),
+          },
+          create: {
+            automationId: id,
+            eventType: firstTrigger.eventType,
+            filters: JSON.stringify(firstTrigger.config ?? {}),
+          },
+        })
+      }
+
+      // Replace condition groups (soft-delete existing, create new)
+      if (data.conditionGroups !== undefined) {
+        const existingGroups = await tx.automationConditionGroup.findMany({
+          where: { automationId: id, deletedAt: null },
+          select: { id: true },
+        })
+        if (existingGroups.length > 0) {
+          await tx.automationCondition.updateMany({
+            where: { conditionGroupId: { in: existingGroups.map((g) => g.id) } },
+            data: { deletedAt: new Date() },
+          })
+        }
+        await tx.automationConditionGroup.updateMany({
+          where: { automationId: id },
+          data: { deletedAt: new Date() },
+        })
+        for (const group of data.conditionGroups) {
+          const condGroup = await tx.automationConditionGroup.create({
+            data: { automationId: id, operator: group.logicOperator },
+          })
+          for (const cond of group.conditions) {
+            await tx.automationCondition.create({
+              data: {
+                conditionGroupId: condGroup.id,
+                field: cond.field,
+                operator: cond.operator,
+                value: cond.value ?? null,
+              },
+            })
+          }
+        }
+      }
+
+      // Replace actions (soft-delete existing, create new)
+      if (data.actions !== undefined) {
+        await tx.automationAction.updateMany({
+          where: { automationId: id, deletedAt: null },
+          data: { deletedAt: new Date() },
+        })
+        for (const action of data.actions) {
+          await tx.automationAction.create({
+            data: {
+              automationId: id,
+              sequence: action.order,
+              actionType: action.type,
+              config: JSON.stringify(action.config ?? {}),
+            },
+          })
+        }
+      }
+
+      return this.findById(tenantId, id)
     })
   }
 
@@ -109,8 +255,6 @@ export class AutomationService {
 
   async dryRun(tenantId: string, id: string, entityId: string, entityType: string) {
     const automation = await this.findById(tenantId, id)
-
-    // Temporarily set isDryRun
     const originalIsDryRun = automation.isDryRun
     await this.prisma.automation.update({ where: { id }, data: { isDryRun: true } })
 
@@ -121,10 +265,8 @@ export class AutomationService {
 
       await this.engine.processEvent(event)
       logger.info(`Dry run completed for automation ${id}`)
-
       return { success: true, automationId: id, entityId, entityType }
     } finally {
-      // Restore original isDryRun setting
       await this.prisma.automation.update({ where: { id }, data: { isDryRun: originalIsDryRun } })
     }
   }

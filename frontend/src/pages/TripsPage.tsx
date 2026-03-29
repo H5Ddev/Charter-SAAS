@@ -179,6 +179,18 @@ export default function TripsPage() {
   const [selectedAircraftLabel, setSelectedAircraftLabel] = useState('')
   const [showAircraftDropdown, setShowAircraftDropdown] = useState(false)
 
+  // Close aircraft dropdown on outside click
+  useEffect(() => {
+    if (!showAircraftDropdown) return
+    function handleOutsideClick(e: MouseEvent) {
+      if (!aircraftContainerRef.current?.contains(e.target as Node)) {
+        setShowAircraftDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [showAircraftDropdown])
+
   // Crew picker state
   const [crewSearch, setCrewSearch] = useState('')
   const [selectedCrew, setSelectedCrew] = useState<Pick<CrewMember, 'id' | 'firstName' | 'lastName' | 'role'>[]>([])
@@ -625,10 +637,6 @@ export default function TripsPage() {
                 setShowAircraftDropdown(true)
               }}
               onFocus={() => setShowAircraftDropdown(true)}
-              onBlur={(e) => {
-                if (aircraftContainerRef.current?.contains(e.relatedTarget as Node)) return
-                setShowAircraftDropdown(false)
-              }}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
             {showAircraftDropdown && aircraftList.length > 0 && (

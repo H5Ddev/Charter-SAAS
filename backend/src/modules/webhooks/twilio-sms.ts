@@ -17,6 +17,19 @@ function buildTwimlResponse(message?: string): string {
 <Response></Response>`
 }
 
+// Keywords Twilio requires per CTIA / carrier compliance
+const STOP_KEYWORDS = ['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT']
+const START_KEYWORDS = ['START', 'UNSTOP', 'YES']
+const HELP_KEYWORDS = ['HELP', 'INFO']
+
+function classifyKeyword(body: string): 'STOP' | 'START' | 'HELP' | null {
+  const normalized = body.trim().toUpperCase()
+  if (STOP_KEYWORDS.includes(normalized)) return 'STOP'
+  if (START_KEYWORDS.includes(normalized)) return 'START'
+  if (HELP_KEYWORDS.includes(normalized)) return 'HELP'
+  return null
+}
+
 export async function twilioInboundSmsHandler(
   req: Request,
   res: Response,
@@ -53,11 +66,7 @@ export async function twilioInboundSmsHandler(
 
     // Find tenant by the Twilio phone number (To)
     const integration = await prisma.integration.findFirst({
-      where: {
-        type: 'TWILIO',
-        isActive: true,
-        deletedAt: null,
-      },
+      where: { type: 'TWILIO', isActive: true, deletedAt: null },
       include: { config: true },
     })
 
@@ -69,7 +78,7 @@ export async function twilioInboundSmsHandler(
 
     const tenantId = integration.tenantId
 
-    // Find existing contact by phone number
+    // Find or create contact
     let contact = await prisma.contact.findFirst({
       where: {
         tenantId,
@@ -78,7 +87,6 @@ export async function twilioInboundSmsHandler(
       },
     })
 
-    // If no contact found, create one
     if (!contact) {
       contact = await prisma.contact.create({
         data: {
@@ -94,7 +102,57 @@ export async function twilioInboundSmsHandler(
       logger.info(`Created new contact from inbound SMS: ${contact.id}`)
     }
 
-    // Create a support ticket from the inbound SMS
+    // ── Opt-in / opt-out keyword handling ────────────────────────────────────
+    const keyword = classifyKeyword(messageBody)
+    const isWhatsApp = From.startsWith('whatsapp:')
+    const now = new Date()
+
+    if (keyword === 'STOP') {
+      if (isWhatsApp) {
+        await prisma.contact.update({
+          where: { id: contact.id },
+          data: { whatsappOptIn: false, whatsappOptOutAt: now },
+        })
+      } else {
+        await prisma.contact.update({
+          where: { id: contact.id },
+          data: { smsOptIn: false, smsOptOutAt: now },
+        })
+      }
+      logger.info(`Contact ${contact.id} opted out of ${isWhatsApp ? 'WhatsApp' : 'SMS'}`)
+      // Twilio sends its own STOP confirmation automatically; we return empty TwiML
+      // so we don't double-reply. Carrier compliance is handled by Twilio.
+      res.type('text/xml').send(buildTwimlResponse())
+      return
+    }
+
+    if (keyword === 'START') {
+      if (isWhatsApp) {
+        await prisma.contact.update({
+          where: { id: contact.id },
+          data: { whatsappOptIn: true, whatsappOptInAt: now, whatsappOptOutAt: null },
+        })
+      } else {
+        await prisma.contact.update({
+          where: { id: contact.id },
+          data: { smsOptIn: true, smsOptInAt: now, smsOptOutAt: null },
+        })
+      }
+      logger.info(`Contact ${contact.id} opted in to ${isWhatsApp ? 'WhatsApp' : 'SMS'}`)
+      const confirmMsg = isWhatsApp
+        ? `You're now subscribed to flight notifications from AeroComm. Reply STOP at any time to unsubscribe.`
+        : `You're now subscribed to flight notifications from AeroComm. Msg & data rates may apply. Reply STOP to unsubscribe, HELP for help.`
+      res.type('text/xml').send(buildTwimlResponse(confirmMsg))
+      return
+    }
+
+    if (keyword === 'HELP') {
+      const helpMsg = `AeroComm flight notifications. Reply STOP to unsubscribe. For support contact your charter operator. Msg & data rates may apply.`
+      res.type('text/xml').send(buildTwimlResponse(helpMsg))
+      return
+    }
+
+    // ── Regular inbound message → create support ticket ───────────────────────
     const ticket = await prisma.ticket.create({
       data: {
         tenantId,
@@ -107,7 +165,6 @@ export async function twilioInboundSmsHandler(
       },
     })
 
-    // Create the first message on the ticket
     await prisma.ticketMessage.create({
       data: {
         tenantId,
@@ -125,7 +182,7 @@ export async function twilioInboundSmsHandler(
       messageSid: MessageSid,
     })
 
-    // Check if an auto-reply template is configured
+    // Auto-reply template if configured
     const autoReplyTemplate = await prisma.notificationTemplate.findFirst({
       where: {
         tenantId,
@@ -142,7 +199,6 @@ export async function twilioInboundSmsHandler(
         .replace('{{ticket.id}}', ticket.id)
     }
 
-    // Respond with TwiML
     res.type('text/xml').send(buildTwimlResponse(replyMessage))
   } catch (err) {
     next(err)

@@ -1,6 +1,9 @@
 import { env } from '../../../config/env'
 import { TwilioIntegration } from '../../../integrations/twilio'
 import { logger } from '../../../shared/utils/logger'
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
 
 let twilioIntegration: TwilioIntegration | null = null
 
@@ -21,19 +24,26 @@ async function getTwilioIntegration(): Promise<TwilioIntegration> {
 }
 
 export class WhatsAppSender {
-  /**
-   * Send a WhatsApp message via Twilio.
-   * @param to - Phone number in E.164 format (e.g. +15551234567)
-   * @param body - Message body
-   * @param tenantId - Tenant ID for logging
-   */
   async send(to: string, body: string, tenantId: string): Promise<void> {
     try {
+      // Compliance guard: skip if contact has opted out
+      const normalizedTo = to.replace(/^whatsapp:/, '')
+      const contact = await prisma.contact.findFirst({
+        where: {
+          tenantId,
+          OR: [{ whatsappPhone: normalizedTo }, { phone: normalizedTo }],
+          deletedAt: null,
+        },
+        select: { id: true, whatsappOptIn: true, doNotContact: true },
+      })
+
+      if (contact && (!contact.whatsappOptIn || contact.doNotContact)) {
+        logger.info(`WhatsApp skipped for ${to} — opted out or do-not-contact`, { tenantId, contactId: contact.id })
+        return
+      }
+
       const integration = await getTwilioIntegration()
-
-      // Prefix with whatsapp: for Twilio WhatsApp API
       const whatsappTo = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`
-
       await integration.sendMessage({ to: whatsappTo, body })
       logger.info(`WhatsApp message sent to ${to}`, { tenantId })
     } catch (err) {

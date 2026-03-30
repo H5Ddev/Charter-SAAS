@@ -1,6 +1,9 @@
 import { env } from '../../../config/env'
 import { TwilioIntegration } from '../../../integrations/twilio'
 import { logger } from '../../../shared/utils/logger'
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
 
 let twilioIntegration: TwilioIntegration | null = null
 
@@ -23,6 +26,17 @@ async function getTwilioIntegration(): Promise<TwilioIntegration> {
 export class SmsSender {
   async send(to: string, body: string, tenantId: string): Promise<void> {
     try {
+      // Compliance guard: skip if contact has opted out
+      const contact = await prisma.contact.findFirst({
+        where: { tenantId, phone: to, deletedAt: null },
+        select: { id: true, smsOptIn: true, doNotContact: true },
+      })
+
+      if (contact && (!contact.smsOptIn || contact.doNotContact)) {
+        logger.info(`SMS skipped for ${to} — opted out or do-not-contact`, { tenantId, contactId: contact.id })
+        return
+      }
+
       const integration = await getTwilioIntegration()
       await integration.sendMessage({ to, body })
       logger.info(`SMS sent to ${to}`, { tenantId })

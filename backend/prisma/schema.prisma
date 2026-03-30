@@ -194,9 +194,15 @@ model Contact {
   zipCode          String?
   tags             String    @default("[]")
   customFields     String?
-  preferredChannel String    @default("EMAIL")
-  doNotContact     Boolean   @default(false)
-  createdAt        DateTime  @default(now())
+  preferredChannel   String    @default("EMAIL")
+  doNotContact       Boolean   @default(false)
+  smsOptIn           Boolean   @default(false)
+  smsOptInAt         DateTime?
+  smsOptOutAt        DateTime?
+  whatsappOptIn      Boolean   @default(false)
+  whatsappOptInAt    DateTime?
+  whatsappOptOutAt   DateTime?
+  createdAt          DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   deletedAt        DateTime?
 

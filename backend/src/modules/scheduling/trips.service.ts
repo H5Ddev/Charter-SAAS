@@ -7,6 +7,7 @@ import { createEvent } from '../../shared/events/types'
 import { env } from '../../config/env'
 import { logger } from '../../shared/utils/logger'
 import { paginationMeta } from '../../shared/utils/response'
+import { optInService } from '../notifications/optin.service'
 
 export const CreateTripSchema = z.object({
   aircraftId: z.string().optional().nullable(),
@@ -311,11 +312,18 @@ export class TripsService {
     if (!trip) throw new AppError(404, 'TRIP_NOT_FOUND', 'Trip not found')
     if (!contact) throw new AppError(404, 'CONTACT_NOT_FOUND', 'Contact not found')
 
-    return this.prisma.tripPassenger.upsert({
+    const result = await this.prisma.tripPassenger.upsert({
       where: { tripId_contactId: { tripId, contactId } },
       create: { tenantId, tripId, contactId, isPrimary },
       update: { isPrimary },
     })
+
+    // Fire opt-in solicitation asynchronously — non-blocking, won't fail the request
+    optInService.solicitOnPassengerAdd(tenantId, contactId, tripId).catch((err) => {
+      logger.warn('Opt-in solicitation failed silently', { contactId, tripId, error: err })
+    })
+
+    return result
   }
 
   async getPaxManifest(tenantId: string, tripId: string) {

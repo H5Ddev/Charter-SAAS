@@ -214,5 +214,7 @@ webhooksRouter.post(
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { twilioInboundSmsHandler } from './twilio-sms'
+import { twilioStatusCallbackHandler } from './twilio-status'
 
 webhooksRouter.post('/twilio/inbound-sms', twilioInboundSmsHandler)
+webhooksRouter.post('/twilio/status', twilioStatusCallbackHandler)

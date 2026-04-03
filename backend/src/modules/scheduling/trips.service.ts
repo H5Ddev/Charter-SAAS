@@ -97,6 +97,9 @@ export class TripsService {
       where: { id, tenantId, deletedAt: null },
       include: {
         aircraft: true,
+        crewAssignments: {
+          include: { crewMember: { select: { id: true, firstName: true, lastName: true, role: true } } },
+        },
         passengers: {
           include: { contact: true },
         },

@@ -71,6 +71,13 @@ export class TripsController {
     } catch (err) { next(err) }
   }
 
+  async removePassenger(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      await service.removePassenger(req.tenantId!, req.params.id!, req.params.passengerId!)
+      res.status(204).send()
+    } catch (err) { next(err) }
+  }
+
   async getPaxManifest(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const manifest = await service.getPaxManifest(req.tenantId!, req.params.id!)

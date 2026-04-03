@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react'
-import { XMarkIcon, PencilIcon, CheckIcon } from '@heroicons/react/20/solid'
+import { useState, useEffect, useRef } from 'react'
+import { XMarkIcon, PencilIcon, CheckIcon, UserPlusIcon, XCircleIcon } from '@heroicons/react/20/solid'
 import { Badge, tripStatusBadge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
-import { useTrip } from '@/api/trips.api'
+import { useTrip, useAddTripPassenger, useRemoveTripPassenger } from '@/api/trips.api'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
 import { AirportSearch } from '@/components/ui/AirportSearch'
 import { type Airport, distanceNm, estimatedHours, formatHours } from '@/api/airports.api'
 import { useAircraftList } from '@/api/aircraft.api'
 import { CrewPicker, type SelectedCrewMember } from '@/components/crew/CrewPicker'
+import { useContacts, type Contact } from '@/api/contacts.api'
 
 interface Props {
   tripId: string | null
@@ -47,6 +48,16 @@ export function TripDetailModal({ tripId, onClose }: Props) {
 
   const { data: aircraftListData } = useAircraftList(editing ? { isActive: true, pageSize: 50 } : undefined)
   const aircraftList = aircraftListData?.data ?? []
+
+  // PAX manifest
+  const [paxSearch, setPaxSearch] = useState('')
+  const [showPaxDropdown, setShowPaxDropdown] = useState(false)
+  const paxSearchRef = useRef<HTMLInputElement>(null)
+  const { data: contactResults } = useContacts(
+    paxSearch.length >= 2 ? { search: paxSearch, pageSize: 8 } : undefined
+  )
+  const addPassenger = useAddTripPassenger()
+  const removePassenger = useRemoveTripPassenger()
 
 
   const update = useMutation({
@@ -280,6 +291,86 @@ export function TripDetailModal({ tripId, onClose }: Props) {
                     </div>
                   </>
                 )}
+              </div>
+            </div>
+
+            {/* Passengers */}
+            <div>
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Passengers</h3>
+              <div className="space-y-2">
+                {(trip.passengers ?? []).length > 0 ? (
+                  <ul className="space-y-1">
+                    {(trip.passengers ?? []).map((p) => (
+                      <li key={p.id} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <div className="h-7 w-7 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-xs font-semibold shrink-0">
+                            {p.contact.firstName[0]}{p.contact.lastName[0]}
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium text-gray-900">{p.contact.firstName} {p.contact.lastName}</span>
+                            {p.isPrimary && <span className="ml-1.5 text-xs text-primary-600 font-medium">Primary</span>}
+                            {p.contact.email && <p className="text-xs text-gray-400">{p.contact.email}</p>}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removePassenger.mutate({ tripId: trip.id, passengerId: p.id })}
+                          className="text-gray-300 hover:text-red-500 transition-colors"
+                          aria-label="Remove passenger"
+                        >
+                          <XCircleIcon className="h-4 w-4" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-400">No passengers on manifest</p>
+                )}
+
+                {/* Contact search to add passenger */}
+                <div className="relative mt-2">
+                  <div className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2 focus-within:border-primary-400 focus-within:bg-primary-50/30 transition-colors">
+                    <UserPlusIcon className="h-4 w-4 text-gray-400 shrink-0" />
+                    <input
+                      ref={paxSearchRef}
+                      type="text"
+                      placeholder="Search contacts to add…"
+                      value={paxSearch}
+                      onChange={(e) => { setPaxSearch(e.target.value); setShowPaxDropdown(true) }}
+                      onFocus={() => setShowPaxDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowPaxDropdown(false), 150)}
+                      className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400"
+                    />
+                  </div>
+                  {showPaxDropdown && paxSearch.length >= 2 && (contactResults?.data ?? []).length > 0 && (
+                    <ul className="absolute z-20 mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg max-h-48 overflow-y-auto">
+                      {(contactResults?.data ?? [])
+                        .filter((c) => !(trip.passengers ?? []).some((p) => p.contactId === c.id))
+                        .map((c: Contact) => (
+                          <li key={c.id}>
+                            <button
+                              type="button"
+                              onMouseDown={async () => {
+                                await addPassenger.mutateAsync({ tripId: trip.id, contactId: c.id })
+                                setPaxSearch('')
+                                setShowPaxDropdown(false)
+                                paxSearchRef.current?.blur()
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 flex items-center gap-3"
+                            >
+                              <div className="h-6 w-6 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-xs font-semibold shrink-0">
+                                {c.firstName[0]}{c.lastName[0]}
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-900">{c.firstName} {c.lastName}</span>
+                                {c.email && <span className="ml-2 text-xs text-gray-400">{c.email}</span>}
+                              </div>
+                            </button>
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                </div>
               </div>
             </div>
 

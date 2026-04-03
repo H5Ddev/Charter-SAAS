@@ -326,6 +326,14 @@ export class TripsService {
     return result
   }
 
+  async removePassenger(tenantId: string, tripId: string, passengerId: string) {
+    const record = await this.prisma.tripPassenger.findFirst({
+      where: { id: passengerId, tripId, tenantId },
+    })
+    if (!record) throw new AppError(404, 'PASSENGER_NOT_FOUND', 'Passenger not found on this trip')
+    await this.prisma.tripPassenger.delete({ where: { id: passengerId } })
+  }
+
   async getPaxManifest(tenantId: string, tripId: string) {
     const trip = await this.prisma.trip.findFirst({
       where: { id: tripId, tenantId, deletedAt: null },

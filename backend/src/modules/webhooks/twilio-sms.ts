@@ -64,19 +64,30 @@ export async function twilioInboundSmsHandler(
 
     logger.info(`Inbound SMS received from ${From}`, { messageSid: MessageSid })
 
-    // Find tenant by the Twilio phone number (To)
+    // Find tenant by DB integration record, or fall back to env-var config
     const integration = await prisma.integration.findFirst({
       where: { type: 'TWILIO', isActive: true, deletedAt: null },
       include: { config: true },
     })
 
-    if (!integration) {
-      logger.warn('No active Twilio integration found for inbound SMS', { to: To })
-      res.type('text/xml').send(buildTwimlResponse())
-      return
-    }
+    let tenantId: string
 
-    const tenantId = integration.tenantId
+    if (integration) {
+      tenantId = integration.tenantId
+    } else {
+      // Fallback: find the first tenant (single-tenant / env-var config mode)
+      const tenant = await prisma.tenant.findFirst({
+        where: { deletedAt: null },
+        select: { id: true },
+      })
+      if (!tenant) {
+        logger.warn('No tenant found for inbound SMS', { to: To })
+        res.type('text/xml').send(buildTwimlResponse())
+        return
+      }
+      tenantId = tenant.id
+      logger.info('Using fallback tenant for inbound SMS (no integration record found)', { tenantId })
+    }
 
     // Find or create contact
     let contact = await prisma.contact.findFirst({

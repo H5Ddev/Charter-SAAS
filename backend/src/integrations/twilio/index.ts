@@ -56,7 +56,10 @@ export class TwilioIntegration implements Integration {
 
     const isWhatsApp = payload.to.startsWith('whatsapp:')
     const from = isWhatsApp
-      ? (this.config.whatsappFrom ?? `whatsapp:${this.config.fromPhone}`)
+      ? (() => {
+          const wa = this.config.whatsappFrom ?? this.config.fromPhone
+          return wa.startsWith('whatsapp:') ? wa : `whatsapp:${wa}`
+        })()
       : this.config.fromPhone
 
     try {

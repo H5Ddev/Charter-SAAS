@@ -11,6 +11,8 @@ export interface Contact {
   type: 'OWNER' | 'PASSENGER' | 'BOTH'
   preferredChannel: string
   doNotContact: boolean
+  smsOptIn: boolean
+  whatsappOptIn: boolean
   tags: string[]
   city: string | null
   state: string | null
@@ -114,6 +116,15 @@ export function useAddNote() {
     },
     onSuccess: (_data, { contactId }) => {
       void queryClient.invalidateQueries({ queryKey: [CONTACTS_KEY, contactId] })
+    },
+  })
+}
+
+export function useSendOptIn() {
+  return useMutation({
+    mutationFn: async ({ contactId, channel }: { contactId: string; channel: 'WHATSAPP' | 'SMS' | 'BOTH' }) => {
+      const response = await apiClient.post(`/contacts/${contactId}/send-optin`, { channel })
+      return response.data
     },
   })
 }

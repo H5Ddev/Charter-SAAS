@@ -10,8 +10,8 @@ import Select from '@/components/ui/Select'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useCreateContact, useUpdateContact } from '@/api/contacts.api'
-import { PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
+import { useCreateContact, useUpdateContact, useSendOptIn } from '@/api/contacts.api'
+import { PlusIcon, MagnifyingGlassIcon, CheckCircleIcon } from '@heroicons/react/20/solid'
 import { TrashIcon, PencilSquareIcon } from '@heroicons/react/24/outline'
 
 // ── Avatar helpers ───────────────────────────────────────────────────────────
@@ -75,6 +75,8 @@ export default function ContactsPage() {
   const createContact = useCreateContact()
   const updateContact = useUpdateContact()
   const deleteContact = useDeleteContact()
+  const sendOptIn = useSendOptIn()
+  const [optInSent, setOptInSent] = useState<'whatsapp' | 'sms' | null>(null)
 
   const {
     register,
@@ -94,6 +96,7 @@ export default function ContactsPage() {
 
   function openEdit(contact: Contact) {
     setEditing(contact)
+    setOptInSent(null)
     reset({
       firstName: contact.firstName,
       lastName: contact.lastName,
@@ -327,6 +330,69 @@ export default function ContactsPage() {
             <Input label="Phone" type="tel" {...register('phone')} />
             <Input label="WhatsApp Phone" type="tel" {...register('whatsappPhone')} />
           </div>
+          {/* Opt-in status — only shown when editing */}
+          {editing && (editing.whatsappPhone || editing.phone) && (
+            <div className="rounded-lg border border-gray-200 p-3 space-y-2">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Messaging Consent</p>
+              <div className="flex flex-col gap-2">
+                {editing.whatsappPhone && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {editing.whatsappOptIn ? (
+                        <CheckCircleIcon className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <span className="h-4 w-4 rounded-full border-2 border-gray-300 inline-block" />
+                      )}
+                      <span className="text-sm text-gray-700">
+                        WhatsApp {editing.whatsappOptIn ? <span className="text-green-600 font-medium">Opted in</span> : <span className="text-gray-400">Not opted in</span>}
+                      </span>
+                    </div>
+                    {!editing.whatsappOptIn && (
+                      <button
+                        type="button"
+                        disabled={sendOptIn.isPending || optInSent === 'whatsapp'}
+                        onClick={async () => {
+                          await sendOptIn.mutateAsync({ contactId: editing.id, channel: 'WHATSAPP' })
+                          setOptInSent('whatsapp')
+                        }}
+                        className="text-xs px-2.5 py-1 rounded-md bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 disabled:opacity-50 transition-colors"
+                      >
+                        {optInSent === 'whatsapp' ? '✓ Sent' : 'Send opt-in'}
+                      </button>
+                    )}
+                  </div>
+                )}
+                {editing.phone && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {editing.smsOptIn ? (
+                        <CheckCircleIcon className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <span className="h-4 w-4 rounded-full border-2 border-gray-300 inline-block" />
+                      )}
+                      <span className="text-sm text-gray-700">
+                        SMS {editing.smsOptIn ? <span className="text-green-600 font-medium">Opted in</span> : <span className="text-gray-400">Not opted in</span>}
+                      </span>
+                    </div>
+                    {!editing.smsOptIn && (
+                      <button
+                        type="button"
+                        disabled={sendOptIn.isPending || optInSent === 'sms'}
+                        onClick={async () => {
+                          await sendOptIn.mutateAsync({ contactId: editing.id, channel: 'SMS' })
+                          setOptInSent('sms')
+                        }}
+                        className="text-xs px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                      >
+                        {optInSent === 'sms' ? '✓ Sent' : 'Send opt-in'}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <Select
               label="Type"

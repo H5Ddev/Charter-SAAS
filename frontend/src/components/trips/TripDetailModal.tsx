@@ -304,7 +304,58 @@ export function TripDetailModal({ tripId, onClose }: Props) {
 
             {/* Passengers */}
             <div>
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Passengers</h3>
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
+                Passengers
+                {(() => {
+                  const manifestCount = (trip.passengers ?? []).length
+                  const declared = trip.paxCount
+                  if (manifestCount === declared) return null
+                  return (
+                    <span className="ml-2 normal-case font-normal text-amber-600">
+                      ({manifestCount} on manifest, {declared} declared)
+                    </span>
+                  )
+                })()}
+              </h3>
+
+              {/* Reconciliation banner */}
+              {(() => {
+                const manifestCount = (trip.passengers ?? []).length
+                const declared = trip.paxCount
+                if (manifestCount === declared) return null
+                const short = declared > manifestCount
+                return (
+                  <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-3 text-sm">
+                    <span className="text-amber-500 text-base shrink-0">⚠</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-amber-800">
+                        PAX count mismatch — manifest has {manifestCount}, trip declares {declared}
+                      </p>
+                      <p className="text-xs text-amber-700 mt-0.5">
+                        {short
+                          ? `${declared - manifestCount} passenger${declared - manifestCount !== 1 ? 's' : ''} still need to be added to the manifest, or reduce the PAX count.`
+                          : `The manifest has ${manifestCount - declared} more passenger${manifestCount - declared !== 1 ? 's' : ''} than declared. Update the PAX count or remove a passenger.`}
+                      </p>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => update.mutate({ paxCount: manifestCount })}
+                          disabled={update.isPending}
+                          className="text-xs font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-2.5 py-1 rounded-md transition-colors disabled:opacity-50"
+                        >
+                          Set PAX count to {manifestCount}
+                        </button>
+                        {short && (
+                          <span className="text-xs text-amber-600 self-center">
+                            — or add {declared - manifestCount} more passenger{declared - manifestCount !== 1 ? 's' : ''} below
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+
               <div className="space-y-2">
                 {(trip.passengers ?? []).length > 0 ? (
                   <ul className="space-y-1">

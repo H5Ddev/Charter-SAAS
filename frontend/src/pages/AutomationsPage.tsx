@@ -21,16 +21,108 @@ import {
 } from '@heroicons/react/24/outline';
 import { clsx } from 'clsx';
 
-// Pre-built scenario templates S01–S08
-const PREBUILT_TEMPLATES = [
-  { id: 'S01', name: 'Booking Confirmation', trigger: 'TRIP_STATUS_CHANGED', description: 'Sends booking confirmation SMS + email when a trip is confirmed.' },
-  { id: 'S02', name: '24-Hour Pre-Flight Reminder', trigger: 'SCHEDULED', description: 'Reminds passengers of departure details 24 hours before flight.' },
-  { id: 'S03', name: '2-Hour Pre-Flight Reminder', trigger: 'SCHEDULED', description: 'Sends boarding time and FBO address 2 hours before departure.' },
-  { id: 'S04', name: 'Departure Notification', trigger: 'TRIP_STATUS_CHANGED', description: 'Notifies passengers when the aircraft has departed.' },
-  { id: 'S05', name: 'Delay Alert', trigger: 'TRIP_DELAY_FLAGGED', description: 'Sends delay alert to all passengers and ops team via Slack.' },
-  { id: 'S06', name: 'Post-Flight Survey', trigger: 'TRIP_STATUS_CHANGED', description: 'Sends post-trip survey link after trip completion.' },
-  { id: 'S07', name: 'Document Expiry Alert', trigger: 'SCHEDULED', description: 'Alerts ops team when pilot/aircraft documents are expiring.' },
-  { id: 'S08', name: 'Quote Follow-Up', trigger: 'QUOTE_CREATED', description: 'Follows up on pending quotes 48 hours after creation.' },
+interface PrebuiltTemplate {
+  id: string;
+  name: string;
+  description: string;
+  trigger: string;
+  triggerFilter: string;
+  timing: string;
+  recipients: string;
+  smsBody: string;
+  conditions: string[];
+}
+
+// Pre-built scenario templates S01–S08 — data matches seed.ts exactly
+const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
+  {
+    id: 'S01',
+    name: 'Booking Confirmation',
+    description: 'Immediately confirms the trip booking via SMS to all passengers.',
+    trigger: 'TRIP_STATUS_CHANGED',
+    triggerFilter: 'When status changes → CONFIRMED',
+    timing: 'Immediate',
+    recipients: 'All trip passengers',
+    smsBody: '✈️ Your trip is confirmed! Thank you for booking with {{tenant.companyName}}. If you have any special requests (snacks, pillows, etc.), reply here or contact our team. We\'re excited to serve you!',
+    conditions: [],
+  },
+  {
+    id: 'S02',
+    name: '7-Day Pre-Flight Reminder',
+    description: 'Reminds passengers 7 days before departure to confirm special requests.',
+    trigger: 'TRIP_STATUS_CHANGED',
+    triggerFilter: 'When status changes → CONFIRMED',
+    timing: '7 days before departure',
+    recipients: 'All trip passengers',
+    smsBody: '👋 Looking forward to your upcoming flight on {{trip.departureDate}}! Please confirm any catering, special requests, or changes in passenger list by replying to this message.',
+    conditions: [],
+  },
+  {
+    id: 'S03',
+    name: '2-Day Pre-Flight Reminder',
+    description: 'Final reminder 48 hours before departure.',
+    trigger: 'TRIP_STATUS_CHANGED',
+    triggerFilter: 'When status changes → CONFIRMED',
+    timing: '48 hours before departure',
+    recipients: 'All trip passengers',
+    smsBody: '✅ Just two days to go! Please confirm if you have any updates or special requests for your flight on {{trip.departureDate}}. We\'re reviewing your itinerary to ensure everything is perfect.',
+    conditions: [],
+  },
+  {
+    id: 'S04',
+    name: 'Day-Before Itinerary',
+    description: 'Sends full itinerary with pilot and FBO details 24 hours out.',
+    trigger: 'TRIP_STATUS_CHANGED',
+    triggerFilter: 'When status changes → CONFIRMED',
+    timing: '24 hours before departure',
+    recipients: 'All trip passengers',
+    smsBody: '📋 Your flight departs tomorrow.\n• Pilot(s): {{trip.pilots}}\n• Departure Time: {{trip.departureTime}}\n• Location: {{trip.fboName}} — {{trip.fboAddress}}\nLet us know if you need anything!',
+    conditions: [],
+  },
+  {
+    id: 'S05',
+    name: '2-Hour Boarding Call',
+    description: 'Final boarding instructions sent 2 hours before departure.',
+    trigger: 'TRIP_STATUS_CHANGED',
+    triggerFilter: 'When status changes → CONFIRMED',
+    timing: '2 hours before departure',
+    recipients: 'All trip passengers',
+    smsBody: '🛫 Final boarding prep! Your flight departs in 2 hours. Please arrive at {{trip.fboName}} by {{trip.boardingTime}}. For assistance, contact {{tenant.companyName}}: {{tenant.supportPhone}}.',
+    conditions: [],
+  },
+  {
+    id: 'S06',
+    name: 'Return Flight Reminder',
+    description: 'Reminds passengers of return leg 2 hours before return departure. Only fires for round trips.',
+    trigger: 'TRIP_STATUS_CHANGED',
+    triggerFilter: 'When status changes → IN_FLIGHT',
+    timing: '2 hours before return departure',
+    recipients: 'All trip passengers',
+    smsBody: '🔄 Reminder: Your return flight is scheduled for today at {{trip.returnTime}}.\n• Pilot(s): {{trip.returnPilots}}\n• Departure FBO: {{trip.returnFbo}}\nPlease arrive 30 minutes prior to departure.',
+    conditions: ['trip.returnAt is not empty (round trips only)'],
+  },
+  {
+    id: 'S07',
+    name: 'Post-Trip Thank You & Survey',
+    description: 'Sends thank-you and feedback survey link the morning after trip completion.',
+    trigger: 'TRIP_STATUS_CHANGED',
+    triggerFilter: 'When status changes → COMPLETED',
+    timing: 'Next morning at 9:00 AM (tenant timezone)',
+    recipients: 'All trip passengers',
+    smsBody: '🙏 Thank you for flying with {{tenant.companyName}}! We hope your experience was exceptional. We\'d love your feedback: {{trip.surveyLink}}. Safe travels until next time!',
+    conditions: [],
+  },
+  {
+    id: 'S08',
+    name: 'Weather / Ops Delay Alert',
+    description: 'Immediately alerts all passengers when a trip delay flag is raised.',
+    trigger: 'TRIP_DELAY_FLAGGED',
+    triggerFilter: 'When a delay is flagged (any reason)',
+    timing: 'Immediate',
+    recipients: 'All trip passengers',
+    smsBody: '⚠️ Update: Due to weather or operational conditions, your flight may be affected. Our team will contact you shortly with revised details. Your safety is our priority.',
+    conditions: [],
+  },
 ];
 
 const TRIGGER_BADGE: Record<string, BadgeVariant> = {
@@ -223,6 +315,7 @@ export default function AutomationsPage() {
   const [logsId, setLogsId] = useState<string | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<Automation | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
+  const [previewTemplate, setPreviewTemplate] = useState<PrebuiltTemplate | null>(null);
 
   const { data, isLoading } = useAutomations({ page: 1, pageSize: 100 });
   const deleteAutomation = useDeleteAutomation();
@@ -267,12 +360,10 @@ export default function AutomationsPage() {
     });
   }
 
-  async function handleCloneTemplate(template: (typeof PREBUILT_TEMPLATES)[0]) {
-    // Open builder pre-filled with template trigger
+  function handleCloneTemplate() {
+    setPreviewTemplate(null);
     setEditingId(undefined);
     setBuilderOpen(true);
-    // Note: pre-filling would require query params or a state prop; the builder
-    // handles fresh-create for now. A full implementation would pass initialValues.
   }
 
   const STATUS_FILTERS: { value: StatusFilter; label: string; count?: number }[] = [
@@ -384,9 +475,11 @@ export default function AutomationsPage() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {PREBUILT_TEMPLATES.map(tmpl => (
-            <div
+            <button
               key={tmpl.id}
-              className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3 hover:border-gray-300 hover:shadow transition-all"
+              type="button"
+              onClick={() => setPreviewTemplate(tmpl)}
+              className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3 hover:border-primary-300 hover:shadow transition-all text-left"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -402,20 +495,79 @@ export default function AutomationsPage() {
                   {TRIGGER_LABELS[tmpl.trigger] ?? tmpl.trigger}
                 </Badge>
               </div>
-              <div className="pt-3 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => handleCloneTemplate(tmpl)}
-                  className="flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors"
-                >
-                  <DocumentDuplicateIcon className="h-3.5 w-3.5" />
-                  Clone template
-                </button>
+              <div className="pt-3 border-t border-gray-100 flex items-center gap-1.5 text-xs font-medium text-primary-600">
+                <DocumentDuplicateIcon className="h-3.5 w-3.5" />
+                View &amp; clone
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
+
+      {/* Template detail modal */}
+      <Modal
+        isOpen={!!previewTemplate}
+        onClose={() => setPreviewTemplate(null)}
+        title={previewTemplate ? `${previewTemplate.id} — ${previewTemplate.name}` : ''}
+        size="lg"
+        footer={
+          <div className="flex items-center gap-3">
+            <Button variant="secondary" onClick={() => setPreviewTemplate(null)}>
+              Close
+            </Button>
+            <Button variant="primary" onClick={handleCloneTemplate}>
+              <DocumentDuplicateIcon className="h-4 w-4 mr-1.5" />
+              Clone &amp; Customize
+            </Button>
+          </div>
+        }
+      >
+        {previewTemplate && (
+          <div className="space-y-5 text-sm">
+            <p className="text-gray-600">{previewTemplate.description}</p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Trigger</p>
+                <p className="text-gray-800 font-medium">{previewTemplate.triggerFilter}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Timing</p>
+                <p className="text-gray-800 font-medium">{previewTemplate.timing}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Recipients</p>
+                <p className="text-gray-800 font-medium">{previewTemplate.recipients}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Channel</p>
+                <p className="text-gray-800 font-medium">SMS</p>
+              </div>
+            </div>
+
+            {previewTemplate.conditions.length > 0 && (
+              <div>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Conditions</p>
+                <ul className="space-y-1">
+                  {previewTemplate.conditions.map(c => (
+                    <li key={c} className="flex items-center gap-2 text-gray-700">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary-400 shrink-0" />
+                      {c}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div>
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">SMS Message</p>
+              <pre className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-xs text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
+                {previewTemplate.smsBody}
+              </pre>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Builder slide-over modal */}
       <Modal

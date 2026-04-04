@@ -10,6 +10,7 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { AutomationBuilder } from '@/components/automation/AutomationBuilder';
 import { ExecutionLogTable } from '@/components/automation/ExecutionLogTable';
+import { AutomationDetailModal } from '@/components/automation/AutomationDetailModal';
 import {
   PlusIcon,
   PencilSquareIcon,
@@ -205,6 +206,7 @@ function EnabledToggle({
 
 function AutomationCard({
   automation,
+  onView,
   onEdit,
   onLogs,
   onDelete,
@@ -212,6 +214,7 @@ function AutomationCard({
   togglePending,
 }: {
   automation: Automation;
+  onView: () => void;
   onEdit: () => void;
   onLogs: () => void;
   onDelete: () => void;
@@ -225,12 +228,16 @@ function AutomationCard({
     <div
       className={clsx(
         'bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-4 transition-all',
-        automation.isActive ? 'hover:border-gray-300' : 'opacity-75 hover:opacity-100',
+        automation.isActive ? 'hover:border-primary-200' : 'opacity-75 hover:opacity-100',
       )}
     >
-      {/* Top row: name + toggle */}
+      {/* Top row: name + toggle — name is clickable */}
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
+        <button
+          type="button"
+          onClick={onView}
+          className="min-w-0 flex-1 text-left hover:opacity-80 transition-opacity"
+        >
           <div className="flex items-center gap-2 mb-1">
             <BoltIcon
               className={clsx(
@@ -243,7 +250,7 @@ function AutomationCard({
           {automation.description && (
             <p className="text-xs text-gray-400 truncate pl-6">{automation.description}</p>
           )}
-        </div>
+        </button>
         <EnabledToggle
           value={automation.isActive}
           onChange={onToggle}
@@ -316,6 +323,7 @@ export default function AutomationsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Automation | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
   const [previewTemplate, setPreviewTemplate] = useState<PrebuiltTemplate | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const { data, isLoading } = useAutomations({ page: 1, pageSize: 100 });
   const deleteAutomation = useDeleteAutomation();
@@ -454,6 +462,7 @@ export default function AutomationsPage() {
             <AutomationCard
               key={auto.id}
               automation={auto}
+              onView={() => setDetailId(auto.id)}
               onEdit={() => openEdit(auto.id)}
               onLogs={() => setLogsId(auto.id)}
               onDelete={() => setDeleteTarget(auto)}
@@ -568,6 +577,14 @@ export default function AutomationsPage() {
           </div>
         )}
       </Modal>
+
+      {/* Automation detail modal */}
+      <AutomationDetailModal
+        automationId={detailId}
+        onClose={() => setDetailId(null)}
+        onEdit={(id) => openEdit(id)}
+        onLogs={(id) => setLogsId(id)}
+      />
 
       {/* Builder slide-over modal */}
       <Modal

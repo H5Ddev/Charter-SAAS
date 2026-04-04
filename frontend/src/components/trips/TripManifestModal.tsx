@@ -28,7 +28,8 @@ export function TripManifestModal({ trip, onClose }: Props) {
   }).crewAssignments ?? []
 
   const missingContact = passengers.filter(p => !p.contact.phone && !p.contact.email)
-  const canLock = ['CONFIRMED'].includes(trip.status)
+  const paxMismatch = passengers.length !== trip.paxCount
+  const canLock = ['CONFIRMED'].includes(trip.status) && !paxMismatch
   const isLocked = ['BOARDING', 'IN_FLIGHT', 'COMPLETED'].includes(trip.status)
 
   function handlePrint() {
@@ -117,6 +118,19 @@ export function TripManifestModal({ trip, onClose }: Props) {
                 <p className="text-xs mt-0.5">
                   {missingContact.map(p => `${p.contact.firstName} ${p.contact.lastName}`).join(', ')}{' '}
                   {missingContact.length === 1 ? 'has' : 'have'} no phone or email on record. Update their contact before departure.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {paxMismatch && !isLocked && (
+            <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-800">
+              <ExclamationTriangleIcon className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Cannot lock manifest</p>
+                <p className="text-xs mt-0.5">
+                  Manifest has {passengers.length} passenger{passengers.length !== 1 ? 's' : ''} but trip declares {trip.paxCount}.
+                  Reconcile the PAX count in the trip details before locking.
                 </p>
               </div>
             </div>

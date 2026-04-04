@@ -1,6 +1,166 @@
-import React from 'react';
-import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import React, { useState, useRef, useEffect } from 'react';
+import { PlusIcon, TrashIcon, ChevronUpDownIcon } from '@heroicons/react/24/outline';
 import Button from '@/components/ui/Button';
+
+// ── Available condition fields ────────────────────────────────────────────────
+
+interface FieldDef {
+  path: string
+  label: string
+  group: string
+  type: 'STRING' | 'NUMBER' | 'BOOLEAN' | 'DATE' | 'ARRAY'
+  hint?: string
+}
+
+const CONDITION_FIELDS: FieldDef[] = [
+  // Trip
+  { path: 'trip.status',            label: 'Status',               group: 'Trip',    type: 'STRING',  hint: 'CONFIRMED, BOARDING, IN_FLIGHT…' },
+  { path: 'trip.paxCount',          label: 'PAX Count',            group: 'Trip',    type: 'NUMBER' },
+  { path: 'trip.isDelayed',         label: 'Is Delayed',           group: 'Trip',    type: 'BOOLEAN', hint: 'true / false' },
+  { path: 'trip.originIcao',        label: 'Origin ICAO',          group: 'Trip',    type: 'STRING',  hint: 'e.g. KTEB' },
+  { path: 'trip.destinationIcao',   label: 'Destination ICAO',     group: 'Trip',    type: 'STRING',  hint: 'e.g. KPBI' },
+  { path: 'trip.fboName',           label: 'FBO Name',             group: 'Trip',    type: 'STRING' },
+  { path: 'trip.notes',             label: 'Notes',                group: 'Trip',    type: 'STRING' },
+  { path: 'trip.returnDepartureAt', label: 'Return Departure',     group: 'Trip',    type: 'DATE',    hint: 'Non-empty = round trip' },
+  { path: 'trip.surveyLink',        label: 'Survey Link',          group: 'Trip',    type: 'STRING' },
+  // Contact
+  { path: 'contact.firstName',      label: 'First Name',           group: 'Contact', type: 'STRING' },
+  { path: 'contact.lastName',       label: 'Last Name',            group: 'Contact', type: 'STRING' },
+  { path: 'contact.email',          label: 'Email',                group: 'Contact', type: 'STRING' },
+  { path: 'contact.phone',          label: 'Phone',                group: 'Contact', type: 'STRING' },
+  { path: 'contact.type',           label: 'Type',                 group: 'Contact', type: 'STRING',  hint: 'PASSENGER, BROKER, OPERATOR…' },
+  { path: 'contact.doNotContact',   label: 'Do Not Contact',       group: 'Contact', type: 'BOOLEAN' },
+  { path: 'contact.smsOptIn',       label: 'SMS Opt-In',           group: 'Contact', type: 'BOOLEAN' },
+  { path: 'contact.whatsappOptIn',  label: 'WhatsApp Opt-In',      group: 'Contact', type: 'BOOLEAN' },
+  { path: 'contact.preferredChannel', label: 'Preferred Channel',  group: 'Contact', type: 'STRING',  hint: 'EMAIL, SMS, WHATSAPP…' },
+  // Quote
+  { path: 'quote.status',           label: 'Status',               group: 'Quote',   type: 'STRING',  hint: 'DRAFT, SENT, ACCEPTED…' },
+  { path: 'quote.totalPrice',       label: 'Total Price',          group: 'Quote',   type: 'NUMBER' },
+  { path: 'quote.currency',         label: 'Currency',             group: 'Quote',   type: 'STRING',  hint: 'USD, EUR…' },
+  // Ticket
+  { path: 'ticket.status',          label: 'Status',               group: 'Ticket',  type: 'STRING',  hint: 'OPEN, IN_PROGRESS, RESOLVED…' },
+  { path: 'ticket.priority',        label: 'Priority',             group: 'Ticket',  type: 'STRING',  hint: 'LOW, NORMAL, HIGH, URGENT' },
+  { path: 'ticket.source',          label: 'Source',               group: 'Ticket',  type: 'STRING',  hint: 'EMAIL, SMS, WEB, MANUAL' },
+  { path: 'ticket.assignedTo',      label: 'Assigned To',          group: 'Ticket',  type: 'STRING' },
+  // Aircraft
+  { path: 'aircraft.tailNumber',    label: 'Tail Number',          group: 'Aircraft',type: 'STRING' },
+  { path: 'aircraft.make',          label: 'Make',                 group: 'Aircraft',type: 'STRING' },
+  { path: 'aircraft.model',         label: 'Model',                group: 'Aircraft',type: 'STRING' },
+  { path: 'aircraft.seats',         label: 'Seats',                group: 'Aircraft',type: 'NUMBER' },
+  // Tenant
+  { path: 'tenant.name',            label: 'Company Name',         group: 'Tenant',  type: 'STRING' },
+  { path: 'tenant.plan',            label: 'Plan',                 group: 'Tenant',  type: 'STRING',  hint: 'TRIAL, STARTER, PRO…' },
+]
+
+const TYPE_COLORS: Record<string, string> = {
+  STRING:  'bg-blue-100 text-blue-700',
+  NUMBER:  'bg-green-100 text-green-700',
+  BOOLEAN: 'bg-purple-100 text-purple-700',
+  DATE:    'bg-orange-100 text-orange-700',
+  ARRAY:   'bg-gray-100 text-gray-600',
+}
+
+function FieldPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
+
+  function openPicker() {
+    setOpen(true)
+    setSearch('')
+    setTimeout(() => inputRef.current?.focus(), 0)
+  }
+
+  const query = search.toLowerCase()
+  const filtered = CONDITION_FIELDS.filter(
+    f => !query ||
+      f.path.toLowerCase().includes(query) ||
+      f.label.toLowerCase().includes(query) ||
+      f.group.toLowerCase().includes(query) ||
+      f.hint?.toLowerCase().includes(query)
+  )
+
+  const groups = Array.from(new Set(filtered.map(f => f.group)))
+
+  const selectedDef = CONDITION_FIELDS.find(f => f.path === value)
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        onClick={openPicker}
+        className="form-input w-52 text-sm text-left flex items-center justify-between gap-1 pr-2"
+      >
+        <span className={value ? 'font-mono text-gray-900' : 'text-gray-400'}>
+          {value || 'Select field…'}
+        </span>
+        <ChevronUpDownIcon className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1 w-72 bg-white border border-gray-200 rounded-lg shadow-xl">
+          <div className="p-2 border-b border-gray-100">
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Search fields…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full text-sm px-2 py-1.5 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-500"
+            />
+          </div>
+          <ul className="max-h-72 overflow-y-auto py-1">
+            {filtered.length === 0 && (
+              <li className="text-xs text-gray-400 px-3 py-2 italic">No fields found</li>
+            )}
+            {groups.map(group => (
+              <React.Fragment key={group}>
+                <li className="px-3 pt-2 pb-0.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                  {group}
+                </li>
+                {filtered.filter(f => f.group === group).map(f => (
+                  <li key={f.path}>
+                    <button
+                      type="button"
+                      onMouseDown={() => {
+                        onChange(f.path)
+                        setOpen(false)
+                        setSearch('')
+                      }}
+                      className={`w-full text-left px-3 py-2 hover:bg-primary-50 flex items-start gap-2 group ${value === f.path ? 'bg-primary-50' : ''}`}
+                    >
+                      <span className={`mt-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${TYPE_COLORS[f.type] ?? 'bg-gray-100 text-gray-600'}`}>
+                        {f.type}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-mono text-gray-800 group-hover:text-primary-700">{f.path}</div>
+                        <div className="text-xs text-gray-400 truncate">{f.label}{f.hint ? ` · ${f.hint}` : ''}</div>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </React.Fragment>
+            ))}
+          </ul>
+          {selectedDef && (
+            <div className="border-t border-gray-100 px-3 py-2 text-xs text-gray-500 bg-gray-50 rounded-b-lg">
+              Selected: <span className="font-mono text-gray-700">{selectedDef.path}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export type ConditionOperator =
   | 'EQUALS'
@@ -71,12 +231,9 @@ function ConditionRow({
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <input
-        type="text"
-        placeholder="field.path"
+      <FieldPicker
         value={condition.field}
-        onChange={e => onChange({ ...condition, field: e.target.value })}
-        className="form-input w-40 text-sm"
+        onChange={v => onChange({ ...condition, field: v })}
       />
       <select
         value={condition.operator}

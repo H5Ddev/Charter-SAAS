@@ -5,6 +5,14 @@ import { Layout } from './components/layout/Layout'
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null }
   static getDerivedStateFromError(error: Error) { return { error } }
+  componentDidCatch(error: Error) {
+    // Stale chunk after a new deploy — the hashed JS file no longer exists.
+    // Force a hard reload so the browser picks up the new index.html + chunks.
+    if (error.message.includes('Failed to fetch dynamically imported module') ||
+        error.message.includes('Importing a module script failed')) {
+      window.location.reload()
+    }
+  }
   render() {
     if (this.state.error) {
       return (

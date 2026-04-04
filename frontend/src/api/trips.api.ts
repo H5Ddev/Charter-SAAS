@@ -29,8 +29,10 @@ export interface TripPassenger {
     firstName: string
     lastName: string
     email: string | null
+    phone: string | null
   }
   isPrimary: boolean
+  seatNumber: string | null
 }
 
 export interface Trip {

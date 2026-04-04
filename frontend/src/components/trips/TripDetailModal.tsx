@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { XMarkIcon, PencilIcon, CheckIcon, UserPlusIcon, XCircleIcon } from '@heroicons/react/20/solid'
+import { ClipboardDocumentListIcon } from '@heroicons/react/24/outline'
 import { Badge, tripStatusBadge } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import { useTrip, useAddTripPassenger, useRemoveTripPassenger } from '@/api/trips.api'
+import { TripManifestModal } from './TripManifestModal'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
 import { AirportSearch } from '@/components/ui/AirportSearch'
@@ -39,6 +41,7 @@ export function TripDetailModal({ tripId, onClose }: Props) {
   const { data: trip, isLoading } = useTrip(tripId ?? '')
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState(false)
+  const [manifestOpen, setManifestOpen] = useState(false)
   const [form, setForm] = useState<EditState | null>(null)
   const [originAirport, setOriginAirport] = useState<Airport | null>(null)
   const [destinationAirport, setDestinationAirport] = useState<Airport | null>(null)
@@ -149,9 +152,14 @@ export function TripDetailModal({ tripId, onClose }: Props) {
                   </Button>
                 </>
               ) : (
-                <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
-                  <PencilIcon className="h-4 w-4 mr-1" /> Edit
-                </Button>
+                <>
+                  <Button variant="secondary" size="sm" onClick={() => setManifestOpen(true)}>
+                    <ClipboardDocumentListIcon className="h-4 w-4 mr-1" /> Manifest
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+                    <PencilIcon className="h-4 w-4 mr-1" /> Edit
+                  </Button>
+                </>
               )
             )}
             <button onClick={onClose} className="rounded-lg p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100">
@@ -309,7 +317,10 @@ export function TripDetailModal({ tripId, onClose }: Props) {
                           <div>
                             <span className="text-sm font-medium text-gray-900">{p.contact.firstName} {p.contact.lastName}</span>
                             {p.isPrimary && <span className="ml-1.5 text-xs text-primary-600 font-medium">Primary</span>}
-                            {p.contact.email && <p className="text-xs text-gray-400">{p.contact.email}</p>}
+                            <p className="text-xs text-gray-400">
+                              {p.contact.phone ?? <span className="text-amber-500">⚠ no phone</span>}
+                              {p.contact.email && <span className="ml-2">{p.contact.email}</span>}
+                            </p>
                           </div>
                         </div>
                         <button
@@ -432,6 +443,10 @@ export function TripDetailModal({ tripId, onClose }: Props) {
           </div>
         ) : null}
       </div>
+
+      {manifestOpen && trip && (
+        <TripManifestModal trip={trip} onClose={() => setManifestOpen(false)} />
+      )}
     </div>
   )
 }

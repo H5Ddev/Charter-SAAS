@@ -2,15 +2,11 @@
 # AeroComm — Re-seed Database (non-destructive)
 # .github/workflows/db-seed.yml
 #
-# Runs `prisma db seed` against production without touching schema or data.
+# Runs `prisma db seed` against the database without touching schema or data.
 # All seed operations use upsert — safe to run at any time.
-# Use this to fix/refresh system templates and automation rules.
 #
 # Triggered by: Manual workflow_dispatch ONLY
-#
-# Secrets required:
-#   AZURE_CREDENTIALS   — Azure service principal JSON
-#   KEY_VAULT_NAME      — Key Vault containing DATABASE-URL secret
+# Secrets required: DATABASE_URL
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: "🌱 Re-seed Database (non-destructive)"
@@ -48,25 +44,10 @@ jobs:
         working-directory: backend
         run: npx prisma generate
 
-      - name: Azure login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Fetch DATABASE_URL from Key Vault
-        id: kv
-        run: |
-          DB_URL=$(az keyvault secret show \
-            --vault-name ${{ secrets.KEY_VAULT_NAME }} \
-            --name "DATABASE-URL" \
-            --query value -o tsv)
-          echo "::add-mask::${DB_URL}"
-          echo "database-url=${DB_URL}" >> "$GITHUB_OUTPUT"
-
       - name: Seed database
         working-directory: backend
         env:
-          DATABASE_URL: ${{ steps.kv.outputs.database-url }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           echo "🌱 Running seed (upsert — non-destructive)..."
           echo "Reason: ${{ github.event.inputs.reason || 'not specified' }}"

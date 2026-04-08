@@ -1,27 +1,27 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# AeroComm — Safe Schema Migration
+# AeroComm — Run Prisma Migrations
 # .github/workflows/db-migrate.yml
 #
-# Applies additive schema changes (new columns, new tables) to the live
-# database WITHOUT dropping any data. Safe to run after deploying new
-# Prisma schema fields.
+# Applies pending migrations to the database using prisma migrate deploy.
+# Safe to run on any environment — only runs committed migration files,
+# never generates new ones.
 #
 # Triggered by: Manual workflow_dispatch ONLY
 # ─────────────────────────────────────────────────────────────────────────────
 
-name: "🔄 Apply Schema Changes (Safe)"
+name: "🔄 Run Database Migrations"
 
 on:
   workflow_dispatch:
     inputs:
       reason:
-        description: 'What schema change are you applying?'
+        description: 'What migration are you applying?'
         required: true
         type: string
 
 jobs:
   migrate:
-    name: Apply Prisma Schema
+    name: Prisma Migrate Deploy
     runs-on: ubuntu-latest
     environment: production
 
@@ -44,34 +44,19 @@ jobs:
         working-directory: backend
         run: npx prisma generate
 
-      - name: Azure login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Fetch DATABASE_URL from Key Vault
-        id: kv
-        run: |
-          DB_URL=$(az keyvault secret show \
-            --vault-name ${{ secrets.KEY_VAULT_NAME }} \
-            --name "DATABASE-URL" \
-            --query value -o tsv)
-          echo "::add-mask::${DB_URL}"
-          echo "database-url=${DB_URL}" >> "$GITHUB_OUTPUT"
-
-      - name: Apply schema changes
+      - name: Run migrations
         working-directory: backend
         env:
-          DATABASE_URL: ${{ steps.kv.outputs.database-url }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          echo "Applying schema changes..."
+          echo "Applying migrations..."
           echo "Reason: ${{ github.event.inputs.reason }}"
-          npx prisma db push
-          echo "✅ Schema applied — no data was dropped"
+          npx prisma migrate deploy
+          echo "✅ Migrations applied"
 
       - name: Summary
         run: |
-          echo "## ✅ Schema Migration Complete" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Migration Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Field   | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY

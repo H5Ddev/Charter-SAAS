@@ -86,7 +86,8 @@ jobs:
         run: npx jest tests/unit --coverage --passWithNoTests
         env:
           NODE_ENV: test
-          DATABASE_URL: "postgresql://test:test@localhost:5432/aerocomm_test"
+          DATABASE_URL: "sqlserver://localhost:1433;database=aerocomm_test;user=sa;password=TestPass1!;encrypt=false;trustServerCertificate=true"
+          REDIS_URL: "redis://localhost:6379"
           JWT_ACCESS_SECRET: "test-access-secret-at-least-32-chars-long"
           JWT_REFRESH_SECRET: "test-refresh-secret-at-least-32-chars-long"
           JWT_ACCESS_EXPIRES_IN: "15m"
@@ -242,24 +243,39 @@ jobs:
         working-directory: backend
         run: npx prisma generate
 
-      - name: Run migrations
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Fetch DATABASE_URL from Key Vault
+        id: kv
+        run: |
+          DB_URL=$(az keyvault secret show \
+            --vault-name ${{ secrets.KEY_VAULT_NAME }} \
+            --name "DATABASE-URL" \
+            --query value -o tsv)
+          echo "::add-mask::${DB_URL}"
+          echo "database-url=${DB_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Push schema to database
         working-directory: backend
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ steps.kv.outputs.database-url }}
         run: |
-          npx prisma migrate deploy
-          echo "✅ Migrations applied"
+          npx prisma db push --accept-data-loss
+          echo "✅ Schema applied successfully"
 
       - name: Seed database (idempotent — upsert only)
         working-directory: backend
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ steps.kv.outputs.database-url }}
         run: npx prisma db seed
 
       - name: Seed airports (OurAirports.com — safe to re-run)
         working-directory: backend
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ steps.kv.outputs.database-url }}
         run: |
           npx ts-node --transpile-only scripts/seed-airports.ts
           echo "✅ Airports seeded successfully"

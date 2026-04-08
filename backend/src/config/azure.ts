@@ -1,5 +1,6 @@
 import { DefaultAzureCredential, ClientSecretCredential } from '@azure/identity'
 import { SecretClient } from '@azure/keyvault-secrets'
+import { ServiceBusClient } from '@azure/service-bus'
 import { BlobServiceClient } from '@azure/storage-blob'
 import { env } from './env'
 import { logger } from '../shared/utils/logger'
@@ -54,6 +55,32 @@ export async function getSecret(secretName: string): Promise<string> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Service Bus Client
+// ─────────────────────────────────────────────────────────────────────────────
+
+let serviceBusClient: ServiceBusClient | null = null
+
+export function getServiceBusClient(): ServiceBusClient {
+  if (!serviceBusClient) {
+    if (!env.AZURE_SERVICE_BUS_CONNECTION_STRING) {
+      logger.warn('AZURE_SERVICE_BUS_CONNECTION_STRING not configured — Service Bus disabled')
+      throw new Error('Service Bus is not configured')
+    }
+    serviceBusClient = new ServiceBusClient(env.AZURE_SERVICE_BUS_CONNECTION_STRING)
+    logger.info('Azure Service Bus client initialised')
+  }
+  return serviceBusClient
+}
+
+export async function closeServiceBusClient(): Promise<void> {
+  if (serviceBusClient) {
+    await serviceBusClient.close()
+    serviceBusClient = null
+    logger.info('Azure Service Bus client closed')
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Blob Storage Client
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -97,6 +124,14 @@ export async function initAzureClients(): Promise<void> {
       getKeyVaultClient()
     } catch (err) {
       logger.warn('Key Vault client initialisation skipped:', err)
+    }
+  }
+
+  if (env.AZURE_SERVICE_BUS_CONNECTION_STRING) {
+    try {
+      getServiceBusClient()
+    } catch (err) {
+      logger.warn('Service Bus client initialisation skipped:', err)
     }
   }
 

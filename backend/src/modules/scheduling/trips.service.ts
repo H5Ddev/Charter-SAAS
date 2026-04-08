@@ -264,7 +264,7 @@ export class TripsService {
     const primaryPassenger = existing.passengers[0]?.contact
     try {
       await eventPublisher.publish(
-        env.AUTOMATION_QUEUE,
+        env.AZURE_SERVICE_BUS_QUEUE_AUTOMATION,
         createEvent(tenantId, 'TRIP_STATUS_CHANGED', {
           tripId: id,
           fromStatus,
@@ -292,7 +292,7 @@ export class TripsService {
 
     try {
       await eventPublisher.publish(
-        env.AUTOMATION_QUEUE,
+        env.AZURE_SERVICE_BUS_QUEUE_AUTOMATION,
         createEvent(tenantId, 'TRIP_DELAY_FLAGGED', {
           tripId: id,
           delayNotes: data.delayNotes,

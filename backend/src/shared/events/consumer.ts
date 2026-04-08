@@ -1,10 +1,14 @@
-import type { Job } from 'pg-boss'
-import { getBoss } from '../queue/boss'
+import {
+  ServiceBusReceivedMessage,
+  ProcessErrorArgs,
+} from '@azure/service-bus'
+import { getServiceBusClient } from '../../config/azure'
 import { BaseEvent } from './types'
 import { logger } from '../utils/logger'
 
 export abstract class BaseConsumer {
   protected queueName: string
+  private isRunning = false
 
   constructor(queueName: string) {
     this.queueName = queueName
@@ -16,38 +20,87 @@ export abstract class BaseConsumer {
   abstract processMessage(event: BaseEvent): Promise<void>
 
   /**
-   * Register this consumer as a pg-boss worker for the queue.
+   * Start consuming messages from the queue.
    */
-  async start(): Promise<void> {
+  start(): void {
+    if (this.isRunning) {
+      logger.warn(`Consumer for ${this.queueName} is already running`)
+      return
+    }
+
     try {
-      const boss = await getBoss()
+      const client = getServiceBusClient()
+      const receiver = client.createReceiver(this.queueName, {
+        receiveMode: 'peekLock',
+      })
 
-      await boss.work(this.queueName, async (jobs: Job<object>[]) => {
-        for (const job of jobs) {
+      receiver.subscribe({
+        processMessage: async (message: ServiceBusReceivedMessage) => {
           const startTime = Date.now()
-          const event = job.data as BaseEvent
+          const event = message.body as BaseEvent
 
-          logger.debug(`Processing job from ${this.queueName}`, {
-            jobId: job.id,
+          logger.debug(`Processing message from ${this.queueName}`, {
+            eventId: event.eventId,
             eventType: event.eventType,
             tenantId: event.tenantId,
           })
 
-          await this.processMessage(event)
+          try {
+            await this.processMessage(event)
+            await receiver.completeMessage(message)
 
-          logger.info(`Job processed successfully`, {
-            jobId: job.id,
-            eventType: event.eventType,
-            duration: Date.now() - startTime,
+            logger.info(`Message processed successfully`, {
+              eventId: event.eventId,
+              eventType: event.eventType,
+              duration: Date.now() - startTime,
+            })
+          } catch (err) {
+            const error = err instanceof Error ? err : new Error(String(err))
+            const deliveryCount = message.deliveryCount ?? 0
+
+            logger.error(`Failed to process message`, {
+              eventId: event.eventId,
+              eventType: event.eventType,
+              error: error.message,
+              deliveryCount,
+            })
+
+            if (deliveryCount >= 9) {
+              // Dead letter after max retries
+              await receiver.deadLetterMessage(message, {
+                deadLetterReason: 'MaxDeliveryCountExceeded',
+                deadLetterErrorDescription: error.message,
+              })
+              logger.warn(`Message dead-lettered after ${deliveryCount + 1} attempts`, {
+                eventId: event.eventId,
+              })
+            } else {
+              // Abandon to retry with backoff
+              await receiver.abandonMessage(message)
+            }
+          }
+        },
+
+        processError: async (args: ProcessErrorArgs) => {
+          logger.error(`Service Bus error on ${this.queueName}`, {
+            error: args.error.message,
+            errorSource: args.errorSource,
+            entityPath: args.entityPath,
           })
-        }
+        },
       })
 
-      logger.info(`Worker registered for queue: ${this.queueName}`)
+      this.isRunning = true
+      logger.info(`Consumer started for queue: ${this.queueName}`)
     } catch (err) {
-      logger.warn(`Could not register worker for ${this.queueName}`, {
+      logger.warn(`Could not start consumer for ${this.queueName} — Service Bus may not be configured`, {
         error: err instanceof Error ? err.message : String(err),
       })
     }
+  }
+
+  stop(): void {
+    this.isRunning = false
+    logger.info(`Consumer stopped for queue: ${this.queueName}`)
   }
 }

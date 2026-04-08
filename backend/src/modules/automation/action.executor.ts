@@ -330,7 +330,7 @@ export class ActionExecutor {
     // Publish field updated event
     try {
       await eventPublisher.publish(
-        env.AUTOMATION_QUEUE,
+        env.AZURE_SERVICE_BUS_QUEUE_AUTOMATION,
         createEvent(tenantId, 'CONTACT_FIELD_UPDATED', {
           contactId: contact.id,
           field: config.field,
@@ -376,7 +376,7 @@ export class ActionExecutor {
 
     // Publish a new trigger event for the chained automation
     await eventPublisher.publish(
-      env.AUTOMATION_QUEUE,
+      env.AZURE_SERVICE_BUS_QUEUE_AUTOMATION,
       createEvent(tenantId, 'INBOUND_WEBHOOK', {
         integrationName: 'chain',
         integrationId: targetId,

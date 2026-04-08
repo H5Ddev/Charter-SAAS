@@ -1,8 +1,7 @@
 import './config/env' // Validate env vars first
 import { PrismaClient } from '@prisma/client'
 import { httpServer } from './app'
-import { initAzureClients } from './config/azure'
-import { getBoss, stopBoss } from './shared/queue/boss'
+import { initAzureClients, closeServiceBusClient } from './config/azure'
 import { logger } from './shared/utils/logger'
 import { env } from './config/env'
 
@@ -42,18 +41,19 @@ async function bootstrap(): Promise<void> {
     await prisma.$connect()
     logger.info('Database connected successfully')
 
-    // 2. Start pg-boss queue (creates pgboss schema on first run)
-    await getBoss()
-
-    // 3. Start automation engine worker
-    const { AutomationEngineConsumer } = await import('./modules/automation/engine.consumer')
-    const consumer = new AutomationEngineConsumer()
-    await consumer.start()
-
-    // 4. Initialise optional Azure clients (Key Vault, Blob Storage)
+    // 2. Initialise Azure clients
     await initAzureClients()
 
-    // 5. Start HTTP server
+    // 3. Start Service Bus consumers (lazy — only if configured)
+    if (env.AZURE_SERVICE_BUS_CONNECTION_STRING) {
+      const { AutomationEngineConsumer } = await import('./modules/automation/engine.consumer')
+      const consumer = new AutomationEngineConsumer()
+      consumer.start()
+    } else {
+      logger.warn('Service Bus not configured — automation engine consumer not started')
+    }
+
+    // 4. Start HTTP server
     const port = env.PORT
     httpServer.listen(port, () => {
       logger.info(`AeroComm API started`, {
@@ -75,11 +75,12 @@ async function bootstrap(): Promise<void> {
 async function shutdown(signal: string): Promise<void> {
   logger.info(`Received ${signal} — shutting down gracefully`)
 
+  // Stop accepting new connections
   httpServer.close(async () => {
     logger.info('HTTP server closed')
 
     try {
-      await stopBoss()
+      await closeServiceBusClient()
       await prisma.$disconnect()
       logger.info('Graceful shutdown complete')
       process.exit(0)
@@ -89,6 +90,7 @@ async function shutdown(signal: string): Promise<void> {
     }
   })
 
+  // Force exit after 30 seconds
   setTimeout(() => {
     logger.error('Forced shutdown after timeout')
     process.exit(1)

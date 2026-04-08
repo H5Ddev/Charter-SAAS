@@ -159,7 +159,7 @@ export class ContactsService {
     // Publish event for automation engine
     try {
       await eventPublisher.publish(
-        env.AUTOMATION_QUEUE,
+        env.AZURE_SERVICE_BUS_QUEUE_AUTOMATION,
         createEvent(tenantId, 'CONTACT_CREATED', {
           contactId: contact.id,
           type: contact.type,
@@ -212,7 +212,7 @@ export class ContactsService {
     for (const field of changedFields) {
       try {
         await eventPublisher.publish(
-          env.AUTOMATION_QUEUE,
+          env.AZURE_SERVICE_BUS_QUEUE_AUTOMATION,
           createEvent(tenantId, 'CONTACT_FIELD_UPDATED', {
             contactId: id,
             field,

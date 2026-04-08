@@ -173,7 +173,7 @@ export class QuotesService {
 
     try {
       await eventPublisher.publish(
-        env.AUTOMATION_QUEUE,
+        env.AZURE_SERVICE_BUS_QUEUE_AUTOMATION,
         createEvent(tenantId, 'QUOTE_CREATED', {
           quoteId: quote.id,
           contactId: data.contactId,
@@ -296,7 +296,7 @@ export class QuotesService {
       if (eventType) {
         try {
           await eventPublisher.publish(
-            env.AUTOMATION_QUEUE,
+            env.AZURE_SERVICE_BUS_QUEUE_AUTOMATION,
             createEvent(tenantId, eventType, {
               quoteId: id,
               contactId: existing.contactId,

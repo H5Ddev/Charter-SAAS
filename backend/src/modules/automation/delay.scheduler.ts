@@ -16,6 +16,20 @@ interface DelayedActionPayload extends BaseEvent {
 export class DelayScheduler {
   constructor(private readonly prisma: PrismaClient) {}
 
+  /**
+   * Schedule a delayed automation action.
+   * Creates a ScheduledMessage record and publishes to Service Bus with scheduledEnqueueTime.
+   *
+   * @param automationId - The automation this action belongs to
+   * @param executionLogId - The current execution log ID
+   * @param tenantId - Tenant ID
+   * @param actionType - The action type to execute when the delay expires
+   * @param actionConfig - Configuration for the delayed action
+   * @param context - Execution context (for variable resolution in delayed action)
+   * @param deliverAt - When to deliver the message
+   * @param referenceEntityType - Entity type (e.g. 'Trip', 'Contact')
+   * @param referenceEntityId - Entity ID
+   */
   async scheduleDelayedAction(
     automationId: string,
     executionLogId: string | null,
@@ -27,6 +41,7 @@ export class DelayScheduler {
     referenceEntityType: string,
     referenceEntityId: string,
   ): Promise<void> {
+    // Create the scheduled message record first
     const scheduled = await this.prisma.scheduledMessage.create({
       data: {
         tenantId,
@@ -44,7 +59,7 @@ export class DelayScheduler {
     const event: DelayedActionPayload = {
       eventId: scheduled.id,
       tenantId,
-      eventType: 'TRIP_STATUS_CHANGED',
+      eventType: 'TRIP_STATUS_CHANGED', // placeholder — consumer checks isDelayedAction
       occurredAt: new Date().toISOString(),
       payload: { ...context, scheduledMessageId: scheduled.id },
       isDelayedAction: true,
@@ -55,16 +70,17 @@ export class DelayScheduler {
     }
 
     try {
-      const jobId = await eventPublisher.publish(
-        env.AUTOMATION_QUEUE,
+      const sequenceNumber = await eventPublisher.publish(
+        env.AZURE_SERVICE_BUS_QUEUE_AUTOMATION,
         event,
         deliverAt,
       )
 
-      if (jobId) {
+      // Store the Service Bus sequence number for potential cancellation
+      if (sequenceNumber !== undefined) {
         await this.prisma.scheduledMessage.update({
           where: { id: scheduled.id },
-          data: { jobId },
+          data: { serviceBusSequenceNumber: sequenceNumber.toString() },
         })
       }
 
@@ -75,6 +91,7 @@ export class DelayScheduler {
         tenantId,
       })
     } catch (err) {
+      // If Service Bus is not available, mark as failed
       await this.prisma.scheduledMessage.update({
         where: { id: scheduled.id },
         data: { status: ScheduledMessageStatus.FAILED },
@@ -84,6 +101,9 @@ export class DelayScheduler {
     }
   }
 
+  /**
+   * Cancel all pending scheduled messages for a given entity (e.g. when a trip is cancelled).
+   */
   async cancelScheduledMessages(
     tenantId: string,
     referenceEntityType: string,
@@ -103,8 +123,11 @@ export class DelayScheduler {
 
     for (const msg of pendingMessages) {
       try {
-        if (msg.jobId) {
-          await eventPublisher.cancelScheduledMessage(env.AUTOMATION_QUEUE, msg.jobId)
+        if (msg.serviceBusSequenceNumber) {
+          await eventPublisher.cancelScheduledMessage(
+            env.AZURE_SERVICE_BUS_QUEUE_AUTOMATION,
+            BigInt(msg.serviceBusSequenceNumber),
+          )
         }
 
         await this.prisma.scheduledMessage.update({

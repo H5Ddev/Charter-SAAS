@@ -11,7 +11,7 @@ export class AutomationEngineConsumer extends BaseConsumer {
   private readonly engine: AutomationEngine
 
   constructor() {
-    super(env.AUTOMATION_QUEUE)
+    super(env.AZURE_SERVICE_BUS_QUEUE_AUTOMATION)
     this.engine = new AutomationEngine(prisma)
   }
 

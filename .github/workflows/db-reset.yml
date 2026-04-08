@@ -2,12 +2,15 @@
 # AeroComm — Database Reset Workflow (DESTRUCTIVE)
 # .github/workflows/db-reset.yml
 #
-# ⚠️  WARNING: This drops ALL tables and reseeds from scratch.
+# ⚠️  WARNING: This drops ALL tables and reseed from scratch.
 #     ALL production data will be permanently deleted.
 #
 # Triggered by: Manual workflow_dispatch ONLY
 # Requires:     Typing "RESET" in the confirmation field
-# Secrets required: DATABASE_URL
+#
+# Secrets required (same as deploy-prod.yml):
+#   AZURE_CREDENTIALS   — Azure service principal JSON
+#   KEY_VAULT_NAME      — Key Vault containing DATABASE-URL secret
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: "⚠️ Database Reset (DESTRUCTIVE)"
@@ -55,16 +58,47 @@ jobs:
         working-directory: backend
         run: npx prisma generate
 
-      - name: Reset schema and reseed
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Fetch DATABASE_URL from Key Vault
+        id: kv
+        run: |
+          DB_URL=$(az keyvault secret show \
+            --vault-name ${{ secrets.KEY_VAULT_NAME }} \
+            --name "DATABASE-URL" \
+            --query value -o tsv)
+          echo "::add-mask::${DB_URL}"
+          echo "database-url=${DB_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Drop all constraints and tables
         working-directory: backend
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ steps.kv.outputs.database-url }}
         run: |
-          echo "⚠️  Resetting database..."
+          echo "⚠️  Dropping all database objects..."
           echo "Reason: ${{ github.event.inputs.reason }}"
           echo "Actor:  ${{ github.actor }}"
-          npx prisma migrate reset --force
-          echo "✅ Reset and seed complete"
+          npx ts-node --transpile-only scripts/db-nuke.ts
+
+      - name: Recreate schema
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ steps.kv.outputs.database-url }}
+        run: |
+          npx prisma db push --accept-data-loss
+          echo "✅ Schema applied to fresh database"
+
+      - name: Seed database
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ steps.kv.outputs.database-url }}
+        run: |
+          echo "🌱 Seeding database..."
+          npx prisma db seed
+          echo "✅ Seed complete"
 
       - name: Summary
         run: |

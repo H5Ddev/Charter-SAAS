@@ -14,6 +14,9 @@ const envSchema = z.object({
   // Database
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
 
+  // Redis
+  REDIS_URL: z.string().min(1, 'REDIS_URL is required'),
+
   // JWT
   JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
   JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
@@ -33,9 +36,10 @@ const envSchema = z.object({
   AZURE_CLIENT_SECRET: z.string().optional(),
   AZURE_TENANT_ID: z.string().optional(),
 
-  // Queue names (pg-boss)
-  AUTOMATION_QUEUE: z.string().default('automation-events'),
-  NOTIFICATION_QUEUE: z.string().default('notification-events'),
+  // Azure Service Bus
+  AZURE_SERVICE_BUS_CONNECTION_STRING: z.string().optional(),
+  AZURE_SERVICE_BUS_QUEUE_AUTOMATION: z.string().default('automation-events'),
+  AZURE_SERVICE_BUS_QUEUE_NOTIFICATIONS: z.string().default('notification-events'),
 
   // Azure Blob Storage
   AZURE_STORAGE_CONNECTION_STRING: z.string().optional(),

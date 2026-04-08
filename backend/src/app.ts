@@ -16,6 +16,7 @@ import { errorHandler } from './shared/middleware/errorHandler'
 import { successResponse } from './shared/utils/response'
 import { logger } from './shared/utils/logger'
 import { JwtPayload } from './shared/middleware/auth'
+import { inAppSender } from './modules/notifications/channels/inapp.sender'
 
 // Route imports
 import { authRouter } from './modules/auth/auth.router'
@@ -86,6 +87,9 @@ io.on('connection', (socket) => {
     logger.debug(`Socket disconnected: ${user.id}`)
   })
 })
+
+// Give the in-app sender access to the Socket.io server
+inAppSender.setIo(io)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Security Middleware

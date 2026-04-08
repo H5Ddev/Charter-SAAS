@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { io, Socket } from 'socket.io-client'
 import { useAuthStore } from './auth.store'
+import { useNotificationsStore } from './notifications.store'
 
 interface SocketState {
   socket: Socket | null
@@ -44,9 +45,12 @@ export const useSocketStore = create<SocketState>((set, get) => ({
       title: string
       body: string
       link?: string
+      createdAt: string
     }) => {
-      // Dispatch to a notifications store or show a toast
-      console.info('New notification:', notification.title)
+      useNotificationsStore.getState().add({
+        ...notification,
+        createdAt: new Date(notification.createdAt),
+      })
     })
 
     // Listen for real-time trip status updates

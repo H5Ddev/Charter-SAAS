@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Suspense, lazy, Component, type ReactNode } from 'react'
 import { Layout } from './components/layout/Layout'
+import { ToastContainer } from './components/ui/ToastContainer'
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null }
@@ -66,6 +67,7 @@ function PageLoader() {
 export default function App() {
   return (
     <ErrorBoundary>
+    <ToastContainer />
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/auth/mfa" element={<MfaPage />} />

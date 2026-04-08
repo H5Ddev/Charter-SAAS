@@ -5,6 +5,7 @@ import {
   CreateTemplateSchema,
   UpdateTemplateSchema,
 } from './notification.service'
+import { inAppSender } from './channels/inapp.sender'
 import { successResponse } from '../../shared/utils/response'
 import { requireAuth } from '../../shared/middleware/auth'
 import { tenantScope } from '../../shared/middleware/tenantScope'
@@ -78,6 +79,19 @@ notificationsRouter.post('/templates/:id/preview', async (req: Request, res: Res
     const result = await service.previewTemplate(req.params.id!, req.tenantId!, variables)
     res.json(successResponse(result))
   } catch (err) { next(err) }
+})
+
+// POST /api/notifications/test — fire a test notification to the current user
+notificationsRouter.post('/test', (req: Request, res: Response) => {
+  const userId = req.user!.id
+  inAppSender.send(userId, {
+    id: `test-${Date.now()}`,
+    title: req.body.title ?? 'Test notification',
+    body: req.body.body ?? 'This is a test in-app notification from AeroComm.',
+    link: req.body.link,
+    createdAt: new Date(),
+  })
+  res.json(successResponse({ sent: true, userId }))
 })
 
 // POST /api/notifications/send

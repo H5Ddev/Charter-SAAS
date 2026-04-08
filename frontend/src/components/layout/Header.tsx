@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  BellIcon,
   ChevronDownIcon,
   ArrowRightOnRectangleIcon,
   Cog6ToothIcon,
@@ -9,6 +8,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/store/auth.store'
 import { useLogout } from '@/api/auth.api'
+import { NotificationBell } from './NotificationBell'
 
 const PAGE_LABELS: Record<string, string> = {
   '/': 'Dashboard',
@@ -54,15 +54,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         <span className="text-sm font-semibold text-gray-900 truncate">{pageLabel}</span>
       </div>
 
-      {/* Notification Bell */}
-      <button
-        className="relative rounded-full p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-        aria-label="Notifications"
-      >
-        <BellIcon className="h-5 w-5" />
-        {/* Unread dot — wired up via socket store in a real implementation */}
-        <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500" />
-      </button>
+      <NotificationBell />
 
       {/* User Dropdown */}
       <div className="relative">

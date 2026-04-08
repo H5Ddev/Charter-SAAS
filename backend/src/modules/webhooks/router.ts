@@ -183,7 +183,7 @@ webhooksRouter.post(
       if (tenantId !== 'unknown') {
         try {
           await eventPublisher.publish(
-            env.AZURE_SERVICE_BUS_QUEUE_AUTOMATION,
+            env.AUTOMATION_QUEUE,
             createEvent(tenantId, 'INBOUND_WEBHOOK', {
               integrationName,
               integrationId: dbIntegration?.id ?? '',

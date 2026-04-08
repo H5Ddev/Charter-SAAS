@@ -4,13 +4,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlserver"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
-// NOTE: SQL Server connector does not support Prisma enums or Json types.
-// All enum fields use String with application-level validation.
-// All Json fields use String (store as JSON string, parse in application).
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tenant
@@ -71,15 +67,29 @@ model User {
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  mfaSettings UserMfaSettings?
-  auditLogs   AuditLog[]
+  tenant        Tenant           @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  mfaSettings   UserMfaSettings?
+  auditLogs     AuditLog[]
+  refreshTokens RefreshToken[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([tenantId, email])
   @@index([tenantId, role])
   @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
 }
 
 model UserMfaSettings {
@@ -1062,7 +1072,7 @@ model ScheduledMessage {
   actionConfig             String
   referenceEntityType      String
   referenceEntityId        String
-  serviceBusSequenceNumber String?
+  jobId                    String?
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
   deletedAt                DateTime?

@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
 import { PrismaClient } from '@prisma/client'
-import Redis from 'ioredis'
 import { AuthService } from './auth.service'
 import { RegisterSchema, LoginSchema, MfaVerifySchema } from './auth.types'
 import { successResponse, errorResponse } from '../../shared/utils/response'
@@ -8,8 +7,7 @@ import { requireAuth } from '../../shared/middleware/auth'
 import { env } from '../../config/env'
 
 const prisma = new PrismaClient()
-const redis = new Redis(env.REDIS_URL)
-const authService = new AuthService(prisma, redis)
+const authService = new AuthService(prisma)
 
 const COOKIE_OPTIONS = {
   httpOnly: true,

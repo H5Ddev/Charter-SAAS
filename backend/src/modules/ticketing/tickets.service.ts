@@ -123,7 +123,7 @@ export class TicketsService {
 
     try {
       await eventPublisher.publish(
-        env.AZURE_SERVICE_BUS_QUEUE_AUTOMATION,
+        env.AUTOMATION_QUEUE,
         createEvent(tenantId, 'TICKET_OPENED', {
           ticketId: ticket.id,
           contactId: ticket.contactId ?? undefined,

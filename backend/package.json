@@ -19,7 +19,6 @@
   "dependencies": {
     "@azure/identity": "^4.0.0",
     "@azure/keyvault-secrets": "^4.8.0",
-    "@azure/service-bus": "^7.9.0",
     "@azure/storage-blob": "^12.17.0",
     "@prisma/client": "^5.10.0",
     "@sendgrid/mail": "^8.1.0",
@@ -32,10 +31,10 @@
     "express": "^4.18.3",
     "express-rate-limit": "^7.2.0",
     "helmet": "^7.1.0",
-    "ioredis": "^5.3.2",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "otpauth": "^9.2.2",
+    "pg-boss": "^10.4.2",
     "qrcode": "^1.5.3",
     "socket.io": "^4.7.4",
     "swagger-jsdoc": "^6.2.8",
@@ -73,16 +72,30 @@
     "preset": "ts-jest",
     "testEnvironment": "node",
     "transform": {
-      "^.+\\.tsx?$": ["ts-jest", { "tsconfig": "tsconfig.test.json" }]
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "tsconfig": "tsconfig.test.json"
+        }
+      ]
     },
-    "roots": ["<rootDir>/tests", "<rootDir>/src"],
-    "testMatch": ["**/*.test.ts"],
+    "roots": [
+      "<rootDir>/tests",
+      "<rootDir>/src"
+    ],
+    "testMatch": [
+      "**/*.test.ts"
+    ],
     "collectCoverageFrom": [
       "src/**/*.ts",
       "!src/**/*.d.ts",
       "!src/server.ts"
     ],
     "coverageDirectory": "coverage",
-    "coverageReporters": ["text", "lcov", "html"]
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html"
+    ]
   }
 }

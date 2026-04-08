@@ -10,17 +10,16 @@ services:
       - '3000:3000'
     environment:
       NODE_ENV: development
-      DATABASE_URL: 'sqlserver://db:1433;database=aerocomm_dev;user=sa;password=AeroComm_Dev1!;encrypt=false;trustServerCertificate=true'
-      REDIS_URL: 'redis://redis:6379'
+      DATABASE_URL: 'postgresql://aerocomm:aerocomm@db:5432/aerocomm_dev'
       JWT_ACCESS_SECRET: 'dev-access-secret-change-in-prod'
       JWT_REFRESH_SECRET: 'dev-refresh-secret-change-in-prod'
       JWT_ACCESS_EXPIRES_IN: '15m'
       JWT_REFRESH_EXPIRES_IN: '7d'
+      AUTOMATION_QUEUE: automation-events
+      NOTIFICATION_QUEUE: notification-events
       AZURE_STORAGE_CONNECTION_STRING: 'DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tiqIRQcFQsAXLJQ==;BlobEndpoint=http://azurite:10000/devstoreaccount1;'
       AZURE_STORAGE_CONTAINER_DOCUMENTS: documents
       AZURE_STORAGE_CONTAINER_PHOTOS: photos
-      AZURE_SERVICE_BUS_QUEUE_AUTOMATION: automation-events
-      AZURE_SERVICE_BUS_QUEUE_NOTIFICATIONS: notification-events
       TOTP_APP_NAME: AeroComm
       TOTP_ISSUER: AeroComm
       CORS_ORIGINS: 'http://localhost:5173,http://localhost:3000'
@@ -35,9 +34,10 @@ services:
       - ./backend:/app
       - /app/node_modules
     depends_on:
-      - db
-      - redis
-      - azurite
+      db:
+        condition: service_healthy
+      azurite:
+        condition: service_started
     networks:
       - aerocomm
 
@@ -61,41 +61,29 @@ services:
       - aerocomm
 
   db:
-    image: mcr.microsoft.com/azure-sql-edge:latest
-    platform: linux/arm64
+    image: postgres:16-alpine
     ports:
-      - '1433:1433'
+      - '5432:5432'
     environment:
-      SA_PASSWORD: 'AeroComm_Dev1!'
-      ACCEPT_EULA: 'Y'
-      MSSQL_PID: Developer
+      POSTGRES_USER: aerocomm
+      POSTGRES_PASSWORD: aerocomm
+      POSTGRES_DB: aerocomm_dev
     volumes:
-      - mssql_data:/var/opt/mssql
+      - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'bash -c "</dev/tcp/localhost/1433" 2>/dev/null && exit 0 || exit 1']
-      interval: 10s
+      test: ['CMD-SHELL', 'pg_isready -U aerocomm -d aerocomm_dev']
+      interval: 5s
       timeout: 5s
       retries: 10
-      start_period: 30s
-    networks:
-      - aerocomm
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - '6379:6379'
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
     networks:
       - aerocomm
 
   azurite:
     image: mcr.microsoft.com/azure-storage/azurite
     ports:
-      - '10000:10000'  # Blob service
-      - '10001:10001'  # Queue service
-      - '10002:10002'  # Table service
+      - '10000:10000'
+      - '10001:10001'
+      - '10002:10002'
     volumes:
       - azurite_data:/data
     command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --location /data --debug /data/debug.log
@@ -103,8 +91,7 @@ services:
       - aerocomm
 
 volumes:
-  mssql_data:
-  redis_data:
+  pg_data:
   azurite_data:
 
 networks:

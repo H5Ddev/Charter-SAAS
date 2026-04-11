@@ -276,7 +276,6 @@ model Aircraft {
   photos             AircraftPhoto[]
   availabilities     AircraftAvailability[]
   trips              Trip[]
-  tripLegs           TripLeg[]
   maintenanceRecords MaintenanceRecord[]
   crewGroups         CrewGroup[]
   aircraftClassId    String?
@@ -522,8 +521,6 @@ model Trip {
   destinationIcao   String
   departureAt       DateTime
   arrivalAt         DateTime?
-  returnDepartureAt DateTime?
-  returnArrivalAt   DateTime?
   fboName           String?
   fboAddress        String?
   boardingTime      DateTime?
@@ -540,7 +537,6 @@ model Trip {
   tenant          Tenant               @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   aircraft        Aircraft?            @relation(fields: [aircraftId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   quote           Quote?               @relation(fields: [quoteId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  legs            TripLeg[]
   passengers      TripPassenger[]
   statusHistory   TripStatusHistory[]
   tickets         Ticket[]
@@ -552,29 +548,6 @@ model Trip {
   @@index([aircraftId])
   @@index([quoteId])
   @@map("trips")
-}
-
-model TripLeg {
-  id              String    @id @default(cuid())
-  tenantId        String
-  tripId          String
-  legNumber       Int
-  originIcao      String
-  destinationIcao String
-  departureAt     DateTime
-  arrivalAt       DateTime?
-  aircraftId      String?
-  notes           String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  deletedAt       DateTime?
-
-  trip     Trip      @relation(fields: [tripId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  aircraft Aircraft? @relation(fields: [aircraftId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@index([tenantId])
-  @@index([tenantId, tripId])
-  @@map("trip_legs")
 }
 
 model TripPassenger {

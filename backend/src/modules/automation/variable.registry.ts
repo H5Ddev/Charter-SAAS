@@ -35,7 +35,6 @@ export const VARIABLE_REGISTRY: TemplateVariable[] = [
   { path: 'trip.isDelayed', name: 'Is Delayed', type: 'BOOLEAN', description: 'Whether the trip is delayed', example: 'false', group: 'Trip' },
   { path: 'trip.delayNotes', name: 'Delay Notes', type: 'STRING', description: 'Reason for delay', example: 'Weather delay at origin', group: 'Trip' },
   { path: 'trip.surveyLink', name: 'Survey Link', type: 'URL', description: 'Post-flight survey URL', example: 'https://forms.gle/abc123', group: 'Trip' },
-  { path: 'trip.returnDepartureAt', name: 'Return Departure', type: 'DATETIME', description: 'Return flight departure time', example: '2024-06-17 14:00 PM ET', group: 'Trip' },
 
   // Aircraft variables
   { path: 'aircraft.tailNumber', name: 'Tail Number', type: 'STRING', description: 'Aircraft registration number', example: 'N737SC', group: 'Aircraft' },

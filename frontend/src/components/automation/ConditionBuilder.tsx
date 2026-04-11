@@ -21,7 +21,7 @@ const CONDITION_FIELDS: FieldDef[] = [
   { path: 'trip.destinationIcao',   label: 'Destination ICAO',     group: 'Trip',    type: 'STRING',  hint: 'e.g. KPBI' },
   { path: 'trip.fboName',           label: 'FBO Name',             group: 'Trip',    type: 'STRING' },
   { path: 'trip.notes',             label: 'Notes',                group: 'Trip',    type: 'STRING' },
-  { path: 'trip.returnDepartureAt', label: 'Return Departure',     group: 'Trip',    type: 'DATE',    hint: 'Non-empty = round trip' },
+  { path: 'trip.returnTripId',      label: 'Is Round Trip',        group: 'Trip',    type: 'STRING',  hint: 'Non-empty = round trip' },
   { path: 'trip.surveyLink',        label: 'Survey Link',          group: 'Trip',    type: 'STRING' },
   // Contact
   { path: 'contact.firstName',      label: 'First Name',           group: 'Contact', type: 'STRING' },

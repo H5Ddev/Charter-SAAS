@@ -500,17 +500,17 @@ function TripCard({ trip }: { trip: PortalTrip }) {
             <p className="font-mono font-bold text-gray-900 text-lg">{trip.destinationIcao}</p>
             <p className="text-xs text-gray-600">{trip.arrivalAt ? fmtDateTime(trip.arrivalAt) : '—'}</p>
           </div>
-          {trip.returnDepartureAt && (
+          {trip.returnTrip && (
             <>
               <div>
                 <p className="text-xs text-gray-400 mb-0.5">Return Departure</p>
-                <p className="font-mono font-bold text-gray-900 text-lg">{trip.destinationIcao}</p>
-                <p className="text-xs text-gray-600">{fmtDateTime(trip.returnDepartureAt)}</p>
+                <p className="font-mono font-bold text-gray-900 text-lg">{trip.returnTrip.originIcao}</p>
+                <p className="text-xs text-gray-600">{fmtDateTime(trip.returnTrip.departureAt)}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-400 mb-0.5">Return Arrival</p>
-                <p className="font-mono font-bold text-gray-900 text-lg">{trip.originIcao}</p>
-                <p className="text-xs text-gray-600">{trip.returnArrivalAt ? fmtDateTime(trip.returnArrivalAt) : '—'}</p>
+                <p className="font-mono font-bold text-gray-900 text-lg">{trip.returnTrip.destinationIcao}</p>
+                <p className="text-xs text-gray-600">{trip.returnTrip.arrivalAt ? fmtDateTime(trip.returnTrip.arrivalAt) : '—'}</p>
               </div>
             </>
           )}
@@ -527,11 +527,6 @@ function TripCard({ trip }: { trip: PortalTrip }) {
               <p className="text-gray-700">
                 <span className="font-medium">FBO:</span> {trip.fboName}
                 {trip.fboAddress && ` · ${trip.fboAddress}`}
-              </p>
-            )}
-            {trip.pilots && (
-              <p className="text-gray-700">
-                <span className="font-medium">Crew:</span> {trip.pilots}
               </p>
             )}
           </div>

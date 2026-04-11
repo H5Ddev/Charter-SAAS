@@ -273,8 +273,8 @@ export default function Dashboard() {
         ) : (
           <ul className="divide-y divide-gray-100">
             {trips.map((trip) => {
-              const originIcao = trip.legs?.[0]?.originIcao ?? trip.originIcao
-              const destIcao = trip.legs?.[0]?.destinationIcao ?? trip.destinationIcao
+              const originIcao = trip.originIcao
+              const destIcao = trip.destinationIcao
               const dep = new Date(trip.departureAt)
               const departureFormatted =
                 dep.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +

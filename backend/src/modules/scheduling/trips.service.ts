@@ -25,6 +25,12 @@ export const CreateTripSchema = z.object({
   crewIds: z.array(z.string()).default([]),
   distanceNm: z.number().optional().nullable(),
   estimatedHours: z.number().optional().nullable(),
+  // Round trip: when provided, a linked return Trip is created in the same
+  // transaction with origin/destination flipped and the same passengers copied.
+  returnTrip: z.object({
+    departureAt: z.string().datetime(),
+    arrivalAt: z.string().datetime().optional().nullable(),
+  }).optional().nullable(),
 })
 
 export const UpdateTripSchema = z.object({
@@ -64,7 +70,13 @@ export class TripsService {
     pageSize?: number
   } = {}) {
     const { status, page = 1, pageSize = 20 } = filters
-    const where: Prisma.TripWhereInput = { tenantId, deletedAt: null }
+    // Exclude trips that are themselves the "return leg" of another trip —
+    // those are surfaced as the nested `returnTrip` on their outbound.
+    const where: Prisma.TripWhereInput = {
+      tenantId,
+      deletedAt: null,
+      outboundTrip: { is: null },
+    }
     if (status) where.status = status
 
     const [total, trips] = await Promise.all([
@@ -76,6 +88,7 @@ export class TripsService {
           passengers: {
             include: { contact: { select: { id: true, firstName: true, lastName: true } } },
           },
+          returnTrip: true,
           _count: { select: { tickets: true } },
         },
         orderBy: { departureAt: 'asc' },
@@ -100,6 +113,7 @@ export class TripsService {
         },
         statusHistory: { orderBy: { changedAt: 'desc' } },
         tickets: { where: { deletedAt: null }, take: 5 },
+        returnTrip: true,
       },
     })
     if (!trip) throw new AppError(404, 'TRIP_NOT_FOUND', 'Trip not found')
@@ -146,15 +160,17 @@ export class TripsService {
   }
 
   async create(tenantId: string, userId: string, data: CreateTripDto) {
-    // Check aircraft availability if provided
+    // Check aircraft availability if provided (covers both outbound + return
+    // if this is a round trip).
     if (data.aircraftId) {
+      const rangeEnd = data.returnTrip?.arrivalAt ?? data.returnTrip?.departureAt ?? data.arrivalAt ?? data.departureAt
       const conflict = await this.prisma.aircraftAvailability.findFirst({
         where: {
           aircraftId: data.aircraftId,
           tenantId,
           deletedAt: null,
           AND: [
-            { startAt: { lte: new Date(data.arrivalAt ?? data.departureAt) } },
+            { startAt: { lte: new Date(rangeEnd) } },
             { endAt: { gte: new Date(data.departureAt) } },
           ],
         },
@@ -164,58 +180,104 @@ export class TripsService {
       }
     }
 
-    const trip = await this.prisma.trip.create({
-      data: {
-        tenantId,
-        aircraftId: data.aircraftId ?? undefined,
-        status: TripStatus.INQUIRY,
-        originIcao: data.originIcao,
-        destinationIcao: data.destinationIcao,
-        departureAt: new Date(data.departureAt),
-        arrivalAt: data.arrivalAt ? new Date(data.arrivalAt) : undefined,
-        fboName: data.fboName ?? undefined,
-        fboAddress: data.fboAddress ?? undefined,
-        boardingTime: data.boardingTime ? new Date(data.boardingTime) : undefined,
-        paxCount: data.paxCount,
-        notes: data.notes ?? undefined,
-        quoteId: data.quoteId ?? undefined,
-        statusHistory: {
-          create: [{
+    // Create outbound + (optional) return trip atomically.
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Create the return trip first (without passengers — we copy those
+      //    below once we have both trip IDs). The outbound will point at it
+      //    via returnTripId.
+      let returnTripId: string | undefined = undefined
+      if (data.returnTrip) {
+        const returnTrip = await tx.trip.create({
+          data: {
             tenantId,
-            fromStatus: null,
-            toStatus: TripStatus.INQUIRY,
-            changedBy: userId,
-            changedAt: new Date(),
-          }],
-        },
-        ...(data.passengerIds.length > 0 && {
-          passengers: {
-            create: data.passengerIds.map((contactId, i) => ({
-              tenantId,
-              contactId,
-              isPrimary: i === 0,
-            })),
+            aircraftId: data.aircraftId ?? undefined,
+            status: TripStatus.INQUIRY,
+            originIcao: data.destinationIcao,
+            destinationIcao: data.originIcao,
+            departureAt: new Date(data.returnTrip.departureAt),
+            arrivalAt: data.returnTrip.arrivalAt ? new Date(data.returnTrip.arrivalAt) : undefined,
+            paxCount: data.paxCount,
+            quoteId: data.quoteId ?? undefined,
+            statusHistory: {
+              create: [{
+                tenantId,
+                fromStatus: null,
+                toStatus: TripStatus.INQUIRY,
+                changedBy: userId,
+                changedAt: new Date(),
+                notes: 'Return leg created with outbound trip',
+              }],
+            },
+            ...(data.passengerIds.length > 0 && {
+              passengers: {
+                create: data.passengerIds.map((contactId, i) => ({
+                  tenantId,
+                  contactId,
+                  isPrimary: i === 0,
+                })),
+              },
+            }),
           },
-        }),
-        ...(data.crewIds.length > 0 && {
-          crewAssignments: {
-            create: data.crewIds.map((crewMemberId) => ({
-              tenantId,
-              crewMemberId,
-              role: 'ASSIGNED', // actual role is on the CrewMember record itself
-            })),
-          },
-        }),
-      },
-      include: {
-        aircraft: { select: { id: true, tailNumber: true, make: true, model: true } },
-        crewAssignments: {
-          include: { crewMember: { select: { id: true, firstName: true, lastName: true, role: true } } },
-        },
-      },
-    })
+        })
+        returnTripId = returnTrip.id
+      }
 
-    return trip
+      // 2. Create the outbound trip, pointing at the return trip if any.
+      const trip = await tx.trip.create({
+        data: {
+          tenantId,
+          aircraftId: data.aircraftId ?? undefined,
+          status: TripStatus.INQUIRY,
+          originIcao: data.originIcao,
+          destinationIcao: data.destinationIcao,
+          departureAt: new Date(data.departureAt),
+          arrivalAt: data.arrivalAt ? new Date(data.arrivalAt) : undefined,
+          fboName: data.fboName ?? undefined,
+          fboAddress: data.fboAddress ?? undefined,
+          boardingTime: data.boardingTime ? new Date(data.boardingTime) : undefined,
+          paxCount: data.paxCount,
+          notes: data.notes ?? undefined,
+          quoteId: data.quoteId ?? undefined,
+          returnTripId,
+          statusHistory: {
+            create: [{
+              tenantId,
+              fromStatus: null,
+              toStatus: TripStatus.INQUIRY,
+              changedBy: userId,
+              changedAt: new Date(),
+            }],
+          },
+          ...(data.passengerIds.length > 0 && {
+            passengers: {
+              create: data.passengerIds.map((contactId, i) => ({
+                tenantId,
+                contactId,
+                isPrimary: i === 0,
+              })),
+            },
+          }),
+          ...(data.crewIds.length > 0 && {
+            crewAssignments: {
+              create: data.crewIds.map((crewMemberId) => ({
+                tenantId,
+                crewMemberId,
+                role: 'ASSIGNED', // actual role is on the CrewMember record itself
+              })),
+            },
+          }),
+        },
+        include: {
+          aircraft: { select: { id: true, tailNumber: true, make: true, model: true } },
+          crewAssignments: {
+            include: { crewMember: { select: { id: true, firstName: true, lastName: true, role: true } } },
+          },
+          returnTrip: true,
+        },
+      })
+
+      return trip
+    })
   }
 
   async updateStatus(tenantId: string, id: string, userId: string, data: UpdateTripStatusDto) {

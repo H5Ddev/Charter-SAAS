@@ -72,12 +72,12 @@ const PREBUILT_TEMPLATES: PrebuiltTemplate[] = [
   {
     id: 'S04',
     name: 'Day-Before Itinerary',
-    description: 'Sends full itinerary with pilot and FBO details 24 hours out.',
+    description: 'Sends full itinerary with FBO details 24 hours out.',
     trigger: 'TRIP_STATUS_CHANGED',
     triggerFilter: 'When status changes → CONFIRMED',
     timing: '24 hours before departure',
     recipients: 'All trip passengers',
-    smsBody: '📋 Your flight departs tomorrow.\n• Pilot(s): {{trip.pilots}}\n• Departure Time: {{trip.departureTime}}\n• Location: {{trip.fboName}} — {{trip.fboAddress}}\nLet us know if you need anything!',
+    smsBody: '📋 Your flight departs tomorrow.\n• Departure Time: {{trip.departureTime}}\n• Location: {{trip.fboName}} — {{trip.fboAddress}}\nLet us know if you need anything!',
     conditions: [],
   },
   {

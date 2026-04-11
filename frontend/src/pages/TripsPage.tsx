@@ -306,11 +306,13 @@ export default function TripsPage() {
       destinationIcao: values.destinationIcao,
       departureAt: new Date(values.departureAt).toISOString(),
       arrivalAt: values.arrivalAt ? new Date(values.arrivalAt).toISOString() : undefined,
-      returnDepartureAt: isRoundTrip && values.returnDepartureAt
-        ? new Date(values.returnDepartureAt).toISOString()
-        : undefined,
-      returnArrivalAt: isRoundTrip && values.returnArrivalAt
-        ? new Date(values.returnArrivalAt).toISOString()
+      returnTrip: isRoundTrip && values.returnDepartureAt
+        ? {
+            departureAt: new Date(values.returnDepartureAt).toISOString(),
+            arrivalAt: values.returnArrivalAt
+              ? new Date(values.returnArrivalAt).toISOString()
+              : undefined,
+          }
         : undefined,
       paxCount: values.paxCount,
       notes: values.notes || undefined,
@@ -332,8 +334,8 @@ export default function TripsPage() {
       key: 'route',
       header: 'Route',
       render: (t) => {
-        const origin = t.legs?.[0]?.originIcao ?? t.originIcao
-        const destination = t.legs?.[0]?.destinationIcao ?? t.destinationIcao
+        const origin = t.originIcao
+        const destination = t.destinationIcao
         return (
           <div className="flex items-center gap-1.5">
             <span className="font-mono font-bold text-gray-900 text-sm tracking-wide">
@@ -355,7 +357,7 @@ export default function TripsPage() {
             <span className="font-mono font-bold text-gray-900 text-sm tracking-wide">
               {destination}
             </span>
-            {t.returnDepartureAt && (
+            {t.returnTrip && (
               <span className="ml-1 text-xs text-primary-600 font-medium">↩ RT</span>
             )}
           </div>

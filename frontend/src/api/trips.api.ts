@@ -10,17 +10,6 @@ export type TripStatus =
   | 'COMPLETED'
   | 'CANCELLED'
 
-export interface TripLeg {
-  id: string
-  sequence: number
-  originIcao: string
-  destinationIcao: string
-  scheduledDeparture: string
-  scheduledArrival: string
-  actualDeparture: string | null
-  actualArrival: string | null
-}
-
 export interface TripPassenger {
   id: string
   contactId: string
@@ -46,14 +35,20 @@ export interface Trip {
     make: string
     model: string
   } | null
-  legs: TripLeg[]
   passengers: TripPassenger[]
   originIcao: string
   destinationIcao: string
   departureAt: string
   arrivalAt: string | null
-  returnDepartureAt: string | null
-  returnArrivalAt: string | null
+  returnTripId: string | null
+  returnTrip: {
+    id: string
+    departureAt: string
+    arrivalAt: string | null
+    originIcao: string
+    destinationIcao: string
+    status: TripStatus
+  } | null
   isDelayed: boolean
   delayNotes: string | null
   paxCount: number
@@ -80,8 +75,10 @@ export interface CreateTripInput {
   destinationIcao: string
   departureAt: string
   arrivalAt?: string
-  returnDepartureAt?: string
-  returnArrivalAt?: string
+  returnTrip?: {
+    departureAt: string
+    arrivalAt?: string
+  }
   paxCount: number
   notes?: string
   distanceNm?: number

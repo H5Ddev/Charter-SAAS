@@ -54,12 +54,16 @@ export interface PortalTrip {
   destinationIcao: string
   departureAt: string
   arrivalAt: string | null
-  returnDepartureAt: string | null
-  returnArrivalAt: string | null
+  returnTrip: {
+    id: string
+    departureAt: string
+    arrivalAt: string | null
+    originIcao: string
+    destinationIcao: string
+  } | null
   boardingTime: string | null
   fboName: string | null
   fboAddress: string | null
-  pilots: string | null
   paxCount: number
   isDelayed: boolean
   delayNotes: string | null

@@ -530,6 +530,7 @@ model Trip {
   delayNotes        String?
   surveyLink        String?
   quoteId           String?
+  returnTripId      String?   @unique
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
@@ -537,6 +538,8 @@ model Trip {
   tenant          Tenant               @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   aircraft        Aircraft?            @relation(fields: [aircraftId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   quote           Quote?               @relation(fields: [quoteId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  returnTrip      Trip?                @relation("TripRoundTrip", fields: [returnTripId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  outboundTrip    Trip?                @relation("TripRoundTrip")
   passengers      TripPassenger[]
   statusHistory   TripStatusHistory[]
   tickets         Ticket[]

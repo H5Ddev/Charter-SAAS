@@ -10,6 +10,11 @@
  * → Return TwiML response
  */
 
+// Make this file a TypeScript module so top-level `const` declarations are
+// scoped to the file instead of leaking to the global test-compile scope
+// (otherwise they collide with identically-named consts in sibling test files).
+export {}
+
 const SKIP_INTEGRATION = !process.env['DATABASE_URL']
 const describe_integration = SKIP_INTEGRATION ? describe.skip : describe
 

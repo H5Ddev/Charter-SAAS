@@ -72,8 +72,13 @@ jobs:
         run: npm run test
         env:
           NODE_ENV: test
-          DATABASE_URL: 'sqlserver://localhost:1433;database=aerocomm_test;user=sa;password=TestPass1!;encrypt=false;trustServerCertificate=true'
-          REDIS_URL: 'redis://localhost:6379'
+          # DATABASE_URL deliberately unset: integration test files gate on
+          # `!process.env['DATABASE_URL']` and skip when it's missing. CI has
+          # no SQL Server service, so running them would fail at $connect().
+          # Local dev runs them by setting DATABASE_URL against the docker
+          # compose db container. A future CI improvement could add an
+          # azure-sql-edge service container and enable integration tests
+          # here, but that's out of scope for now.
           JWT_ACCESS_SECRET: 'test-access-secret-at-least-32-chars-long'
           JWT_REFRESH_SECRET: 'test-refresh-secret-at-least-32-chars-long'
           JWT_ACCESS_EXPIRES_IN: '15m'

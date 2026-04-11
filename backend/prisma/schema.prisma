@@ -103,51 +103,6 @@ model UserMfaSettings {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RBAC
-// ─────────────────────────────────────────────────────────────────────────────
-
-model Role {
-  id          String    @id @default(cuid())
-  tenantId    String
-  name        String
-  description String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-
-  permissions RolePermission[]
-
-  @@unique([tenantId, name])
-  @@index([tenantId])
-  @@map("roles")
-}
-
-model Permission {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  resource  String
-  action    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  roles RolePermission[]
-
-  @@unique([resource, action])
-  @@map("permissions")
-}
-
-model RolePermission {
-  roleId       String
-  permissionId String
-
-  role       Role       @relation(fields: [roleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  permission Permission @relation(fields: [permissionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@id([roleId, permissionId])
-  @@map("role_permissions")
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Organizations & Contacts
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -13,9 +13,6 @@ build/
 .env.*
 !.env.example
 
-# Prisma
-backend/prisma/migrations/
-
 # Logs
 logs/
 *.log

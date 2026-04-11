@@ -75,7 +75,7 @@ export class TripsService {
     const where: Prisma.TripWhereInput = {
       tenantId,
       deletedAt: null,
-      outboundTrip: { is: null },
+      outboundTrip: { none: {} },
     }
     if (status) where.status = status
 

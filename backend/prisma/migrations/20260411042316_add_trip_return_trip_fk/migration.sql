@@ -5,9 +5,6 @@ BEGIN TRAN;
 -- AlterTable
 ALTER TABLE [dbo].[trips] ADD [returnTripId] NVARCHAR(1000);
 
--- CreateIndex
-ALTER TABLE [dbo].[trips] ADD CONSTRAINT [trips_returnTripId_key] UNIQUE NONCLUSTERED ([returnTripId]);
-
 -- AddForeignKey
 ALTER TABLE [dbo].[trips] ADD CONSTRAINT [trips_returnTripId_fkey] FOREIGN KEY ([returnTripId]) REFERENCES [dbo].[trips]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
 

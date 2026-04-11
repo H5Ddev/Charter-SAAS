@@ -530,16 +530,20 @@ model Trip {
   delayNotes        String?
   surveyLink        String?
   quoteId           String?
-  returnTripId      String?   @unique
+  returnTripId      String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
 
+  // NOTE: returnTripId is NOT @unique because SQL Server UNIQUE constraints
+  // only allow one NULL value, which breaks `prisma db push` on any table
+  // with >1 existing row. Uniqueness is enforced in the service layer
+  // (see trips.service.create — round trips are always created atomically).
   tenant          Tenant               @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   aircraft        Aircraft?            @relation(fields: [aircraftId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   quote           Quote?               @relation(fields: [quoteId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   returnTrip      Trip?                @relation("TripRoundTrip", fields: [returnTripId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  outboundTrip    Trip?                @relation("TripRoundTrip")
+  outboundTrip    Trip[]               @relation("TripRoundTrip")
   passengers      TripPassenger[]
   statusHistory   TripStatusHistory[]
   tickets         Ticket[]

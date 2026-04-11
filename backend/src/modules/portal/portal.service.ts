@@ -279,7 +279,7 @@ export class PortalService {
         passengers: { some: { contactId } },
         // Exclude return legs — they are surfaced as nested `returnTrip`
         // on their outbound so the portal shows one card per round trip.
-        outboundTrip: { is: null },
+        outboundTrip: { none: {} },
       },
       include: {
         aircraft: { select: { id: true, tailNumber: true, make: true, model: true } },

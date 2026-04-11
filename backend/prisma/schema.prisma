@@ -268,7 +268,6 @@ model Aircraft {
   hourlyRate     Decimal?  @db.Decimal(12, 2)
   basePrice      Decimal?  @db.Decimal(12, 2)
   airframeHours  Float?
-  engineHours    Float?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?

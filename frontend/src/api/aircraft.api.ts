@@ -73,14 +73,12 @@ export function normalizeAircraft(raw: BackendAircraft): Aircraft {
 
 export interface BackendAircraftDetail extends BackendAircraft {
   airframeHours: number | null
-  engineHours: number | null
   ownerId: string | null
   owner: { id: string; firstName: string; lastName: string } | null
 }
 
 export interface AircraftDetail extends Aircraft {
   airframeHours: number | null
-  engineHours: number | null
   ownerId: string | null
   owner: { id: string; firstName: string; lastName: string } | null
 }
@@ -89,7 +87,6 @@ export function normalizeAircraftDetail(raw: BackendAircraftDetail): AircraftDet
   return {
     ...normalizeAircraft(raw),
     airframeHours: raw.airframeHours,
-    engineHours: raw.engineHours,
     ownerId: raw.ownerId,
     owner: raw.owner,
   }

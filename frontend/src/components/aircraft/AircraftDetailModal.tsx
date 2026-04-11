@@ -23,7 +23,6 @@ interface EditState {
   basePrice: string
   costPerHour: string
   airframeHours: string
-  engineHours: string
   ownerId: string | null
   aircraftClassId: string
 }
@@ -56,7 +55,6 @@ export function AircraftDetailModal({ aircraftId, onClose }: Props) {
         basePrice: aircraft.basePrice?.toString() ?? '',
         costPerHour: aircraft.costPerHour?.toString() ?? '',
         airframeHours: aircraft.airframeHours?.toString() ?? '',
-        engineHours: aircraft.engineHours?.toString() ?? '',
         ownerId: aircraft.ownerId ?? null,
         aircraftClassId: aircraft.aircraftClassId ?? '',
       })
@@ -238,7 +236,6 @@ export function AircraftDetailModal({ aircraftId, onClose }: Props) {
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Maintenance</h3>
               <div className="grid grid-cols-2 gap-4">
                 {field('Airframe Hours', aircraft.airframeHours?.toString() ?? '', 'airframeHours', 'number')}
-                {field('Engine Hours', aircraft.engineHours?.toString() ?? '', 'engineHours', 'number')}
               </div>
             </div>
 

@@ -7,6 +7,7 @@ import { createEvent } from '../../shared/events/types'
 import { env } from '../../config/env'
 import { logger } from '../../shared/utils/logger'
 import { paginationMeta } from '../../shared/utils/response'
+import { resolveAirportId } from '../../shared/utils/airport-lookup'
 import { optInService } from '../notifications/optin.service'
 
 export const CreateTripSchema = z.object({
@@ -85,6 +86,8 @@ export class TripsService {
         where,
         include: {
           aircraft: { select: { id: true, tailNumber: true, make: true, model: true } },
+          origin: { select: { id: true, icaoCode: true, iataCode: true, name: true, municipality: true } },
+          destination: { select: { id: true, icaoCode: true, iataCode: true, name: true, municipality: true } },
           passengers: {
             include: { contact: { select: { id: true, firstName: true, lastName: true } } },
           },
@@ -105,6 +108,8 @@ export class TripsService {
       where: { id, tenantId, deletedAt: null },
       include: {
         aircraft: true,
+        origin: { select: { id: true, icaoCode: true, iataCode: true, name: true, municipality: true, isoCountry: true } },
+        destination: { select: { id: true, icaoCode: true, iataCode: true, name: true, municipality: true, isoCountry: true } },
         crewAssignments: {
           include: { crewMember: { select: { id: true, firstName: true, lastName: true, role: true } } },
         },
@@ -124,12 +129,19 @@ export class TripsService {
     const existing = await this.prisma.trip.findFirst({ where: { id, tenantId, deletedAt: null } })
     if (!existing) throw new AppError(404, 'TRIP_NOT_FOUND', 'Trip not found')
 
+    // Resolve airport FKs if the caller is changing origin/destination.
+    // This validates new ICAOs against the airports table; invalid codes 400.
+    const originAirportId = data.originIcao ? await resolveAirportId(this.prisma, data.originIcao) : undefined
+    const destinationAirportId = data.destinationIcao ? await resolveAirportId(this.prisma, data.destinationIcao) : undefined
+
     const trip = await this.prisma.trip.update({
       where: { id },
       data: {
         ...(data.aircraftId !== undefined && { aircraftId: data.aircraftId ?? undefined }),
         ...(data.originIcao && { originIcao: data.originIcao }),
         ...(data.destinationIcao && { destinationIcao: data.destinationIcao }),
+        ...(originAirportId !== undefined && { originAirportId }),
+        ...(destinationAirportId !== undefined && { destinationAirportId }),
         ...(data.departureAt && { departureAt: new Date(data.departureAt) }),
         ...(data.arrivalAt !== undefined && { arrivalAt: data.arrivalAt ? new Date(data.arrivalAt) : null }),
         ...(data.paxCount !== undefined && { paxCount: data.paxCount }),
@@ -160,6 +172,15 @@ export class TripsService {
   }
 
   async create(tenantId: string, userId: string, data: CreateTripDto) {
+    // Resolve ICAO → airport.id for the new FK columns. Throws 400 if the
+    // supplied ICAO doesn't match a row in the airports table. The old ICAO
+    // string columns are ALSO written for phase-1 compatibility until phase 2
+    // drops them.
+    const originAirportId = await resolveAirportId(this.prisma, data.originIcao)
+    const destinationAirportId = await resolveAirportId(this.prisma, data.destinationIcao)
+    // For a round trip, the return leg's origin/destination are the flipped
+    // outbound codes, so they resolve to the same airport IDs.
+
     // Check aircraft availability if provided (covers both outbound + return
     // if this is a round trip).
     if (data.aircraftId) {
@@ -194,6 +215,9 @@ export class TripsService {
             status: TripStatus.INQUIRY,
             originIcao: data.destinationIcao,
             destinationIcao: data.originIcao,
+            // Origin/destination are flipped from outbound, so the FK IDs flip too
+            originAirportId: destinationAirportId ?? undefined,
+            destinationAirportId: originAirportId ?? undefined,
             departureAt: new Date(data.returnTrip.departureAt),
             arrivalAt: data.returnTrip.arrivalAt ? new Date(data.returnTrip.arrivalAt) : undefined,
             paxCount: data.paxCount,
@@ -230,6 +254,8 @@ export class TripsService {
           status: TripStatus.INQUIRY,
           originIcao: data.originIcao,
           destinationIcao: data.destinationIcao,
+          originAirportId: originAirportId ?? undefined,
+          destinationAirportId: destinationAirportId ?? undefined,
           departureAt: new Date(data.departureAt),
           arrivalAt: data.arrivalAt ? new Date(data.arrivalAt) : undefined,
           fboName: data.fboName ?? undefined,
@@ -269,6 +295,8 @@ export class TripsService {
         },
         include: {
           aircraft: { select: { id: true, tailNumber: true, make: true, model: true } },
+          origin: { select: { id: true, icaoCode: true, iataCode: true, name: true, municipality: true } },
+          destination: { select: { id: true, icaoCode: true, iataCode: true, name: true, municipality: true } },
           crewAssignments: {
             include: { crewMember: { select: { id: true, firstName: true, lastName: true, role: true } } },
           },

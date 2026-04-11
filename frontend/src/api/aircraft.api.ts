@@ -17,6 +17,15 @@ export interface CreateAircraftInput {
   aircraftClassId?: string | null
 }
 
+export interface AirportSummary {
+  id: number
+  icaoCode: string
+  iataCode: string | null
+  name: string
+  municipality: string | null
+  isoCountry?: string
+}
+
 // Backend returns tailNumber/seats; AircraftPage expects registration/seatingCapacity
 interface BackendAircraft {
   id: string
@@ -28,6 +37,8 @@ interface BackendAircraft {
   rangeNm: number | null
   isActive: boolean
   homeBaseIcao: string | null
+  homeBaseAirportId: number | null
+  homeBaseAirport: AirportSummary | null
   costPerHour: number | string | null
   hourlyRate: number | string | null
   basePrice: number | string | null
@@ -45,6 +56,8 @@ export interface Aircraft {
   rangeNm: number | null
   isActive: boolean
   homeBaseIcao: string | null
+  homeBaseAirportId: number | null
+  homeBaseAirport: AirportSummary | null
   costPerHour: number | null
   hourlyRate: number | null
   basePrice: number | null
@@ -63,6 +76,8 @@ export function normalizeAircraft(raw: BackendAircraft): Aircraft {
     rangeNm: raw.rangeNm,
     isActive: raw.isActive,
     homeBaseIcao: raw.homeBaseIcao,
+    homeBaseAirportId: raw.homeBaseAirportId ?? null,
+    homeBaseAirport: raw.homeBaseAirport ?? null,
     costPerHour: raw.costPerHour != null ? Number(raw.costPerHour) : null,
     hourlyRate: raw.hourlyRate != null ? Number(raw.hourlyRate) : null,
     basePrice: raw.basePrice != null ? Number(raw.basePrice) : null,

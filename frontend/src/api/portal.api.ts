@@ -46,12 +46,22 @@ export interface PortalQuote {
   lineItems: PortalLineItem[]
 }
 
+export interface PortalAirportSummary {
+  id: number
+  icaoCode: string
+  iataCode: string | null
+  name: string
+  municipality: string | null
+}
+
 export interface PortalTrip {
   id: string
   reference: string
   status: string
   originIcao: string
   destinationIcao: string
+  origin: PortalAirportSummary | null
+  destination: PortalAirportSummary | null
   departureAt: string
   arrivalAt: string | null
   returnTrip: {

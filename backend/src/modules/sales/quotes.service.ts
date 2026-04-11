@@ -7,6 +7,7 @@ import { createEvent } from '../../shared/events/types'
 import { env } from '../../config/env'
 import { logger } from '../../shared/utils/logger'
 import { paginationMeta } from '../../shared/utils/response'
+import { resolveAirportId } from '../../shared/utils/airport-lookup'
 import { generatePortalToken } from '../portal/portal.service'
 import { smsSender } from '../notifications/channels/sms.sender'
 import { emailSender } from '../notifications/channels/email.sender'
@@ -106,24 +107,21 @@ export class QuotesService {
         lineItems: { where: { deletedAt: null } },
         versions: { orderBy: { versionNumber: 'desc' }, take: 5 },
         trips: { select: { id: true, status: true, originIcao: true, destinationIcao: true } },
+        // Airport relations via the new FKs (phase 1). The legacy manual
+        // icao→airport map below is kept for rows that haven't been backfilled
+        // yet so the API response shape stays stable.
+        origin: { select: { id: true, icaoCode: true, iataCode: true, name: true, municipality: true, isoCountry: true } },
+        destination: { select: { id: true, icaoCode: true, iataCode: true, name: true, municipality: true, isoCountry: true } },
       },
     })
     if (!quote) throw new AppError(404, 'QUOTE_NOT_FOUND', 'Quote not found')
 
-    // Enrich with airport details for display
-    const icaos = [quote.originIcao, quote.destinationIcao].filter(Boolean) as string[]
-    const airports = icaos.length > 0
-      ? await this.prisma.airport.findMany({
-          where: { icaoCode: { in: icaos } },
-          select: { icaoCode: true, name: true, municipality: true, isoCountry: true },
-        })
-      : []
-    const airportMap = Object.fromEntries(airports.map((a: { icaoCode: string; name: string; municipality: string | null; isoCountry: string }) => [a.icaoCode, a]))
-
     return {
       ...quote,
-      originAirport: quote.originIcao ? (airportMap[quote.originIcao] ?? null) : null,
-      destinationAirport: quote.destinationIcao ? (airportMap[quote.destinationIcao] ?? null) : null,
+      // originAirport/destinationAirport kept for backwards compatibility with
+      // the old response shape — alias to the new relation fields.
+      originAirport: quote.origin,
+      destinationAirport: quote.destination,
     }
   }
 
@@ -133,6 +131,10 @@ export class QuotesService {
       data.basePrice,
     )
 
+    // Resolve ICAO → airport.id for the new FK columns (validates both codes).
+    const originAirportId = await resolveAirportId(this.prisma, data.originIcao)
+    const destinationAirportId = await resolveAirportId(this.prisma, data.destinationIcao)
+
     const quote = await this.prisma.quote.create({
       data: {
         tenantId,
@@ -141,6 +143,8 @@ export class QuotesService {
         status: QuoteStatus.DRAFT,
         originIcao: data.originIcao ?? undefined,
         destinationIcao: data.destinationIcao ?? undefined,
+        originAirportId: originAirportId ?? undefined,
+        destinationAirportId: destinationAirportId ?? undefined,
         tripType: data.tripType ?? undefined,
         departureDate: data.departureDate ? new Date(data.departureDate) : undefined,
         returnDate: data.returnDate ? new Date(data.returnDate) : undefined,
@@ -217,12 +221,22 @@ export class QuotesService {
       ? basePrice + lineItemsTotal
       : undefined
 
+    // Resolve airport FKs if the caller is changing origin/destination.
+    const originAirportId = data.originIcao !== undefined
+      ? await resolveAirportId(this.prisma, data.originIcao)
+      : undefined
+    const destinationAirportId = data.destinationIcao !== undefined
+      ? await resolveAirportId(this.prisma, data.destinationIcao)
+      : undefined
+
     const updated = await this.prisma.quote.update({
       where: { id },
       data: {
         ...(data.status && { status: data.status }),
         ...(data.originIcao !== undefined && { originIcao: data.originIcao }),
         ...(data.destinationIcao !== undefined && { destinationIcao: data.destinationIcao }),
+        ...(data.originIcao !== undefined && { originAirportId }),
+        ...(data.destinationIcao !== undefined && { destinationAirportId }),
         ...(data.tripType !== undefined && { tripType: data.tripType }),
         ...(data.departureDate !== undefined && { departureDate: data.departureDate ? new Date(data.departureDate) : null }),
         ...(data.returnDate !== undefined && { returnDate: data.returnDate ? new Date(data.returnDate) : null }),

@@ -24,6 +24,14 @@ export interface TripPassenger {
   seatNumber: string | null
 }
 
+export interface AirportSummary {
+  id: number
+  icaoCode: string
+  iataCode: string | null
+  name: string
+  municipality: string | null
+}
+
 export interface Trip {
   id: string
   reference: string
@@ -38,6 +46,10 @@ export interface Trip {
   passengers: TripPassenger[]
   originIcao: string
   destinationIcao: string
+  originAirportId: number | null
+  destinationAirportId: number | null
+  origin: AirportSummary | null
+  destination: AirportSummary | null
   departureAt: string
   arrivalAt: string | null
   returnTripId: string | null

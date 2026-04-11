@@ -69,6 +69,20 @@ jobs:
           npx prisma db push
           echo "✅ Schema applied — no data was dropped"
 
+      # Backfill airport FK columns from legacy ICAO strings.
+      # Safe to re-run on every migration: the script is idempotent and only
+      # touches rows where the new FK is still NULL. The script has its own
+      # airports-table-populated safety guard that aborts if the reference
+      # table has < 5000 rows (catastrophic backfill prevention).
+      - name: Backfill airport FKs (idempotent)
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ steps.kv.outputs.database-url }}
+        run: |
+          echo "Running airport FK backfill..."
+          npx ts-node --transpile-only scripts/backfill-airport-fks.ts
+          echo "✅ Backfill complete"
+
       - name: Summary
         run: |
           echo "## ✅ Schema Migration Complete" >> $GITHUB_STEP_SUMMARY

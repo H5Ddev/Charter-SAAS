@@ -2,6 +2,7 @@ import { PrismaClient, Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { AppError } from '../../shared/middleware/errorHandler'
 import { paginationMeta } from '../../shared/utils/response'
+import { resolveAirportId } from '../../shared/utils/airport-lookup'
 
 export const CreateAircraftSchema = z.object({
   tailNumber: z.string().min(1).max(20).toUpperCase(),
@@ -63,6 +64,7 @@ export class AircraftService {
       where: { id, tenantId, deletedAt: null },
       include: {
         owner: true,
+        homeBaseAirport: { select: { id: true, icaoCode: true, iataCode: true, name: true, municipality: true, isoCountry: true } },
         photos: { where: { deletedAt: null } },
         availabilities: {
           where: { deletedAt: null, endAt: { gte: new Date() } },
@@ -75,6 +77,9 @@ export class AircraftService {
   }
 
   async create(tenantId: string, data: CreateAircraftDto) {
+    // Resolve home base ICAO → airport.id (validated against airports table).
+    const homeBaseAirportId = await resolveAirportId(this.prisma, data.homeBaseIcao)
+
     return this.prisma.aircraft.create({
       data: {
         tenantId,
@@ -85,6 +90,7 @@ export class AircraftService {
         seats: data.seats,
         rangeNm: data.rangeNm ?? undefined,
         homeBaseIcao: data.homeBaseIcao ?? undefined,
+        homeBaseAirportId: homeBaseAirportId ?? undefined,
         ownerId: data.ownerId ?? undefined,
         isActive: data.isActive,
         amenities: data.amenities != null ? JSON.stringify(data.amenities) : null,
@@ -100,7 +106,17 @@ export class AircraftService {
     const existing = await this.prisma.aircraft.findFirst({ where: { id, tenantId, deletedAt: null } })
     if (!existing) throw new AppError(404, 'AIRCRAFT_NOT_FOUND', 'Aircraft not found')
 
-    return this.prisma.aircraft.update({ where: { id }, data: data as Prisma.AircraftUpdateInput })
+    // If home base ICAO is being changed, resolve the new airport.id (validates
+    // the code against the airports table; invalid codes throw 400).
+    const patch: Prisma.AircraftUpdateInput = { ...data } as Prisma.AircraftUpdateInput
+    if (data.homeBaseIcao !== undefined) {
+      const homeBaseAirportId = await resolveAirportId(this.prisma, data.homeBaseIcao)
+      patch.homeBaseAirport = homeBaseAirportId
+        ? { connect: { id: homeBaseAirportId } }
+        : { disconnect: true }
+    }
+
+    return this.prisma.aircraft.update({ where: { id }, data: patch })
   }
 
   async softDelete(tenantId: string, id: string): Promise<void> {

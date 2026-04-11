@@ -75,6 +75,7 @@ export class TicketsService {
         include: {
           contact: { select: { id: true, firstName: true, lastName: true, email: true } },
           trip: { select: { id: true, status: true, originIcao: true, destinationIcao: true } },
+          quote: { select: { id: true, reference: true, status: true, totalPrice: true, currency: true } },
           _count: { select: { messages: true, attachments: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -92,6 +93,7 @@ export class TicketsService {
       include: {
         contact: true,
         trip: { select: { id: true, status: true, originIcao: true, destinationIcao: true, departureAt: true } },
+        quote: { select: { id: true, reference: true, status: true, totalPrice: true, currency: true, departureDate: true, returnDate: true } },
         messages: {
           where: { deletedAt: null },
           orderBy: { createdAt: 'asc' },

@@ -630,6 +630,7 @@ model Quote {
   tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   contact   Contact         @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   trips     Trip[]
+  tickets   Ticket[]
   lineItems QuoteLineItem[]
   versions  QuoteVersion[]
 
@@ -702,6 +703,7 @@ model Ticket {
   tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   contact     Contact?           @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   trip        Trip?              @relation(fields: [tripId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  quote       Quote?             @relation(fields: [quoteId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   messages    TicketMessage[]
   attachments TicketAttachment[]
 
@@ -709,6 +711,7 @@ model Ticket {
   @@index([tenantId, status])
   @@index([tenantId, contactId])
   @@index([tenantId, tripId])
+  @@index([tenantId, quoteId])
   @@index([tenantId, assignedTo])
   @@map("tickets")
 }

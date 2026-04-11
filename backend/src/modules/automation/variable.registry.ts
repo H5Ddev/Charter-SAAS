@@ -31,7 +31,6 @@ export const VARIABLE_REGISTRY: TemplateVariable[] = [
   { path: 'trip.boardingTime', name: 'Boarding Time', type: 'DATETIME', description: 'Passenger boarding time', example: '2024-06-15 09:30 AM ET', group: 'Trip' },
   { path: 'trip.fboName', name: 'FBO Name', type: 'STRING', description: 'Fixed base operator name', example: 'Signature TEB', group: 'Trip' },
   { path: 'trip.fboAddress', name: 'FBO Address', type: 'STRING', description: 'FBO street address', example: '100 Aviation Way, Teterboro, NJ', group: 'Trip' },
-  { path: 'trip.pilots', name: 'Pilots', type: 'STRING', description: 'Pilot name(s)', example: 'Capt. Johnson, F/O Williams', group: 'Trip' },
   { path: 'trip.paxCount', name: 'Passenger Count', type: 'NUMBER', description: 'Number of passengers', example: '4', group: 'Trip' },
   { path: 'trip.isDelayed', name: 'Is Delayed', type: 'BOOLEAN', description: 'Whether the trip is delayed', example: 'false', group: 'Trip' },
   { path: 'trip.delayNotes', name: 'Delay Notes', type: 'STRING', description: 'Reason for delay', example: 'Weather delay at origin', group: 'Trip' },

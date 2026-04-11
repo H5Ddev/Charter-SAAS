@@ -527,9 +527,6 @@ model Trip {
   fboName           String?
   fboAddress        String?
   boardingTime      DateTime?
-  pilots            String?
-  returnPilots      String?
-  returnFbo         String?
   paxCount          Int       @default(0)
   notes             String?
   isDelayed         Boolean   @default(false)

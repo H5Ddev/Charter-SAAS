@@ -2,6 +2,7 @@ import * as argon2 from 'argon2'
 import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { AppError } from '../../shared/middleware/errorHandler'
+import { tenantScope } from '../../shared/utils/prismaScope'
 
 const ARGON2_OPTIONS: argon2.Options = {
   type: argon2.argon2id,
@@ -33,7 +34,7 @@ export class UsersService {
 
   async list(tenantId: string, page = 1, pageSize = 50) {
     const skip = (page - 1) * pageSize
-    const where = { tenantId, deletedAt: null }
+    const where = tenantScope(tenantId)
 
     const [users, total] = await Promise.all([
       this.prisma.user.findMany({
@@ -65,7 +66,7 @@ export class UsersService {
 
   async create(tenantId: string, data: CreateUserInput) {
     const existing = await this.prisma.user.findFirst({
-      where: { tenantId, email: data.email, deletedAt: null },
+      where: tenantScope(tenantId, { email: data.email }),
     })
     if (existing) {
       throw new AppError(409, 'EMAIL_IN_USE', 'A user with this email already exists')
@@ -102,7 +103,7 @@ export class UsersService {
 
   async update(tenantId: string, id: string, data: UpdateUserInput) {
     const user = await this.prisma.user.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
     })
     if (!user) throw new AppError(404, 'USER_NOT_FOUND', 'User not found')
 
@@ -126,7 +127,7 @@ export class UsersService {
 
   async deactivate(tenantId: string, id: string) {
     const user = await this.prisma.user.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
     })
     if (!user) throw new AppError(404, 'USER_NOT_FOUND', 'User not found')
 

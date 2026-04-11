@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { AppError } from '../../shared/middleware/errorHandler'
+import { tenantScope } from '../../shared/utils/prismaScope'
 
 export const CreateCrewGroupSchema = z.object({
   name: z.string().min(1).max(100),
@@ -22,7 +23,7 @@ export class CrewGroupsService {
 
   async list(tenantId: string) {
     return this.prisma.crewGroup.findMany({
-      where: { tenantId, deletedAt: null },
+      where: tenantScope(tenantId),
       include: {
         aircraft: { select: { id: true, tailNumber: true, make: true, model: true } },
         members: {
@@ -39,7 +40,7 @@ export class CrewGroupsService {
 
   async findById(tenantId: string, id: string) {
     const group = await this.prisma.crewGroup.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
       include: {
         aircraft: { select: { id: true, tailNumber: true, make: true, model: true } },
         members: {
@@ -73,7 +74,7 @@ export class CrewGroupsService {
   }
 
   async update(tenantId: string, id: string, data: UpdateCrewGroupDto) {
-    const existing = await this.prisma.crewGroup.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const existing = await this.prisma.crewGroup.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!existing) throw new AppError(404, 'CREW_GROUP_NOT_FOUND', 'Crew group not found')
     return this.prisma.crewGroup.update({
       where: { id },
@@ -93,19 +94,19 @@ export class CrewGroupsService {
   }
 
   async softDelete(tenantId: string, id: string) {
-    const existing = await this.prisma.crewGroup.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const existing = await this.prisma.crewGroup.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!existing) throw new AppError(404, 'CREW_GROUP_NOT_FOUND', 'Crew group not found')
     await this.prisma.crewGroup.update({ where: { id }, data: { deletedAt: new Date() } })
   }
 
   async setMembers(tenantId: string, groupId: string, crewMemberIds: string[]) {
-    const group = await this.prisma.crewGroup.findFirst({ where: { id: groupId, tenantId, deletedAt: null } })
+    const group = await this.prisma.crewGroup.findFirst({ where: tenantScope(tenantId, { id: groupId }) })
     if (!group) throw new AppError(404, 'CREW_GROUP_NOT_FOUND', 'Crew group not found')
 
     // Verify all crew members belong to tenant
     if (crewMemberIds.length > 0) {
       const valid = await this.prisma.crewMember.findMany({
-        where: { id: { in: crewMemberIds }, tenantId, deletedAt: null },
+        where: tenantScope(tenantId, { id: { in: crewMemberIds } }),
         select: { id: true },
       })
       if (valid.length !== crewMemberIds.length) {

@@ -2,6 +2,7 @@ import { PrismaClient, Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { AppError } from '../../shared/middleware/errorHandler'
 import { paginationMeta } from '../../shared/utils/response'
+import { tenantScope } from '../../shared/utils/prismaScope'
 
 export const CreateCrewMemberSchema = z.object({
   firstName: z.string().min(1),
@@ -43,7 +44,7 @@ export class CrewService {
   constructor(private readonly prisma: PrismaClient) {}
 
   async list(tenantId: string, page = 1, pageSize = 50, role?: string, isActive?: boolean) {
-    const where: Prisma.CrewMemberWhereInput = { tenantId, deletedAt: null }
+    const where: Prisma.CrewMemberWhereInput = tenantScope(tenantId)
     if (role) where.role = role
     if (isActive !== undefined) where.isActive = isActive
 
@@ -63,7 +64,7 @@ export class CrewService {
 
   async findById(tenantId: string, id: string) {
     const member = await this.prisma.crewMember.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
       include: {
         documents: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' } },
         tripAssignments: {
@@ -99,7 +100,7 @@ export class CrewService {
   }
 
   async update(tenantId: string, id: string, data: UpdateCrewMemberDto) {
-    const existing = await this.prisma.crewMember.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const existing = await this.prisma.crewMember.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!existing) throw new AppError(404, 'CREW_NOT_FOUND', 'Crew member not found')
 
     return this.prisma.crewMember.update({
@@ -123,13 +124,13 @@ export class CrewService {
   }
 
   async softDelete(tenantId: string, id: string): Promise<void> {
-    const existing = await this.prisma.crewMember.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const existing = await this.prisma.crewMember.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!existing) throw new AppError(404, 'CREW_NOT_FOUND', 'Crew member not found')
     await this.prisma.crewMember.update({ where: { id }, data: { deletedAt: new Date() } })
   }
 
   async addDocument(tenantId: string, crewMemberId: string, data: AddCrewDocumentDto) {
-    const member = await this.prisma.crewMember.findFirst({ where: { id: crewMemberId, tenantId, deletedAt: null } })
+    const member = await this.prisma.crewMember.findFirst({ where: tenantScope(tenantId, { id: crewMemberId }) })
     if (!member) throw new AppError(404, 'CREW_NOT_FOUND', 'Crew member not found')
 
     return this.prisma.crewDocument.create({
@@ -146,15 +147,15 @@ export class CrewService {
   }
 
   async deleteDocument(tenantId: string, documentId: string): Promise<void> {
-    const doc = await this.prisma.crewDocument.findFirst({ where: { id: documentId, tenantId, deletedAt: null } })
+    const doc = await this.prisma.crewDocument.findFirst({ where: tenantScope(tenantId, { id: documentId }) })
     if (!doc) throw new AppError(404, 'DOCUMENT_NOT_FOUND', 'Document not found')
     await this.prisma.crewDocument.update({ where: { id: documentId }, data: { deletedAt: new Date() } })
   }
 
   async assignToTrip(tenantId: string, tripId: string, data: AssignTripCrewDto) {
     const [trip, member] = await Promise.all([
-      this.prisma.trip.findFirst({ where: { id: tripId, tenantId, deletedAt: null } }),
-      this.prisma.crewMember.findFirst({ where: { id: data.crewMemberId, tenantId, deletedAt: null } }),
+      this.prisma.trip.findFirst({ where: tenantScope(tenantId, { id: tripId }) }),
+      this.prisma.crewMember.findFirst({ where: tenantScope(tenantId, { id: data.crewMemberId }) }),
     ])
     if (!trip) throw new AppError(404, 'TRIP_NOT_FOUND', 'Trip not found')
     if (!member) throw new AppError(404, 'CREW_NOT_FOUND', 'Crew member not found')
@@ -175,16 +176,14 @@ export class CrewService {
     cutoff.setDate(cutoff.getDate() + daysAhead)
 
     return this.prisma.crewMember.findMany({
-      where: {
-        tenantId,
-        deletedAt: null,
+      where: tenantScope(tenantId, {
         isActive: true,
         OR: [
           { medicalExpiry: { lte: cutoff } },
           { licenseExpiry: { lte: cutoff } },
           { documents: { some: { deletedAt: null, expiryDate: { lte: cutoff } } } },
         ],
-      },
+      }),
       include: { documents: { where: { deletedAt: null, expiryDate: { lte: cutoff } } } },
     })
   }

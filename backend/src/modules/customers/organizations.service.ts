@@ -2,6 +2,7 @@ import { PrismaClient, Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { AppError } from '../../shared/middleware/errorHandler'
 import { paginationMeta } from '../../shared/utils/response'
+import { tenantScope } from '../../shared/utils/prismaScope'
 
 export const CreateOrganizationSchema = z.object({
   name: z.string().min(1).max(255),
@@ -32,10 +33,7 @@ export class OrganizationsService {
   constructor(private readonly prisma: PrismaClient) {}
 
   async list(tenantId: string, filters: OrgFiltersDto) {
-    const where: Prisma.OrganizationWhereInput = {
-      tenantId,
-      deletedAt: null,
-    }
+    const where: Prisma.OrganizationWhereInput = tenantScope(tenantId)
 
     if (filters.search) {
       where.OR = [
@@ -65,7 +63,7 @@ export class OrganizationsService {
 
   async findById(tenantId: string, id: string) {
     const org = await this.prisma.organization.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
       include: {
         contacts: {
           where: { deletedAt: null },
@@ -93,7 +91,7 @@ export class OrganizationsService {
 
   async update(tenantId: string, id: string, data: UpdateOrganizationDto) {
     const existing = await this.prisma.organization.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
     })
 
     if (!existing) throw new AppError(404, 'ORG_NOT_FOUND', 'Organization not found')
@@ -103,7 +101,7 @@ export class OrganizationsService {
 
   async softDelete(tenantId: string, id: string): Promise<void> {
     const existing = await this.prisma.organization.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
     })
 
     if (!existing) throw new AppError(404, 'ORG_NOT_FOUND', 'Organization not found')

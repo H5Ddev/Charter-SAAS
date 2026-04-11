@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { env } from '../../config/env'
 import { AppError } from '../../shared/middleware/errorHandler'
 import { logger } from '../../shared/utils/logger'
+import { tenantScope } from '../../shared/utils/prismaScope'
 import { smsSender } from '../notifications/channels/sms.sender'
 import { emailSender } from '../notifications/channels/email.sender'
 
@@ -145,7 +146,7 @@ export class PortalService {
 
   async getContact(contactId: string, tenantId: string) {
     const contact = await this.prisma.contact.findFirst({
-      where: { id: contactId, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id: contactId }),
       select: {
         id: true,
         firstName: true,
@@ -227,7 +228,7 @@ export class PortalService {
 
   async getQuotes(contactId: string, tenantId: string) {
     return this.prisma.quote.findMany({
-      where: { contactId, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { contactId }),
       include: {
         lineItems: { where: { deletedAt: null }, orderBy: { createdAt: 'asc' } },
       },
@@ -237,7 +238,7 @@ export class PortalService {
 
   async getQuoteById(quoteId: string, contactId: string, tenantId: string) {
     const quote = await this.prisma.quote.findFirst({
-      where: { id: quoteId, contactId, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id: quoteId, contactId }),
       include: {
         lineItems: { where: { deletedAt: null }, orderBy: { createdAt: 'asc' } },
       },
@@ -254,7 +255,7 @@ export class PortalService {
     notes?: string,
   ) {
     const quote = await this.prisma.quote.findFirst({
-      where: { id: quoteId, contactId, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id: quoteId, contactId }),
     })
     if (!quote) throw new AppError(404, 'QUOTE_NOT_FOUND', 'Quote not found')
     if (quote.status !== 'SENT' && quote.status !== 'VIEWED') {

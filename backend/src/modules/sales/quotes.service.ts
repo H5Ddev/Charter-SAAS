@@ -7,6 +7,7 @@ import { createEvent } from '../../shared/events/types'
 import { env } from '../../config/env'
 import { logger } from '../../shared/utils/logger'
 import { paginationMeta } from '../../shared/utils/response'
+import { tenantScope } from '../../shared/utils/prismaScope'
 import { generatePortalToken } from '../portal/portal.service'
 import { smsSender } from '../notifications/channels/sms.sender'
 import { emailSender } from '../notifications/channels/email.sender'
@@ -78,7 +79,7 @@ export class QuotesService {
   constructor(private readonly prisma: PrismaClient) {}
 
   async list(tenantId: string, page = 1, pageSize = 20, status?: QuoteStatus) {
-    const where: Prisma.QuoteWhereInput = { tenantId, deletedAt: null }
+    const where: Prisma.QuoteWhereInput = tenantScope(tenantId)
     if (status) where.status = status
 
     const [total, quotes] = await Promise.all([
@@ -100,7 +101,7 @@ export class QuotesService {
 
   async findById(tenantId: string, id: string) {
     const quote = await this.prisma.quote.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
       include: {
         contact: true,
         lineItems: { where: { deletedAt: null } },
@@ -190,7 +191,7 @@ export class QuotesService {
   }
 
   async update(tenantId: string, id: string, userId: string, data: UpdateQuoteDto) {
-    const existing = await this.prisma.quote.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const existing = await this.prisma.quote.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!existing) throw new AppError(404, 'QUOTE_NOT_FOUND', 'Quote not found')
 
     // Content edits require DRAFT status
@@ -312,7 +313,7 @@ export class QuotesService {
   }
 
   async addLineItem(tenantId: string, quoteId: string, data: AddLineItemDto) {
-    const quote = await this.prisma.quote.findFirst({ where: { id: quoteId, tenantId, deletedAt: null } })
+    const quote = await this.prisma.quote.findFirst({ where: tenantScope(tenantId, { id: quoteId }) })
     if (!quote) throw new AppError(404, 'QUOTE_NOT_FOUND', 'Quote not found')
 
     const lineItem = await this.prisma.quoteLineItem.create({
@@ -338,7 +339,7 @@ export class QuotesService {
   }
 
   async recordSignature(tenantId: string, id: string, signatureUrl: string) {
-    const quote = await this.prisma.quote.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const quote = await this.prisma.quote.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!quote) throw new AppError(404, 'QUOTE_NOT_FOUND', 'Quote not found')
 
     return this.prisma.quote.update({
@@ -353,7 +354,7 @@ export class QuotesService {
 
   async convertToTrip(tenantId: string, quoteId: string, userId: string) {
     const quote = await this.prisma.quote.findFirst({
-      where: { id: quoteId, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id: quoteId }),
       include: { trips: true },
     })
 

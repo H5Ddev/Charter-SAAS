@@ -10,6 +10,7 @@ import { teamsSender } from './channels/teams.sender'
 import { AppError } from '../../shared/middleware/errorHandler'
 import { logger } from '../../shared/utils/logger'
 import { paginationMeta } from '../../shared/utils/response'
+import { tenantScope } from '../../shared/utils/prismaScope'
 
 export const CreateTemplateSchema = z.object({
   name: z.string().min(1).max(255),
@@ -39,7 +40,7 @@ export class NotificationService {
     variables: Record<string, unknown>,
   ): Promise<void> {
     const template = await this.prisma.notificationTemplate.findFirst({
-      where: { id: templateId, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id: templateId }),
     })
 
     if (!template) {
@@ -47,7 +48,7 @@ export class NotificationService {
     }
 
     const contact = await this.prisma.contact.findFirst({
-      where: { id: recipientContactId, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id: recipientContactId }),
     })
 
     if (!contact) {
@@ -128,7 +129,7 @@ export class NotificationService {
   }
 
   async getTemplates(tenantId: string, page = 1, pageSize = 20) {
-    const where = { tenantId, deletedAt: null }
+    const where = tenantScope(tenantId)
     const [total, templates] = await Promise.all([
       this.prisma.notificationTemplate.count({ where }),
       this.prisma.notificationTemplate.findMany({
@@ -149,7 +150,7 @@ export class NotificationService {
 
   async updateTemplate(tenantId: string, id: string, data: UpdateTemplateDto) {
     const existing = await this.prisma.notificationTemplate.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
     })
     if (!existing) throw new AppError(404, 'TEMPLATE_NOT_FOUND', 'Template not found')
     if (existing.isSystem) throw new AppError(403, 'SYSTEM_TEMPLATE', 'System templates cannot be modified')
@@ -163,7 +164,7 @@ export class NotificationService {
     variables: Record<string, unknown>,
   ): Promise<{ subject: string | null; body: string }> {
     const template = await this.prisma.notificationTemplate.findFirst({
-      where: { id: templateId, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id: templateId }),
     })
     if (!template) throw new AppError(404, 'TEMPLATE_NOT_FOUND', 'Template not found')
 

@@ -2,6 +2,7 @@ import { PrismaClient, Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { AppError } from '../../shared/middleware/errorHandler'
 import { paginationMeta } from '../../shared/utils/response'
+import { tenantScope } from '../../shared/utils/prismaScope'
 
 export const CreateMaintenanceSchema = z.object({
   aircraftId: z.string(),
@@ -28,7 +29,7 @@ export class MaintenanceService {
   constructor(private readonly prisma: PrismaClient) {}
 
   async list(tenantId: string, page = 1, pageSize = 20, aircraftId?: string, status?: string) {
-    const where: Prisma.MaintenanceRecordWhereInput = { tenantId, deletedAt: null }
+    const where: Prisma.MaintenanceRecordWhereInput = tenantScope(tenantId)
     if (aircraftId) where.aircraftId = aircraftId
     if (status) where.status = status
 
@@ -50,7 +51,7 @@ export class MaintenanceService {
 
   async findById(tenantId: string, id: string) {
     const record = await this.prisma.maintenanceRecord.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
       include: { aircraft: true },
     })
     if (!record) throw new AppError(404, 'MAINTENANCE_NOT_FOUND', 'Maintenance record not found')
@@ -58,7 +59,7 @@ export class MaintenanceService {
   }
 
   async create(tenantId: string, data: CreateMaintenanceDto) {
-    const aircraft = await this.prisma.aircraft.findFirst({ where: { id: data.aircraftId, tenantId, deletedAt: null } })
+    const aircraft = await this.prisma.aircraft.findFirst({ where: tenantScope(tenantId, { id: data.aircraftId }) })
     if (!aircraft) throw new AppError(404, 'AIRCRAFT_NOT_FOUND', 'Aircraft not found')
 
     const record = await this.prisma.maintenanceRecord.create({
@@ -102,7 +103,7 @@ export class MaintenanceService {
   }
 
   async update(tenantId: string, id: string, data: UpdateMaintenanceDto) {
-    const existing = await this.prisma.maintenanceRecord.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const existing = await this.prisma.maintenanceRecord.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!existing) throw new AppError(404, 'MAINTENANCE_NOT_FOUND', 'Maintenance record not found')
 
     const updated = await this.prisma.maintenanceRecord.update({
@@ -135,7 +136,7 @@ export class MaintenanceService {
   }
 
   async softDelete(tenantId: string, id: string): Promise<void> {
-    const existing = await this.prisma.maintenanceRecord.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const existing = await this.prisma.maintenanceRecord.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!existing) throw new AppError(404, 'MAINTENANCE_NOT_FOUND', 'Maintenance record not found')
     await this.prisma.maintenanceRecord.update({ where: { id }, data: { deletedAt: new Date() } })
   }
@@ -145,15 +146,13 @@ export class MaintenanceService {
     cutoff.setDate(cutoff.getDate() + daysAhead)
 
     return this.prisma.maintenanceRecord.findMany({
-      where: {
-        tenantId,
-        deletedAt: null,
+      where: tenantScope(tenantId, {
         status: { in: ['SCHEDULED', 'IN_PROGRESS'] },
         OR: [
           { scheduledAt: { lte: cutoff } },
           { nextDueDate: { lte: cutoff } },
         ],
-      },
+      }),
       include: { aircraft: { select: { id: true, tailNumber: true, make: true, model: true } } },
       orderBy: { scheduledAt: 'asc' },
     })

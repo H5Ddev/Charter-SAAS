@@ -71,9 +71,10 @@ model User {
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  mfaSettings UserMfaSettings?
-  auditLogs   AuditLog[]
+  tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  mfaSettings    UserMfaSettings?
+  auditLogs      AuditLog[]
+  ticketMessages TicketMessage[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -168,6 +169,7 @@ model Contact {
   documents      ContactDocument[]
   trips          TripPassenger[]
   tickets        Ticket[]
+  ticketMessages TicketMessage[]
   quotes         Quote[]
   tagMaps        ContactTagMap[]
   aircraft       Aircraft[]
@@ -724,10 +726,14 @@ model TicketMessage {
   updatedAt  DateTime  @updatedAt
   deletedAt  DateTime?
 
-  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ticket  Ticket   @relation(fields: [ticketId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  contact Contact? @relation(fields: [contactId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([tenantId])
   @@index([tenantId, ticketId])
+  @@index([userId])
+  @@index([contactId])
   @@map("ticket_messages")
 }
 

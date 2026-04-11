@@ -95,6 +95,10 @@ export class TicketsService {
         messages: {
           where: { deletedAt: null },
           orderBy: { createdAt: 'asc' },
+          include: {
+            user: { select: { id: true, firstName: true, lastName: true, email: true, avatarUrl: true } },
+            contact: { select: { id: true, firstName: true, lastName: true, email: true } },
+          },
         },
         attachments: { where: { deletedAt: null } },
       },
@@ -169,6 +173,10 @@ export class TicketsService {
         content: data.content,
         isInternal: data.isInternal,
         channel: data.channel ?? 'MANUAL',
+      },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true, avatarUrl: true } },
+        contact: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
     })
   }

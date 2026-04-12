@@ -82,14 +82,6 @@ const envSchema = z.object({
   AIRLABS_API_KEY: z.string().optional(),
   AIRLABS_BASE_URL: z.string().url().default('https://airlabs.co/api/v9'),
 
-  // ForeFlight (stub)
-  FOREFLIGHT_API_KEY: z.string().optional(),
-  FOREFLIGHT_BASE_URL: z.string().url().default('https://plan.foreflight.com/api'),
-
-  // Weather API (stub)
-  WEATHER_API_KEY: z.string().optional(),
-  WEATHER_API_BASE_URL: z.string().url().default('https://api.weather.gov'),
-
   // MFA / TOTP
   TOTP_APP_NAME: z.string().default('AeroComm'),
   TOTP_ISSUER: z.string().default('AeroComm'),

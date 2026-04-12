@@ -85,7 +85,7 @@ model User {
 
 model UserMfaSettings {
   id          String    @id @default(cuid())
-  tenantId    String?
+  tenantId    String
   userId      String    @unique
   totpSecret  String?
   totpEnabled Boolean   @default(false)
@@ -793,7 +793,7 @@ model Automation {
 
 model AutomationTrigger {
   id           String    @id @default(cuid())
-  tenantId     String?
+  tenantId     String
   automationId String    @unique
   eventType    String
   filters      String    @default("{}")
@@ -809,7 +809,7 @@ model AutomationTrigger {
 
 model AutomationConditionGroup {
   id            String    @id @default(cuid())
-  tenantId      String?
+  tenantId      String
   automationId  String
   operator      String    @default("AND")
   parentGroupId String?
@@ -829,7 +829,7 @@ model AutomationConditionGroup {
 
 model AutomationCondition {
   id               String    @id @default(cuid())
-  tenantId         String?
+  tenantId         String
   conditionGroupId String
   field            String
   operator         String    @default("EQUALS")
@@ -847,7 +847,7 @@ model AutomationCondition {
 
 model AutomationAction {
   id              String    @id @default(cuid())
-  tenantId        String?
+  tenantId        String
   automationId    String
   sequence        Int
   actionType      String

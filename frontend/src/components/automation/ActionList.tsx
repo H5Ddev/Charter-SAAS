@@ -33,6 +33,7 @@ export type ActionType =
   | 'SEND_WHATSAPP'
   | 'SEND_SLACK'
   | 'SEND_TEAMS'
+  | 'SEND_INAPP'
   | 'CREATE_TICKET'
   | 'UPDATE_TRIP_FIELD'
   | 'UPDATE_CONTACT_FIELD'
@@ -52,6 +53,7 @@ const ACTION_TYPE_OPTIONS: { value: ActionType; label: string }[] = [
   { value: 'SEND_WHATSAPP', label: 'Send WhatsApp' },
   { value: 'SEND_SLACK', label: 'Send Slack Message' },
   { value: 'SEND_TEAMS', label: 'Send Teams Message' },
+  { value: 'SEND_INAPP', label: 'Send In-App Notification' },
   { value: 'CREATE_TICKET', label: 'Create Ticket' },
   { value: 'UPDATE_TRIP_FIELD', label: 'Update Trip Field' },
   { value: 'UPDATE_CONTACT_FIELD', label: 'Update Contact Field' },

@@ -58,6 +58,7 @@ const ACTION_LABELS: Record<AutomationActionType, string> = {
   SEND_WHATSAPP: 'Send WhatsApp',
   SEND_SLACK: 'Send Slack Message',
   SEND_TEAMS: 'Send Teams Message',
+  SEND_INAPP: 'Send In-App Notification',
   WAIT_DELAY: 'Wait / Delay',
   UPDATE_TRIP_FIELD: 'Update Trip Field',
   UPDATE_CONTACT_FIELD: 'Update Contact Field',

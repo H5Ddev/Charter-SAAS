@@ -7,6 +7,7 @@ import { emailSender } from './channels/email.sender'
 import { whatsappSender } from './channels/whatsapp.sender'
 import { slackSender } from './channels/slack.sender'
 import { teamsSender } from './channels/teams.sender'
+import { inAppSender } from './channels/inapp.sender'
 import { AppError } from '../../shared/middleware/errorHandler'
 import { logger } from '../../shared/utils/logger'
 import { paginationMeta } from '../../shared/utils/response'
@@ -122,6 +123,17 @@ export class NotificationService {
         // For Teams, 'to' should be the webhook URL
         logger.warn('TEAMS channel dispatch requires webhookUrl in contact.phone field')
         if (contact.phone) await teamsSender.send(contact.phone, body, subject)
+        break
+      case 'IN_APP':
+        // In-app notifications broadcast to the tenant room via Socket.io.
+        // Contact-level targeting (user lookup from contact) is not yet
+        // implemented; for now, broadcast to all users in the tenant.
+        inAppSender.broadcast(tenantId, {
+          id: `notif-${Date.now()}`,
+          title: subject ?? 'Notification',
+          body,
+          createdAt: new Date(),
+        })
         break
       default:
         throw new AppError(400, 'INVALID_CHANNEL', `Unknown notification channel: ${channel as string}`)

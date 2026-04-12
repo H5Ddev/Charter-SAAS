@@ -23,6 +23,7 @@ export type AutomationActionType =
   | 'SEND_WHATSAPP'
   | 'SEND_SLACK'
   | 'SEND_TEAMS'
+  | 'SEND_INAPP'
   | 'UPDATE_TRIP_FIELD'
   | 'UPDATE_CONTACT_FIELD'
   | 'CREATE_TICKET'

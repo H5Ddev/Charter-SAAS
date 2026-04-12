@@ -402,6 +402,7 @@ async function seedAdminUser() {
       isActive: true,
       mfaSettings: {
         create: {
+          tenantId: TENANT_ID,
           totpEnabled: false,
           smsEnabled: false,
           // Populate totpSecret after first login via /auth/mfa/setup

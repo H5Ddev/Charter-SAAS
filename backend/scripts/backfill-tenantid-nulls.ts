@@ -91,18 +91,34 @@ async function main(): Promise<void> {
     // proceed while a dependent index exists. Prisma db push will recreate
     // them after the column change.
     // Use IF EXISTS so re-runs don't fail if the indexes were already dropped.
-    const indexDrops = [
-      `IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'user_mfa_settings_tenantId_idx' AND object_id = OBJECT_ID('dbo.user_mfa_settings')) DROP INDEX [user_mfa_settings_tenantId_idx] ON [dbo].[user_mfa_settings]`,
-      `IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'automation_triggers_tenantId_idx' AND object_id = OBJECT_ID('dbo.automation_triggers')) DROP INDEX [automation_triggers_tenantId_idx] ON [dbo].[automation_triggers]`,
-      `IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'automation_condition_groups_tenantId_idx' AND object_id = OBJECT_ID('dbo.automation_condition_groups')) DROP INDEX [automation_condition_groups_tenantId_idx] ON [dbo].[automation_condition_groups]`,
-      `IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'automation_conditions_tenantId_idx' AND object_id = OBJECT_ID('dbo.automation_conditions')) DROP INDEX [automation_conditions_tenantId_idx] ON [dbo].[automation_conditions]`,
-      `IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'automation_actions_tenantId_idx' AND object_id = OBJECT_ID('dbo.automation_actions')) DROP INDEX [automation_actions_tenantId_idx] ON [dbo].[automation_actions]`,
+    // Drop ALL indexes that reference the tenantId column on these 5 tables.
+    // SQL Server won't ALTER COLUMN to NOT NULL while ANY dependent index exists —
+    // including composite indexes like (tenantId, automationId).
+    // Prisma db push recreates all schema-defined indexes after the column change.
+    const tables = [
+      'user_mfa_settings',
+      'automation_triggers',
+      'automation_condition_groups',
+      'automation_conditions',
+      'automation_actions',
     ]
 
-    for (const sql of indexDrops) {
-      await prisma.$executeRawUnsafe(sql)
+    for (const table of tables) {
+      const indexes = await prisma.$queryRawUnsafe<Array<{ name: string }>>(`
+        SELECT i.name
+        FROM sys.indexes i
+        INNER JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+        INNER JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+        WHERE i.object_id = OBJECT_ID('dbo.${table}')
+          AND c.name = 'tenantId'
+          AND i.is_primary_key = 0
+      `)
+      for (const idx of indexes) {
+        await prisma.$executeRawUnsafe(`DROP INDEX [${idx.name}] ON [dbo].[${table}]`)
+        console.log(`[backfill] dropped index ${idx.name} on ${table}`)
+      }
     }
-    console.log('[backfill] dropped tenantId indexes (db push will recreate them)')
+    console.log('[backfill] all tenantId-dependent indexes dropped (db push will recreate them)')
 
     console.log('[backfill] ✅ all tenantId nulls resolved — safe to promote to NOT NULL')
     process.exit(0)

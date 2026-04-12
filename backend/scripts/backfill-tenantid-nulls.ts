@@ -86,6 +86,24 @@ async function main(): Promise<void> {
       process.exit(1)
     }
 
+    // Drop indexes on the tenantId columns that are about to change from
+    // nullable to required. SQL Server won't let ALTER COLUMN ... NOT NULL
+    // proceed while a dependent index exists. Prisma db push will recreate
+    // them after the column change.
+    // Use IF EXISTS so re-runs don't fail if the indexes were already dropped.
+    const indexDrops = [
+      `IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'user_mfa_settings_tenantId_idx' AND object_id = OBJECT_ID('dbo.user_mfa_settings')) DROP INDEX [user_mfa_settings_tenantId_idx] ON [dbo].[user_mfa_settings]`,
+      `IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'automation_triggers_tenantId_idx' AND object_id = OBJECT_ID('dbo.automation_triggers')) DROP INDEX [automation_triggers_tenantId_idx] ON [dbo].[automation_triggers]`,
+      `IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'automation_condition_groups_tenantId_idx' AND object_id = OBJECT_ID('dbo.automation_condition_groups')) DROP INDEX [automation_condition_groups_tenantId_idx] ON [dbo].[automation_condition_groups]`,
+      `IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'automation_conditions_tenantId_idx' AND object_id = OBJECT_ID('dbo.automation_conditions')) DROP INDEX [automation_conditions_tenantId_idx] ON [dbo].[automation_conditions]`,
+      `IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'automation_actions_tenantId_idx' AND object_id = OBJECT_ID('dbo.automation_actions')) DROP INDEX [automation_actions_tenantId_idx] ON [dbo].[automation_actions]`,
+    ]
+
+    for (const sql of indexDrops) {
+      await prisma.$executeRawUnsafe(sql)
+    }
+    console.log('[backfill] dropped tenantId indexes (db push will recreate them)')
+
     console.log('[backfill] ✅ all tenantId nulls resolved — safe to promote to NOT NULL')
     process.exit(0)
   } catch (err) {

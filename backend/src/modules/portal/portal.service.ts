@@ -6,6 +6,9 @@ import { env } from '../../config/env'
 import { AppError } from '../../shared/middleware/errorHandler'
 import { logger } from '../../shared/utils/logger'
 import { tenantScope } from '../../shared/utils/prismaScope'
+import { QuotesService } from '../sales/quotes.service'
+import { TripsService } from '../scheduling/trips.service'
+import { TicketsService } from '../ticketing/tickets.service'
 import { smsSender } from '../notifications/channels/sms.sender'
 import { emailSender } from '../notifications/channels/email.sender'
 
@@ -142,7 +145,15 @@ export const PortalRequestSchema = z.object({
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 export class PortalService {
-  constructor(private prisma: PrismaClient) {}
+  private readonly quotes: QuotesService
+  private readonly trips: TripsService
+  private readonly tickets: TicketsService
+
+  constructor(private prisma: PrismaClient) {
+    this.quotes = new QuotesService(prisma)
+    this.trips = new TripsService(prisma)
+    this.tickets = new TicketsService(prisma)
+  }
 
   async getContact(contactId: string, tenantId: string) {
     const contact = await this.prisma.contact.findFirst({
@@ -227,23 +238,18 @@ export class PortalService {
   }
 
   async getQuotes(contactId: string, tenantId: string) {
-    return this.prisma.quote.findMany({
-      where: tenantScope(tenantId, { contactId }),
-      include: {
-        lineItems: { where: { deletedAt: null }, orderBy: { createdAt: 'asc' } },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+    // Delegate to canonical QuotesService with contactId filter.
+    const result = await this.quotes.list(tenantId, 1, 1000, undefined, contactId)
+    return result.quotes
   }
 
   async getQuoteById(quoteId: string, contactId: string, tenantId: string) {
-    const quote = await this.prisma.quote.findFirst({
-      where: tenantScope(tenantId, { id: quoteId, contactId }),
-      include: {
-        lineItems: { where: { deletedAt: null }, orderBy: { createdAt: 'asc' } },
-      },
-    })
-    if (!quote) throw new AppError(404, 'QUOTE_NOT_FOUND', 'Quote not found')
+    // Delegate to canonical QuotesService, then guard: the viewing contact
+    // must own the quote. Return 404 (not 403) to avoid revealing existence.
+    const quote = await this.quotes.findById(tenantId, quoteId)
+    if (quote.contactId !== contactId) {
+      throw new AppError(404, 'QUOTE_NOT_FOUND', 'Quote not found')
+    }
     return quote
   }
 
@@ -273,21 +279,10 @@ export class PortalService {
   }
 
   async getTrips(contactId: string, tenantId: string) {
-    return this.prisma.trip.findMany({
-      where: {
-        tenantId,
-        deletedAt: null,
-        passengers: { some: { contactId } },
-        // Exclude return legs — they are surfaced as nested `returnTrip`
-        // on their outbound so the portal shows one card per round trip.
-        outboundTrip: { none: {} },
-      },
-      include: {
-        aircraft: { select: { id: true, tailNumber: true, make: true, model: true } },
-        returnTrip: true,
-      },
-      orderBy: { departureAt: 'asc' },
-    })
+    // Delegate to canonical TripsService with passenger filter.
+    // The list method already excludes return legs and includes returnTrip.
+    const result = await this.trips.list(tenantId, { passengerContactId: contactId, pageSize: 1000 })
+    return result.trips
   }
 
   async createRequest(
@@ -295,16 +290,13 @@ export class PortalService {
     tenantId: string,
     data: { requestType: string; title: string; message: string },
   ) {
-    return this.prisma.ticket.create({
-      data: {
-        tenantId,
-        contactId,
-        source: 'WEB',
-        status: 'OPEN',
-        priority: 'NORMAL',
-        title: `[${data.requestType.replace('_', ' ')}] ${data.title}`,
-        body: data.message,
-      },
+    // Delegate to canonical TicketsService with portal-specific formatting.
+    return this.tickets.create(tenantId, {
+      contactId,
+      source: 'WEB',
+      priority: 'NORMAL',
+      title: `[${data.requestType.replace('_', ' ')}] ${data.title}`,
+      body: data.message,
     })
   }
 }

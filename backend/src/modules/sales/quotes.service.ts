@@ -78,9 +78,10 @@ function generateReference(): string {
 export class QuotesService {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async list(tenantId: string, page = 1, pageSize = 20, status?: QuoteStatus) {
+  async list(tenantId: string, page = 1, pageSize = 20, status?: QuoteStatus, contactId?: string) {
     const where: Prisma.QuoteWhereInput = tenantScope(tenantId)
     if (status) where.status = status
+    if (contactId) where.contactId = contactId
 
     const [total, quotes] = await Promise.all([
       this.prisma.quote.count({ where }),

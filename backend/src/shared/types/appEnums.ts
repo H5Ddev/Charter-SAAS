@@ -96,6 +96,7 @@ export const NotificationChannel = {
   WHATSAPP: 'WHATSAPP',
   SLACK: 'SLACK',
   TEAMS: 'TEAMS',
+  IN_APP: 'IN_APP',
 } as const
 export type NotificationChannel = (typeof NotificationChannel)[keyof typeof NotificationChannel]
 
@@ -125,6 +126,7 @@ export const AutomationActionType = {
   SEND_WHATSAPP: 'SEND_WHATSAPP',
   SEND_SLACK: 'SEND_SLACK',
   SEND_TEAMS: 'SEND_TEAMS',
+  SEND_INAPP: 'SEND_INAPP',
   WAIT_DELAY: 'WAIT_DELAY',
   UPDATE_TRIP_FIELD: 'UPDATE_TRIP_FIELD',
   UPDATE_CONTACT_FIELD: 'UPDATE_CONTACT_FIELD',

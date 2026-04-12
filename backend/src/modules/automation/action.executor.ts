@@ -6,6 +6,7 @@ import { emailSender } from '../notifications/channels/email.sender'
 import { whatsappSender } from '../notifications/channels/whatsapp.sender'
 import { slackSender } from '../notifications/channels/slack.sender'
 import { teamsSender } from '../notifications/channels/teams.sender'
+import { inAppSender } from '../notifications/channels/inapp.sender'
 import { eventPublisher } from '../../shared/events/publisher'
 import { createEvent } from '../../shared/events/types'
 import { env } from '../../config/env'
@@ -94,6 +95,10 @@ export class ActionExecutor {
 
       case AutomationActionType.SEND_TEAMS:
         await this.executeSendTeams(action.config, context)
+        break
+
+      case AutomationActionType.SEND_INAPP:
+        await this.executeSendInApp(action.config, context, tenantId)
         break
 
       case AutomationActionType.CREATE_TICKET:
@@ -267,6 +272,29 @@ export class ActionExecutor {
     if (!webhookUrl) throw new AppError(400, 'NO_TEAMS_WEBHOOK', 'SEND_TEAMS action requires webhookUrl')
     const body = render(config.body ?? '', context)
     await teamsSender.send(webhookUrl, body, config.subject ? render(config.subject, context) : undefined)
+  }
+
+  private async executeSendInApp(config: ActionConfig, context: Record<string, unknown>, tenantId: string): Promise<void> {
+    if (!config.templateId && !config.body) {
+      throw new AppError(400, 'NO_INAPP_BODY', 'SEND_INAPP action requires templateId or body')
+    }
+
+    const title = config.subject
+      ? render(config.subject, context)
+      : 'Notification'
+    const body = config.templateId
+      ? render((await this.getTemplate(config.templateId, tenantId)).body, context)
+      : render(config.body!, context)
+
+    // Resolve target user(s) — in-app notifications go to users, not contacts.
+    // If config.userId is set, send to that specific user. Otherwise broadcast
+    // to all users in the tenant via the tenant room.
+    const userId = config.to ?? (context['changedBy'] as string | undefined)
+    if (userId) {
+      inAppSender.send(userId, { id: `auto-${Date.now()}`, title, body, createdAt: new Date() })
+    } else {
+      inAppSender.broadcast(tenantId, { id: `auto-${Date.now()}`, title, body, createdAt: new Date() })
+    }
   }
 
   private async executeAssignTicket(config: ActionConfig, context: Record<string, unknown>, tenantId: string): Promise<void> {

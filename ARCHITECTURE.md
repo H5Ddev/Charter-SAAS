@@ -43,7 +43,7 @@ AeroComm is a multi-tenant SaaS platform built for aviation charter companies. I
 ┌───────▼─────────────────────────────────────────────────┐
 │  External Services                                       │
 │  Twilio · SendGrid · Slack · MS Teams · DocuSign        │
-│  Stripe · ForeFlight (stub) · Weather API (stub)        │
+│  Stripe · AirLabs (flight tracking)                     │
 └──────────────────────────────────────────────────────────┘
         │
 ┌───────▼──────────────┐  ┌────────────────────┐
@@ -141,7 +141,6 @@ AutomationEngineConsumer.processMessage(event)
   │             ├─► CHAIN_AUTOMATION → publish new event (max 5 hops)
   │             ├─► WAIT_DELAY → DelayScheduler
   │             │     creates ScheduledMessage + schedules Service Bus msg
-  │             ├─► GENERATE_PDF → TODO STUB
   │             └─► ADD_NOTE → ContactNote / TicketMessage
   │
   └─► ExecutionLogger.log(result)
@@ -165,6 +164,18 @@ AutomationEngineConsumer.processMessage(event)
 6. **JSON columns for flexible data**: `settings`, `customFields`, `amenities`, `conditions`, `triggerConfig`, `actionConfig` stored as JSON. Typed at the application layer with Zod schemas.
 
 7. **Enum-per-domain**: Each status, type, channel, and role has its own Prisma enum for type safety and database constraint enforcement.
+
+---
+
+## Domain Models
+
+**User vs Contact vs CrewMember** — these three "person" models are intentionally separate:
+
+- **User** — an operator-side login (admin, dispatcher, sales agent). Has `passwordHash`, JWT auth, MFA, RBAC role. Belongs to a tenant.
+- **Contact** — a client-side entity (passenger, broker, aircraft owner). Has phone/email for notifications, opt-in tracking, portal access via OTP. No password. Belongs to a tenant.
+- **CrewMember** — an aviation professional assigned to trips. Tracks FAA/regulatory lifecycle data: license number/type/expiry, medical class/expiry, type ratings, airframe-hours-at-service. May never log in. Not a passenger (no TripPassenger junction). Belongs to a tenant.
+
+Do not merge these models. They have different authentication, authorization, and lifecycle semantics.
 
 ---
 

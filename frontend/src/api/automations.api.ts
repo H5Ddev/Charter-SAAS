@@ -30,7 +30,6 @@ export type AutomationActionType =
   | 'WAIT_DELAY'
   | 'CHAIN_AUTOMATION'
   | 'FIRE_WEBHOOK'
-  | 'GENERATE_PDF'
   | 'ADD_NOTE'
 
 export type ConditionOperator =

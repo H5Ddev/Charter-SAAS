@@ -96,7 +96,6 @@ export const NotificationChannel = {
   WHATSAPP: 'WHATSAPP',
   SLACK: 'SLACK',
   TEAMS: 'TEAMS',
-  PUSH: 'PUSH',
 } as const
 export type NotificationChannel = (typeof NotificationChannel)[keyof typeof NotificationChannel]
 
@@ -133,7 +132,6 @@ export const AutomationActionType = {
   ASSIGN_TICKET: 'ASSIGN_TICKET',
   FIRE_WEBHOOK: 'FIRE_WEBHOOK',
   CHAIN_AUTOMATION: 'CHAIN_AUTOMATION',
-  GENERATE_PDF: 'GENERATE_PDF',
   ADD_NOTE: 'ADD_NOTE',
 } as const
 export type AutomationActionType = (typeof AutomationActionType)[keyof typeof AutomationActionType]

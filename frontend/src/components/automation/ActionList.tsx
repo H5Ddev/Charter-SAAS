@@ -39,8 +39,7 @@ export type ActionType =
   | 'FIRE_WEBHOOK'
   | 'CHAIN_AUTOMATION'
   | 'WAIT_DELAY'
-  | 'ADD_NOTE'
-  | 'GENERATE_PDF';
+  | 'ADD_NOTE';
 
 interface ActionListProps {
   actions: AutomationAction[];
@@ -60,7 +59,6 @@ const ACTION_TYPE_OPTIONS: { value: ActionType; label: string }[] = [
   { value: 'CHAIN_AUTOMATION', label: 'Chain Automation' },
   { value: 'WAIT_DELAY', label: 'Wait / Delay' },
   { value: 'ADD_NOTE', label: 'Add Note' },
-  { value: 'GENERATE_PDF', label: 'Generate PDF' },
 ];
 
 function generateId(): string {
@@ -328,26 +326,6 @@ function ActionConfigForm({
           />
           <TextField label="Entity ID" value={str('entityId')} onChange={v => set('entityId', v)} placeholder="{{trip.id}}" />
           <TextAreaField label="Content" value={str('content')} onChange={v => set('content', v)} placeholder="Note content..." showVariablePicker />
-        </div>
-      );
-
-    case 'GENERATE_PDF':
-      return (
-        <div className="space-y-3">
-          <TextField label="Template ID" value={str('templateId')} onChange={v => set('templateId', v)} placeholder="pdf_tmpl_xxx" />
-          <SelectField
-            label="Attach To"
-            value={str('attachTo')}
-            onChange={v => set('attachTo', v)}
-            options={[
-              { value: 'trip', label: 'Trip' },
-              { value: 'ticket', label: 'Ticket' },
-            ]}
-          />
-          <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">
-            PDF generation is in preview. The generated PDF will be stored and attached to the
-            selected entity.
-          </div>
         </div>
       );
 

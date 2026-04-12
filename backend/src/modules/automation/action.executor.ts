@@ -124,19 +124,12 @@ export class ActionExecutor {
         await this.executeWaitDelay(action.config, context, tenantId, executionLogId, nextAction)
         break
 
-      case AutomationActionType.GENERATE_PDF:
-        logger.info('GENERATE_PDF action: TODO STUB — intent logged, no PDF generated', {
-          tenantId,
-          config: action.config,
-        })
-        break
-
       case AutomationActionType.ADD_NOTE:
         await this.executeAddNote(action.config, context, tenantId)
         break
 
       default:
-        logger.warn(`Unknown action type: ${action.type as string}`)
+        throw new Error(`Unknown automation action type: ${action.type as string}`)
     }
   }
 

@@ -65,7 +65,6 @@ const ACTION_LABELS: Record<AutomationActionType, string> = {
   ASSIGN_TICKET: 'Assign Ticket',
   FIRE_WEBHOOK: 'Fire Webhook',
   CHAIN_AUTOMATION: 'Chain Automation',
-  GENERATE_PDF: 'Generate PDF',
   ADD_NOTE: 'Add Note',
 }
 

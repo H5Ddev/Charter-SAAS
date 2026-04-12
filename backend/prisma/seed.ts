@@ -468,10 +468,12 @@ async function seedAutomationRules() {
     await prisma.automationTrigger.upsert({
       where: { automationId: automation.id },
       update: {
+        tenantId: TENANT_ID,
         eventType: rule.trigger.eventType as never,
         filters: JSON.stringify(rule.trigger.filters),
       },
       create: {
+        tenantId: TENANT_ID,
         automationId: automation.id,
         eventType: rule.trigger.eventType as never,
         filters: JSON.stringify(rule.trigger.filters),
@@ -496,6 +498,7 @@ async function seedAutomationRules() {
     for (const group of rule.conditionGroups) {
       const conditionGroup = await prisma.automationConditionGroup.create({
         data: {
+          tenantId: TENANT_ID,
           automationId: automation.id,
           operator: group.operator as never,
         },
@@ -504,6 +507,7 @@ async function seedAutomationRules() {
       for (const condition of group.conditions) {
         await prisma.automationCondition.create({
           data: {
+            tenantId: TENANT_ID,
             conditionGroupId: conditionGroup.id,
             field: condition.field,
             operator: condition.operator as never,
@@ -521,6 +525,7 @@ async function seedAutomationRules() {
     for (const action of rule.actions) {
       await prisma.automationAction.create({
         data: {
+          tenantId: TENANT_ID,
           automationId: automation.id,
           sequence: action.sequence,
           actionType: action.actionType,

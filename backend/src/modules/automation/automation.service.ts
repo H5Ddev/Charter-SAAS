@@ -115,6 +115,7 @@ export class AutomationService {
 
       await tx.automationTrigger.create({
         data: {
+          tenantId,
           automationId: automation.id,
           eventType: firstTrigger.eventType,
           filters: JSON.stringify(firstTrigger.config ?? {}),
@@ -123,11 +124,12 @@ export class AutomationService {
 
       for (const group of data.conditionGroups) {
         const condGroup = await tx.automationConditionGroup.create({
-          data: { automationId: automation.id, operator: group.logicOperator },
+          data: { tenantId, automationId: automation.id, operator: group.logicOperator },
         })
         for (const cond of group.conditions) {
           await tx.automationCondition.create({
             data: {
+              tenantId,
               conditionGroupId: condGroup.id,
               field: cond.field,
               operator: cond.operator,
@@ -140,6 +142,7 @@ export class AutomationService {
       for (const action of data.actions) {
         await tx.automationAction.create({
           data: {
+            tenantId,
             automationId: automation.id,
             sequence: action.order,
             actionType: action.type,
@@ -176,10 +179,12 @@ export class AutomationService {
         await tx.automationTrigger.upsert({
           where: { automationId: id },
           update: {
+            tenantId,
             eventType: firstTrigger.eventType,
             filters: JSON.stringify(firstTrigger.config ?? {}),
           },
           create: {
+            tenantId,
             automationId: id,
             eventType: firstTrigger.eventType,
             filters: JSON.stringify(firstTrigger.config ?? {}),
@@ -205,11 +210,12 @@ export class AutomationService {
         })
         for (const group of data.conditionGroups) {
           const condGroup = await tx.automationConditionGroup.create({
-            data: { automationId: id, operator: group.logicOperator },
+            data: { tenantId, automationId: id, operator: group.logicOperator },
           })
           for (const cond of group.conditions) {
             await tx.automationCondition.create({
               data: {
+                tenantId,
                 conditionGroupId: condGroup.id,
                 field: cond.field,
                 operator: cond.operator,
@@ -229,6 +235,7 @@ export class AutomationService {
         for (const action of data.actions) {
           await tx.automationAction.create({
             data: {
+              tenantId,
               automationId: id,
               sequence: action.order,
               actionType: action.type,

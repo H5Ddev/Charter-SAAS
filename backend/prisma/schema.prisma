@@ -329,6 +329,12 @@ model AircraftAvailability {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Crew
+//
+// CrewMember is intentionally separate from User and Contact. Crew members
+// track aviation-specific lifecycle data (licenses, medical class/expiry,
+// type ratings) that neither User nor Contact carries. A crew member may
+// never log in (no passwordHash, no auth) and is not a passenger (no
+// trip-passenger junction). Do not merge into User or Contact.
 // ─────────────────────────────────────────────────────────────────────────────
 
 model CrewMember {

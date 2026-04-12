@@ -67,10 +67,11 @@ export class TripsService {
 
   async list(tenantId: string, filters: {
     status?: TripStatus
+    passengerContactId?: string
     page?: number
     pageSize?: number
   } = {}) {
-    const { status, page = 1, pageSize = 20 } = filters
+    const { status, passengerContactId, page = 1, pageSize = 20 } = filters
     // Exclude trips that are themselves the "return leg" of another trip —
     // those are surfaced as the nested `returnTrip` on their outbound.
     const where: Prisma.TripWhereInput = {
@@ -79,6 +80,7 @@ export class TripsService {
       outboundTrip: { none: {} },
     }
     if (status) where.status = status
+    if (passengerContactId) where.passengers = { some: { contactId: passengerContactId } }
 
     const [total, trips] = await Promise.all([
       this.prisma.trip.count({ where }),

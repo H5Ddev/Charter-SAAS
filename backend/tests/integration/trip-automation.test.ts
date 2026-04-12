@@ -27,8 +27,6 @@ jest.mock('../../src/config/env', () => ({
     API_BASE_URL: 'http://localhost:3000',
     LOG_LEVEL: 'silent',
     AIRLABS_BASE_URL: 'https://airlabs.co/api/v9',
-    FOREFLIGHT_BASE_URL: 'https://plan.foreflight.com/api',
-    WEATHER_API_BASE_URL: 'https://api.weather.gov',
     TOTP_APP_NAME: 'AeroComm',
     TOTP_ISSUER: 'AeroComm',
     RATE_LIMIT_WINDOW_MS: 900000,

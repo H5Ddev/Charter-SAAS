@@ -258,6 +258,14 @@ jobs:
           echo "::add-mask::${DB_URL}"
           echo "database-url=${DB_URL}" >> "$GITHUB_OUTPUT"
 
+      # Backfill any null tenantId values BEFORE db push tightens columns to NOT NULL.
+      # Idempotent — safe to run on every deploy.
+      - name: Backfill null tenantId values (idempotent)
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ steps.kv.outputs.database-url }}
+        run: npx ts-node --transpile-only scripts/backfill-tenantid-nulls.ts
+
       - name: Push schema to database
         working-directory: backend
         env:

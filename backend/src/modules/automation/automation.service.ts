@@ -2,6 +2,7 @@ import { PrismaClient, Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { AppError } from '../../shared/middleware/errorHandler'
 import { paginationMeta } from '../../shared/utils/response'
+import { tenantScope } from '../../shared/utils/prismaScope'
 import { AutomationEngine } from './engine'
 import { createEvent } from '../../shared/events/types'
 import { logger } from '../../shared/utils/logger'
@@ -54,7 +55,7 @@ export class AutomationService {
   }
 
   async list(tenantId: string, page = 1, pageSize = 20) {
-    const where: Prisma.AutomationWhereInput = { tenantId, deletedAt: null }
+    const where: Prisma.AutomationWhereInput = tenantScope(tenantId)
     const [total, automations] = await Promise.all([
       this.prisma.automation.count({ where }),
       this.prisma.automation.findMany({
@@ -78,7 +79,7 @@ export class AutomationService {
 
   async findById(tenantId: string, id: string) {
     const automation = await this.prisma.automation.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
       include: {
         trigger: true,
         conditionGroups: {
@@ -152,7 +153,7 @@ export class AutomationService {
   }
 
   async update(tenantId: string, id: string, data: UpdateAutomationDto) {
-    const existing = await this.prisma.automation.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const existing = await this.prisma.automation.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!existing) throw new AppError(404, 'AUTOMATION_NOT_FOUND', 'Automation not found')
 
     return this.prisma.$transaction(async (tx) => {
@@ -242,13 +243,13 @@ export class AutomationService {
   }
 
   async softDelete(tenantId: string, id: string): Promise<void> {
-    const existing = await this.prisma.automation.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const existing = await this.prisma.automation.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!existing) throw new AppError(404, 'AUTOMATION_NOT_FOUND', 'Automation not found')
     await this.prisma.automation.update({ where: { id }, data: { deletedAt: new Date() } })
   }
 
   async toggle(tenantId: string, id: string, isEnabled: boolean) {
-    const existing = await this.prisma.automation.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const existing = await this.prisma.automation.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!existing) throw new AppError(404, 'AUTOMATION_NOT_FOUND', 'Automation not found')
     return this.prisma.automation.update({ where: { id }, data: { enabled: isEnabled } })
   }

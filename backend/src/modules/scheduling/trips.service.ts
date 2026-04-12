@@ -7,6 +7,7 @@ import { createEvent } from '../../shared/events/types'
 import { env } from '../../config/env'
 import { logger } from '../../shared/utils/logger'
 import { paginationMeta } from '../../shared/utils/response'
+import { tenantScope } from '../../shared/utils/prismaScope'
 import { optInService } from '../notifications/optin.service'
 
 export const CreateTripSchema = z.object({
@@ -102,7 +103,7 @@ export class TripsService {
 
   async findById(tenantId: string, id: string) {
     const trip = await this.prisma.trip.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
       include: {
         aircraft: true,
         crewAssignments: {
@@ -121,7 +122,7 @@ export class TripsService {
   }
 
   async update(tenantId: string, id: string, data: UpdateTripDto) {
-    const existing = await this.prisma.trip.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const existing = await this.prisma.trip.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!existing) throw new AppError(404, 'TRIP_NOT_FOUND', 'Trip not found')
 
     const trip = await this.prisma.trip.update({
@@ -282,7 +283,7 @@ export class TripsService {
 
   async updateStatus(tenantId: string, id: string, userId: string, data: UpdateTripStatusDto) {
     const existing = await this.prisma.trip.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
       include: {
         aircraft: true,
         passengers: { include: { contact: true }, where: { isPrimary: true } },
@@ -333,7 +334,7 @@ export class TripsService {
   }
 
   async flagDelay(tenantId: string, id: string, userId: string, data: FlagDelayDto) {
-    const existing = await this.prisma.trip.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const existing = await this.prisma.trip.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!existing) throw new AppError(404, 'TRIP_NOT_FOUND', 'Trip not found')
 
     const updated = await this.prisma.trip.update({
@@ -359,8 +360,8 @@ export class TripsService {
 
   async addPassenger(tenantId: string, tripId: string, contactId: string, isPrimary = false) {
     const [trip, contact] = await Promise.all([
-      this.prisma.trip.findFirst({ where: { id: tripId, tenantId, deletedAt: null } }),
-      this.prisma.contact.findFirst({ where: { id: contactId, tenantId, deletedAt: null } }),
+      this.prisma.trip.findFirst({ where: tenantScope(tenantId, { id: tripId }) }),
+      this.prisma.contact.findFirst({ where: tenantScope(tenantId, { id: contactId }) }),
     ])
 
     if (!trip) throw new AppError(404, 'TRIP_NOT_FOUND', 'Trip not found')
@@ -390,7 +391,7 @@ export class TripsService {
 
   async getPaxManifest(tenantId: string, tripId: string) {
     const trip = await this.prisma.trip.findFirst({
-      where: { id: tripId, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id: tripId }),
       include: {
         passengers: {
           include: {

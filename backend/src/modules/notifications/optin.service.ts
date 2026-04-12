@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import { smsSender } from './channels/sms.sender'
 import { whatsappSender } from './channels/whatsapp.sender'
 import { logger } from '../../shared/utils/logger'
+import { tenantScope } from '../../shared/utils/prismaScope'
 
 const prisma = new PrismaClient()
 
@@ -23,7 +24,7 @@ export class OptInService {
     tripId: string,
   ): Promise<void> {
     const contact = await prisma.contact.findFirst({
-      where: { id: contactId, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id: contactId }),
       select: {
         id: true,
         firstName: true,
@@ -38,7 +39,7 @@ export class OptInService {
     if (!contact || contact.doNotContact) return
 
     const trip = await prisma.trip.findFirst({
-      where: { id: tripId, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id: tripId }),
       select: { originIcao: true, destinationIcao: true, departureAt: true },
     })
 

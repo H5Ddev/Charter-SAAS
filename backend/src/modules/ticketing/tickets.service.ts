@@ -7,6 +7,7 @@ import { createEvent } from '../../shared/events/types'
 import { env } from '../../config/env'
 import { logger } from '../../shared/utils/logger'
 import { paginationMeta } from '../../shared/utils/response'
+import { tenantScope } from '../../shared/utils/prismaScope'
 
 export const CreateTicketSchema = z.object({
   contactId: z.string().optional().nullable(),
@@ -54,7 +55,7 @@ export class TicketsService {
   constructor(private readonly prisma: PrismaClient) {}
 
   async list(tenantId: string, filters: TicketFiltersDto) {
-    const where: Prisma.TicketWhereInput = { tenantId, deletedAt: null }
+    const where: Prisma.TicketWhereInput = tenantScope(tenantId)
     if (filters.status) where.status = filters.status
     if (filters.priority) where.priority = filters.priority
     if (filters.source) where.source = filters.source
@@ -89,7 +90,7 @@ export class TicketsService {
 
   async findById(tenantId: string, id: string) {
     const ticket = await this.prisma.ticket.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
       include: {
         contact: true,
         trip: { select: { id: true, status: true, originIcao: true, destinationIcao: true, departureAt: true } },
@@ -147,7 +148,7 @@ export class TicketsService {
   }
 
   async updateStatus(tenantId: string, id: string, userId: string, update: UpdateTicketDto) {
-    const existing = await this.prisma.ticket.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const existing = await this.prisma.ticket.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!existing) throw new AppError(404, 'TICKET_NOT_FOUND', 'Ticket not found')
 
     const updated = await this.prisma.ticket.update({
@@ -164,7 +165,7 @@ export class TicketsService {
   }
 
   async addMessage(tenantId: string, ticketId: string, userId: string, data: AddMessageDto) {
-    const ticket = await this.prisma.ticket.findFirst({ where: { id: ticketId, tenantId, deletedAt: null } })
+    const ticket = await this.prisma.ticket.findFirst({ where: tenantScope(tenantId, { id: ticketId }) })
     if (!ticket) throw new AppError(404, 'TICKET_NOT_FOUND', 'Ticket not found')
 
     return this.prisma.ticketMessage.create({

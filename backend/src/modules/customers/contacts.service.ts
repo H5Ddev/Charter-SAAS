@@ -6,6 +6,7 @@ import { uploadBlob } from '../../config/azure'
 import { env } from '../../config/env'
 import { logger } from '../../shared/utils/logger'
 import { paginationMeta } from '../../shared/utils/response'
+import { tenantScope } from '../../shared/utils/prismaScope'
 import type {
   CreateContactDto,
   UpdateContactDto,
@@ -17,10 +18,7 @@ export class ContactsService {
   constructor(private readonly prisma: PrismaClient) {}
 
   async list(tenantId: string, filters: ContactFiltersDto) {
-    const where: Prisma.ContactWhereInput = {
-      tenantId,
-      deletedAt: null,
-    }
+    const where: Prisma.ContactWhereInput = tenantScope(tenantId)
 
     if (filters.type) {
       // BOTH contacts satisfy both OWNER and PASSENGER roles, so include them
@@ -79,7 +77,7 @@ export class ContactsService {
 
   async findById(tenantId: string, id: string) {
     const contact = await this.prisma.contact.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
       include: {
         organization: true,
         notes: {
@@ -176,7 +174,7 @@ export class ContactsService {
 
   async update(tenantId: string, id: string, userId: string, data: UpdateContactDto) {
     const existing = await this.prisma.contact.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
     })
 
     if (!existing) {
@@ -231,7 +229,7 @@ export class ContactsService {
 
   async softDelete(tenantId: string, id: string): Promise<void> {
     const existing = await this.prisma.contact.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
     })
 
     if (!existing) {
@@ -250,8 +248,8 @@ export class ContactsService {
     }
 
     const [primary, duplicate] = await Promise.all([
-      this.prisma.contact.findFirst({ where: { id: primaryId, tenantId, deletedAt: null } }),
-      this.prisma.contact.findFirst({ where: { id: duplicateId, tenantId, deletedAt: null } }),
+      this.prisma.contact.findFirst({ where: tenantScope(tenantId, { id: primaryId }) }),
+      this.prisma.contact.findFirst({ where: tenantScope(tenantId, { id: duplicateId }) }),
     ])
 
     if (!primary) throw new AppError(404, 'PRIMARY_NOT_FOUND', 'Primary contact not found')
@@ -298,7 +296,7 @@ export class ContactsService {
     data: AddNoteDto,
   ) {
     const contact = await this.prisma.contact.findFirst({
-      where: { id: contactId, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id: contactId }),
     })
 
     if (!contact) {
@@ -327,7 +325,7 @@ export class ContactsService {
     },
   ) {
     const contact = await this.prisma.contact.findFirst({
-      where: { id: contactId, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id: contactId }),
     })
 
     if (!contact) {
@@ -362,11 +360,7 @@ export class ContactsService {
     if (phone) orClauses.push({ phone })
 
     return this.prisma.contact.findMany({
-      where: {
-        tenantId,
-        deletedAt: null,
-        OR: orClauses,
-      },
+      where: tenantScope(tenantId, { OR: orClauses }),
       select: {
         id: true,
         firstName: true,

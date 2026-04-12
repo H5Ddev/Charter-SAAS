@@ -6,6 +6,9 @@
  * Run with: npm run test -- tests/integration/auth.test.ts
  */
 
+// Make this file a TypeScript module so top-level consts don't leak globally.
+export {}
+
 // Note: These tests are marked as integration tests and skipped in unit test runs.
 // They require DATABASE_URL and REDIS_URL to be set.
 

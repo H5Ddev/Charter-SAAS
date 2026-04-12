@@ -2,6 +2,7 @@ import { PrismaClient, Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { AppError } from '../../shared/middleware/errorHandler'
 import { paginationMeta } from '../../shared/utils/response'
+import { tenantScope } from '../../shared/utils/prismaScope'
 
 export const CreateAircraftSchema = z.object({
   tailNumber: z.string().min(1).max(20).toUpperCase(),
@@ -37,7 +38,7 @@ export class AircraftService {
   constructor(private readonly prisma: PrismaClient) {}
 
   async list(tenantId: string, page = 1, pageSize = 20, isActive?: boolean) {
-    const where: Prisma.AircraftWhereInput = { tenantId, deletedAt: null }
+    const where: Prisma.AircraftWhereInput = tenantScope(tenantId)
     if (isActive !== undefined) where.isActive = isActive
 
     const [total, aircraft] = await Promise.all([
@@ -60,7 +61,7 @@ export class AircraftService {
 
   async findById(tenantId: string, id: string) {
     const aircraft = await this.prisma.aircraft.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
       include: {
         owner: true,
         photos: { where: { deletedAt: null } },
@@ -97,20 +98,20 @@ export class AircraftService {
   }
 
   async update(tenantId: string, id: string, data: UpdateAircraftDto) {
-    const existing = await this.prisma.aircraft.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const existing = await this.prisma.aircraft.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!existing) throw new AppError(404, 'AIRCRAFT_NOT_FOUND', 'Aircraft not found')
 
     return this.prisma.aircraft.update({ where: { id }, data: data as Prisma.AircraftUpdateInput })
   }
 
   async softDelete(tenantId: string, id: string): Promise<void> {
-    const existing = await this.prisma.aircraft.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const existing = await this.prisma.aircraft.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!existing) throw new AppError(404, 'AIRCRAFT_NOT_FOUND', 'Aircraft not found')
     await this.prisma.aircraft.update({ where: { id }, data: { deletedAt: new Date() } })
   }
 
   async addAvailability(tenantId: string, aircraftId: string, data: AddAvailabilityDto) {
-    const aircraft = await this.prisma.aircraft.findFirst({ where: { id: aircraftId, tenantId, deletedAt: null } })
+    const aircraft = await this.prisma.aircraft.findFirst({ where: tenantScope(tenantId, { id: aircraftId }) })
     if (!aircraft) throw new AppError(404, 'AIRCRAFT_NOT_FOUND', 'Aircraft not found')
 
     // Check for conflicts
@@ -159,11 +160,11 @@ export class AircraftService {
   }
 
   async assignOwner(tenantId: string, aircraftId: string, ownerId: string | null) {
-    const aircraft = await this.prisma.aircraft.findFirst({ where: { id: aircraftId, tenantId, deletedAt: null } })
+    const aircraft = await this.prisma.aircraft.findFirst({ where: tenantScope(tenantId, { id: aircraftId }) })
     if (!aircraft) throw new AppError(404, 'AIRCRAFT_NOT_FOUND', 'Aircraft not found')
 
     if (ownerId) {
-      const owner = await this.prisma.contact.findFirst({ where: { id: ownerId, tenantId, deletedAt: null } })
+      const owner = await this.prisma.contact.findFirst({ where: tenantScope(tenantId, { id: ownerId }) })
       if (!owner) throw new AppError(404, 'CONTACT_NOT_FOUND', 'Owner contact not found')
     }
 

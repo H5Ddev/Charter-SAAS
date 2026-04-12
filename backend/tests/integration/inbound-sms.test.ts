@@ -10,6 +10,9 @@
  * → Return TwiML response
  */
 
+// Make this file a TypeScript module so top-level consts don't leak globally.
+export {}
+
 const SKIP_INTEGRATION = !process.env['DATABASE_URL']
 const describe_integration = SKIP_INTEGRATION ? describe.skip : describe
 

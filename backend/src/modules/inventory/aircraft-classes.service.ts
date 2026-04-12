@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
 import { AppError } from '../../shared/middleware/errorHandler'
+import { tenantScope } from '../../shared/utils/prismaScope'
 
 export const CrewReqSchema = z.object({
   role: z.enum(['CAPTAIN', 'FIRST_OFFICER', 'FLIGHT_ATTENDANT', 'DISPATCHER', 'MECHANIC', 'OTHER']),
@@ -36,7 +37,7 @@ export class AircraftClassesService {
 
   async list(tenantId: string) {
     return this.prisma.aircraftClass.findMany({
-      where: { tenantId, deletedAt: null },
+      where: tenantScope(tenantId),
       include: INCLUDE,
       orderBy: { name: 'asc' },
     })
@@ -44,7 +45,7 @@ export class AircraftClassesService {
 
   async findById(tenantId: string, id: string) {
     const cls = await this.prisma.aircraftClass.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: tenantScope(tenantId, { id }),
       include: INCLUDE,
     })
     if (!cls) throw new AppError(404, 'AIRCRAFT_CLASS_NOT_FOUND', 'Aircraft class not found')
@@ -75,7 +76,7 @@ export class AircraftClassesService {
   }
 
   async update(tenantId: string, id: string, data: UpdateAircraftClassDto) {
-    const existing = await this.prisma.aircraftClass.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const existing = await this.prisma.aircraftClass.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!existing) throw new AppError(404, 'AIRCRAFT_CLASS_NOT_FOUND', 'Aircraft class not found')
 
     // Replace crew reqs if provided
@@ -110,7 +111,7 @@ export class AircraftClassesService {
   }
 
   async softDelete(tenantId: string, id: string) {
-    const existing = await this.prisma.aircraftClass.findFirst({ where: { id, tenantId, deletedAt: null } })
+    const existing = await this.prisma.aircraftClass.findFirst({ where: tenantScope(tenantId, { id }) })
     if (!existing) throw new AppError(404, 'AIRCRAFT_CLASS_NOT_FOUND', 'Aircraft class not found')
     await this.prisma.aircraftClass.update({ where: { id }, data: { deletedAt: new Date() } })
   }

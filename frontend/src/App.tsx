@@ -50,6 +50,7 @@ const AutomationsPage = lazy(() => import('./pages/AutomationsPage'))
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage'))
 const UsersPage = lazy(() => import('./pages/UsersPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const SimulatorPage = lazy(() => import('./pages/SimulatorPage'))
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   // Auth guard disabled until backend is connected
@@ -185,6 +186,14 @@ export default function App() {
           element={
             <Suspense fallback={<PageLoader />}>
               <SettingsPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="simulator"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <SimulatorPage />
             </Suspense>
           }
         />

@@ -16,6 +16,7 @@ import {
   ClipboardDocumentListIcon,
   CalendarDaysIcon,
   UsersIcon as UsersManageIcon,
+  BeakerIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/store/auth.store'
 import { SidebarLogo } from '@/components/ui/AeroCommLogo'
@@ -24,7 +25,6 @@ interface NavItem {
   label: string
   to: string
   icon: React.ElementType
-  roles?: string[]
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -37,10 +37,14 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Aircraft', to: '/aircraft', icon: WrenchScrewdriverIcon },
   { label: 'Crew', to: '/crew', icon: UserGroupIcon },
   { label: 'Maintenance', to: '/maintenance', icon: ClipboardDocumentListIcon },
+  { label: 'Settings', to: '/settings', icon: Cog6ToothIcon },
+]
+
+const ADMIN_ITEMS: NavItem[] = [
   { label: 'Automations', to: '/automations', icon: BoltIcon },
   { label: 'Templates', to: '/notifications/templates', icon: BellIcon },
   { label: 'Users', to: '/users', icon: UsersManageIcon },
-  { label: 'Settings', to: '/settings', icon: Cog6ToothIcon },
+  { label: 'Simulator', to: '/simulator', icon: BeakerIcon },
 ]
 
 interface SidebarProps {
@@ -49,8 +53,30 @@ interface SidebarProps {
   onMobileClose?: () => void
 }
 
+function NavItemLink({ item, collapsed, onClick }: { item: NavItem; collapsed: boolean; onClick?: () => void }) {
+  return (
+    <NavLink
+      to={item.to}
+      end={item.to === '/'}
+      onClick={onClick}
+      className={({ isActive }) =>
+        clsx(
+          'flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors',
+          isActive
+            ? 'bg-sidebar-active text-sidebar-text-active'
+            : 'text-sidebar-text hover:bg-sidebar-hover hover:text-white'
+        )
+      }
+    >
+      <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+      <span className={clsx('truncate', collapsed && 'lg:hidden')}>{item.label}</span>
+    </NavLink>
+  )
+}
+
 export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
   const user = useAuthStore((s) => s.user)
+  const isAdmin = user?.role === 'ADMIN'
 
   return (
     <aside
@@ -90,30 +116,34 @@ export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
         {NAV_ITEMS.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === '/'}
-            onClick={onMobileClose}
-            className={({ isActive }) =>
-              clsx(
-                'flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-sidebar-active text-sidebar-text-active'
-                  : 'text-sidebar-text hover:bg-sidebar-hover hover:text-white'
-              )
-            }
-          >
-            <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-            <span className={clsx('truncate', collapsed && 'lg:hidden')}>{item.label}</span>
-          </NavLink>
+          <NavItemLink key={item.to} item={item} collapsed={collapsed} onClick={onMobileClose} />
         ))}
+
+        {/* Admin section — only visible to ADMIN role */}
+        {isAdmin && (
+          <>
+            <div className="pt-4 pb-1 px-2">
+              <p className={clsx(
+                'text-[10px] font-semibold uppercase tracking-widest text-sidebar-text/40',
+                collapsed && 'lg:hidden',
+              )}>
+                Admin
+              </p>
+              {!collapsed ? null : (
+                <div className="hidden lg:block border-t border-white/10 mt-1" />
+              )}
+            </div>
+            {ADMIN_ITEMS.map((item) => (
+              <NavItemLink key={item.to} item={item} collapsed={collapsed} onClick={onMobileClose} />
+            ))}
+          </>
+        )}
       </nav>
 
       {/* Copyright */}
       {!collapsed && (
         <p className="px-3 pb-1 text-center text-[10px] text-white/25 leading-tight">
-          © {new Date().getFullYear()} H5 Enterprises
+          &copy; {new Date().getFullYear()} H5 Enterprises
         </p>
       )}
 

@@ -19,7 +19,9 @@ const PAGE_LABELS: Record<string, string> = {
   '/aircraft': 'Aircraft',
   '/automations': 'Automations',
   '/notifications/templates': 'Templates',
+  '/users': 'Users',
   '/settings': 'Settings',
+  '/simulator': 'Simulator',
 }
 
 interface HeaderProps {

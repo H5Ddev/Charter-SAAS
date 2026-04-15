@@ -96,10 +96,10 @@ export default function SimulatorPage() {
     setError(null)
 
     try {
-      const res = await apiClient.post<{ data: SimulationReport }>('/admin/simulate', {
+      const res = await apiClient.post<SimulationReport>('/admin/simulate', {
         scenario: 'trip-lifecycle',
       })
-      setReport(res.data.data)
+      setReport(res.data)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Simulation failed'
       setError(msg)

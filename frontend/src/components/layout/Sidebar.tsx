@@ -76,7 +76,7 @@ function NavItemLink({ item, collapsed, onClick }: { item: NavItem; collapsed: b
 
 export function Sidebar({ collapsed, onToggle, onMobileClose }: SidebarProps) {
   const user = useAuthStore((s) => s.user)
-  const isAdmin = user?.role === 'ADMIN'
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'COMPANY_ADMIN' || user?.role === 'SUPER_ADMIN'
 
   return (
     <aside

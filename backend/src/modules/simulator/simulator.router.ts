@@ -10,10 +10,11 @@ const simulator = new SimulatorService(prisma)
 
 export const simulatorRouter: Router = Router()
 
-// Admin-only — require ADMIN role
+// Admin-only — accept ADMIN, COMPANY_ADMIN, or SUPER_ADMIN
+const ADMIN_ROLES = new Set(['ADMIN', 'COMPANY_ADMIN', 'SUPER_ADMIN'])
 simulatorRouter.use(requireAuth)
 simulatorRouter.use((req: Request, _res: Response, next: NextFunction) => {
-  if (req.user?.role !== 'ADMIN') {
+  if (!ADMIN_ROLES.has(req.user?.role ?? '')) {
     throw new AppError(403, 'FORBIDDEN', 'Only admins can run simulations')
   }
   next()

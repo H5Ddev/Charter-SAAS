@@ -75,12 +75,27 @@ model User {
   mfaSettings    UserMfaSettings?
   auditLogs      AuditLog[]
   ticketMessages TicketMessage[]
+  refreshTokens  RefreshToken[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([tenantId, email])
   @@index([tenantId, role])
   @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
 }
 
 model UserMfaSettings {

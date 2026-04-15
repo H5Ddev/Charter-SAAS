@@ -4,7 +4,6 @@ import * as OTPAuth from 'otpauth'
 import qrcode from 'qrcode'
 import { PrismaClient } from '@prisma/client'
 import { UserRole } from '../../shared/types/appEnums'
-import Redis from 'ioredis'
 import { env } from '../../config/env'
 import { logger } from '../../shared/utils/logger'
 import { AppError } from '../../shared/middleware/errorHandler'
@@ -17,13 +16,10 @@ const ARGON2_OPTIONS: argon2.Options = {
   parallelism: 4,
 }
 
-const REFRESH_TOKEN_PREFIX = 'refresh:'
+const REFRESH_TTL_DAYS = 7
 
 export class AuthService {
-  constructor(
-    private readonly prisma: PrismaClient,
-    private readonly redis: Redis,
-  ) {}
+  constructor(private readonly prisma: PrismaClient) {}
 
   async register(
     tenantId: string,
@@ -172,9 +168,9 @@ export class AuthService {
       throw new AppError(401, 'INVALID_REFRESH_TOKEN', 'Invalid or expired refresh token')
     }
 
-    // Check refresh token is in Redis (not revoked)
-    const storedToken = await this.redis.get(`${REFRESH_TOKEN_PREFIX}${payload.id}`)
-    if (storedToken !== refreshToken) {
+    // Check refresh token exists in DB (not revoked) and belongs to this user
+    const stored = await this.prisma.refreshToken.findUnique({ where: { token: refreshToken } })
+    if (!stored || stored.userId !== payload.id || stored.expiresAt < new Date()) {
       throw new AppError(401, 'REFRESH_TOKEN_REVOKED', 'Refresh token has been revoked')
     }
 
@@ -190,7 +186,7 @@ export class AuthService {
   }
 
   async logout(userId: string): Promise<void> {
-    await this.redis.del(`${REFRESH_TOKEN_PREFIX}${userId}`)
+    await this.prisma.refreshToken.deleteMany({ where: { userId } })
     logger.info(`User ${userId} logged out`)
   }
 
@@ -283,14 +279,11 @@ export class AuthService {
       expiresIn: env.JWT_REFRESH_EXPIRES_IN as any,
     })
 
-    // Store refresh token in Redis with TTL matching the token expiry
-    const refreshTtlSeconds = 7 * 24 * 60 * 60 // 7 days
-    await this.redis.set(
-      `${REFRESH_TOKEN_PREFIX}${user.id}`,
-      refreshToken,
-      'EX',
-      refreshTtlSeconds,
-    )
+    // Store refresh token in DB. Replace any prior token for this user
+    // (one active session per user — same semantics as the old Redis SET).
+    const expiresAt = new Date(Date.now() + REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000)
+    await this.prisma.refreshToken.deleteMany({ where: { userId: user.id } })
+    await this.prisma.refreshToken.create({ data: { userId: user.id, token: refreshToken, expiresAt } })
 
     return {
       accessToken,

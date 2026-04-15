@@ -11,7 +11,6 @@ services:
     environment:
       NODE_ENV: development
       DATABASE_URL: 'sqlserver://db:1433;database=aerocomm_dev;user=sa;password=AeroComm_Dev1!;encrypt=false;trustServerCertificate=true'
-      REDIS_URL: 'redis://redis:6379'
       JWT_ACCESS_SECRET: 'dev-access-secret-change-in-prod'
       JWT_REFRESH_SECRET: 'dev-refresh-secret-change-in-prod'
       JWT_ACCESS_EXPIRES_IN: '15m'
@@ -36,7 +35,6 @@ services:
       - /app/node_modules
     depends_on:
       - db
-      - redis
       - azurite
     networks:
       - aerocomm
@@ -80,16 +78,6 @@ services:
     networks:
       - aerocomm
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - '6379:6379'
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
-    networks:
-      - aerocomm
-
   azurite:
     image: mcr.microsoft.com/azure-storage/azurite
     ports:
@@ -104,7 +92,6 @@ services:
 
 volumes:
   mssql_data:
-  redis_data:
   azurite_data:
 
 networks:

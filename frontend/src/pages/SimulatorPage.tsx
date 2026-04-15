@@ -33,6 +33,7 @@ interface AutomationExecution {
   status: string
   entityType: string
   createdAt: string
+  errorMessage?: string
 }
 
 interface SimulationReport {
@@ -221,6 +222,7 @@ export default function SimulatorPage() {
                     <tr>
                       <th className="px-4 py-2 text-left">Automation</th>
                       <th className="px-4 py-2 text-left">Status</th>
+                      <th className="px-4 py-2 text-left">Error</th>
                       <th className="px-4 py-2 text-left">Time</th>
                     </tr>
                   </thead>
@@ -234,6 +236,7 @@ export default function SimulatorPage() {
                             {exec.status}
                           </span>
                         </td>
+                        <td className="px-4 py-2 text-xs text-red-600 truncate max-w-sm">{exec.errorMessage ?? '—'}</td>
                         <td className="px-4 py-2 text-gray-500 text-xs">
                           {new Date(exec.createdAt).toLocaleTimeString()}
                         </td>

@@ -38,6 +38,7 @@ export interface SimulationReport {
     status: string
     entityType: string
     createdAt: string
+    errorMessage?: string
   }>
   errors: Array<{ action: string; message: string; t: number }>
   summary: {
@@ -323,6 +324,7 @@ export class SimulatorService {
         status: l.status,
         entityType: l.entityType ?? '',
         createdAt: l.createdAt.toISOString(),
+        errorMessage: l.errorMessage ?? undefined,
       }))
 
       log('simulation_complete')

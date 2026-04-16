@@ -250,18 +250,20 @@ export class SimulatorService {
 
         for (const action of src.actions) {
           // Rewrite templateId in config to point at the copied template in this tenant
-          let cfg = action.config as unknown
-          if (cfg && typeof cfg === 'object' && 'templateId' in cfg) {
-            const orig = (cfg as { templateId?: string }).templateId
-            if (orig && templateIdMap.has(orig)) {
-              cfg = { ...(cfg as object), templateId: templateIdMap.get(orig) }
+          let cfgStr = action.config as unknown as string
+          try {
+            const parsed = JSON.parse(cfgStr) as Record<string, unknown>
+            const orig = parsed?.templateId
+            if (typeof orig === 'string' && templateIdMap.has(orig)) {
+              parsed.templateId = templateIdMap.get(orig)
+              cfgStr = JSON.stringify(parsed)
             }
-          }
+          } catch { /* config not JSON — leave as-is */ }
           await this.prisma.automationAction.create({
             data: {
               tenantId, automationId: auto.id,
               sequence: action.sequence, actionType: action.actionType,
-              config: cfg as object,
+              config: cfgStr,
               delayRelativeTo: action.delayRelativeTo,
               delayOffsetMs: action.delayOffsetMs,
             },

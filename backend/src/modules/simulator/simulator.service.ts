@@ -175,6 +175,28 @@ export class SimulatorService {
       })
       log('aircraft_created', { id: aircraft.id, tailNumber: aircraft.tailNumber })
 
+      // Copy notification templates from the demo tenant (automations reference them by id)
+      log('copy_templates')
+      const sourceTemplates = await this.prisma.notificationTemplate.findMany({
+        where: { tenantId: 'tenant_aerocomm_demo', deletedAt: null },
+      })
+      const templateIdMap = new Map<string, string>()
+      for (const t of sourceTemplates) {
+        const copy = await this.prisma.notificationTemplate.create({
+          data: {
+            tenantId,
+            name: t.name,
+            description: t.description,
+            channel: t.channel,
+            subject: t.subject,
+            body: t.body,
+            isSystem: t.isSystem,
+          },
+        })
+        templateIdMap.set(t.id, copy.id)
+      }
+      log('templates_copied', { count: sourceTemplates.length })
+
       // Copy automations from the demo tenant
       log('copy_automations')
       const sourceAutomations = await this.prisma.automation.findMany({
@@ -227,11 +249,21 @@ export class SimulatorService {
         }
 
         for (const action of src.actions) {
+          // Rewrite templateId in config to point at the copied template in this tenant
+          let cfgStr = action.config as unknown as string
+          try {
+            const parsed = JSON.parse(cfgStr) as Record<string, unknown>
+            const orig = parsed?.templateId
+            if (typeof orig === 'string' && templateIdMap.has(orig)) {
+              parsed.templateId = templateIdMap.get(orig)
+              cfgStr = JSON.stringify(parsed)
+            }
+          } catch { /* config not JSON — leave as-is */ }
           await this.prisma.automationAction.create({
             data: {
               tenantId, automationId: auto.id,
               sequence: action.sequence, actionType: action.actionType,
-              config: action.config,
+              config: cfgStr,
               delayRelativeTo: action.delayRelativeTo,
               delayOffsetMs: action.delayOffsetMs,
             },
@@ -385,6 +417,7 @@ export class SimulatorService {
     await this.prisma.automationAction.deleteMany({ where: { tenantId } })
     await this.prisma.automationTrigger.deleteMany({ where: { tenantId } })
     await this.prisma.automation.deleteMany({ where: { tenantId } })
+    await this.prisma.notificationTemplate.deleteMany({ where: { tenantId } })
     await this.prisma.tripStatusHistory.deleteMany({ where: { tenantId } })
     await this.prisma.tripPassenger.deleteMany({ where: { tenantId } })
     await this.prisma.trip.deleteMany({ where: { tenantId } })

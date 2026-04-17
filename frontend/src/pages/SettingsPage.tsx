@@ -14,7 +14,10 @@ import {
   CheckIcon,
   SignalIcon,
   ExclamationTriangleIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline'
+import { MfaSetupModal } from '@/components/settings/MfaSetupModal'
+import { MfaDisableModal } from '@/components/settings/MfaDisableModal'
 
 // ---------- Schemas ----------
 
@@ -258,6 +261,47 @@ function IntegrationsTab() {
   )
 }
 
+// ---------- Two-Factor Authentication ----------
+
+function TwoFactorSection() {
+  const user = useAuthStore((s) => s.user)
+  const enabled = user?.mfaEnabled ?? false
+  const [setupOpen, setSetupOpen] = useState(false)
+  const [disableOpen, setDisableOpen] = useState(false)
+
+  return (
+    <div className="card p-6 space-y-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">Two-Factor Authentication</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Add an extra layer of security by requiring a code from your authenticator app at sign-in.
+          </p>
+        </div>
+        {enabled && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 shrink-0">
+            <ShieldCheckIcon className="h-3.5 w-3.5" />
+            Enabled
+          </span>
+        )}
+      </div>
+
+      {enabled ? (
+        <Button variant="danger" onClick={() => setDisableOpen(true)}>
+          Disable 2FA
+        </Button>
+      ) : (
+        <Button variant="secondary" onClick={() => setSetupOpen(true)}>
+          Set up 2FA
+        </Button>
+      )}
+
+      <MfaSetupModal isOpen={setupOpen} onClose={() => setSetupOpen(false)} />
+      <MfaDisableModal isOpen={disableOpen} onClose={() => setDisableOpen(false)} />
+    </div>
+  )
+}
+
 // ---------- Main Page ----------
 
 export default function SettingsPage() {
@@ -387,13 +431,7 @@ export default function SettingsPage() {
             </form>
           </div>
 
-          <div className="card p-6 space-y-4">
-            <h2 className="text-base font-semibold text-gray-900">Two-Factor Authentication</h2>
-            <p className="text-sm text-gray-600">
-              Add an extra layer of security to your account by enabling TOTP-based two-factor authentication.
-            </p>
-            <Button variant="secondary">Set up 2FA</Button>
-          </div>
+          <TwoFactorSection />
         </div>
       )}
 

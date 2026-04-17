@@ -185,6 +185,51 @@ export class AuthController {
   }
 
   /**
+   * POST /api/auth/mfa/setup/verify
+   * Confirms TOTP setup by verifying a code from the authenticator app.
+   * Flips totpEnabled = true on first successful verification.
+   */
+  async mfaSetupVerify(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      requireAuth(req, res, async () => {
+        const body = req.body as { token?: string }
+        if (!body.token || !/^\d{6}$/.test(body.token)) {
+          res.status(400).json(errorResponse('INVALID_TOKEN_FORMAT', 'Token must be a 6-digit code'))
+          return
+        }
+        const result = await authService.verifyTotp(req.user!.id, body.token)
+        res.json(successResponse(result))
+      })
+    } catch (err) {
+      next(err)
+    }
+  }
+
+  /**
+   * POST /api/auth/mfa/disable
+   * Disables TOTP. Requires current password AND a valid TOTP code.
+   */
+  async mfaDisable(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      requireAuth(req, res, async () => {
+        const body = req.body as { password?: string; token?: string }
+        if (!body.password || !body.token) {
+          res.status(400).json(errorResponse('MISSING_FIELDS', 'password and token are required'))
+          return
+        }
+        if (!/^\d{6}$/.test(body.token)) {
+          res.status(400).json(errorResponse('INVALID_TOKEN_FORMAT', 'Token must be a 6-digit code'))
+          return
+        }
+        const result = await authService.disableMfa(req.user!.id, body.password, body.token)
+        res.json(successResponse(result))
+      })
+    } catch (err) {
+      next(err)
+    }
+  }
+
+  /**
    * POST /api/auth/refresh
    * Reads refreshToken from HttpOnly cookie or request body.
    */

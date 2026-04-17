@@ -314,6 +314,62 @@ export class AuthService {
     return { enabled: true }
   }
 
+  /**
+   * Disable TOTP for a user. Requires BOTH the current password and a valid
+   * TOTP code — the password alone isn't enough (an attacker with a stolen
+   * session token could disable MFA with a leaked password), and a TOTP alone
+   * isn't enough either (a stolen session + compromised authenticator app).
+   * The user must prove possession of both factors to tear MFA down.
+   */
+  async disableMfa(
+    userId: string,
+    password: string,
+    totpToken: string,
+  ): Promise<{ enabled: boolean }> {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+    })
+    if (!user) {
+      throw new AppError(404, 'USER_NOT_FOUND', 'User not found')
+    }
+
+    const passwordValid = await argon2.verify(user.passwordHash, password)
+    if (!passwordValid) {
+      throw new AppError(401, 'INVALID_CREDENTIALS', 'Incorrect password')
+    }
+
+    // UserMfaSettings is not tenant-scoped — keyed on globally-unique userId.
+    // eslint-disable-next-line no-restricted-syntax
+    const mfaSettings = await this.prisma.userMfaSettings.findUnique({
+      where: { userId },
+    })
+    if (!mfaSettings?.totpEnabled || !mfaSettings.totpSecret) {
+      throw new AppError(400, 'MFA_NOT_ENABLED', 'Two-factor authentication is not enabled')
+    }
+
+    const tokenValid = this.verifyTotpToken(mfaSettings.totpSecret, totpToken)
+    if (!tokenValid) {
+      throw new AppError(401, 'INVALID_TOTP_TOKEN', 'Invalid authenticator code')
+    }
+
+    await this.prisma.userMfaSettings.update({
+      where: { userId },
+      data: { totpEnabled: false, totpSecret: null, smsEnabled: false, smsPhone: null },
+    })
+
+    logger.info(`MFA disabled for user ${userId}`)
+    recordAudit(this.prisma, {
+      tenantId: user.tenantId,
+      userId,
+      action: 'MFA_DISABLED',
+      entityType: 'User',
+      entityId: userId,
+      diff: { totpEnabled: false, smsEnabled: false },
+    })
+
+    return { enabled: false }
+  }
+
   async generateTokenPair(
     user: { id: string; email: string; tenantId: string; role: string },
   ): Promise<TokenPair> {

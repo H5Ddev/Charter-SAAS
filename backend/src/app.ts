@@ -94,6 +94,18 @@ inAppSender.setIo(io)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Security Middleware
+//
+// CSRF strategy: we intentionally do NOT use a CSRF token middleware. Defense
+// against cross-site request forgery relies on:
+//   1. SameSite=strict on all auth cookies (refreshToken, accessToken) —
+//      browsers refuse to send them on cross-site requests.
+//   2. CORS allowlist (env.CORS_ORIGINS) — unknown origins fail the
+//      credentialed-request preflight.
+//   3. Bearer-token API auth — the frontend attaches Authorization headers,
+//      which a third-party origin cannot add to a forged request.
+// The csurf package was previously declared but never applied; it has since
+// been archived/deprecated upstream, so introducing it would add a maintenance
+// burden without meaningful defense-in-depth on top of the controls above.
 // ─────────────────────────────────────────────────────────────────────────────
 
 app.use(helmet({

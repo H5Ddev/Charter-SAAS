@@ -4,6 +4,7 @@ import { UsersService, CreateUserSchema, UpdateUserSchema } from './users.servic
 import { successResponse } from '../../shared/utils/response'
 import { requireAuth } from '../../shared/middleware/auth'
 import { tenantScope } from '../../shared/middleware/tenantScope'
+import { recordAudit, requestMeta } from '../../shared/utils/auditLog'
 import { AppError } from '../../shared/middleware/errorHandler'
 
 const prisma = new PrismaClient()
@@ -34,6 +35,15 @@ usersRouter.post('/', requireAdmin, async (req: Request, res: Response, next: Ne
   try {
     const data = CreateUserSchema.parse(req.body)
     const user = await service.create(req.tenantId!, data)
+    recordAudit(prisma, {
+      tenantId: req.tenantId!,
+      userId: req.user!.id,
+      action: 'USER_CREATED',
+      entityType: 'User',
+      entityId: user.id,
+      diff: { email: user.email, role: user.role },
+      ...requestMeta(req),
+    })
     res.status(201).json(successResponse(user))
   } catch (err) { next(err) }
 })
@@ -46,6 +56,17 @@ usersRouter.patch('/:id', requireAdmin, async (req: Request, res: Response, next
     }
     const data = UpdateUserSchema.parse(req.body)
     const user = await service.update(req.tenantId!, req.params.id!, data)
+    // Surface role changes as a distinct action — highest-impact admin operation.
+    const action = data.role !== undefined ? 'USER_ROLE_CHANGED' : 'USER_UPDATED'
+    recordAudit(prisma, {
+      tenantId: req.tenantId!,
+      userId: req.user!.id,
+      action,
+      entityType: 'User',
+      entityId: user.id,
+      diff: data,
+      ...requestMeta(req),
+    })
     res.json(successResponse(user))
   } catch (err) { next(err) }
 })
@@ -56,6 +77,14 @@ usersRouter.delete('/:id', requireAdmin, async (req: Request, res: Response, nex
       return next(new AppError(400, 'CANNOT_DELETE_SELF', 'You cannot delete your own account'))
     }
     await service.deactivate(req.tenantId!, req.params.id!)
+    recordAudit(prisma, {
+      tenantId: req.tenantId!,
+      userId: req.user!.id,
+      action: 'USER_DEACTIVATED',
+      entityType: 'User',
+      entityId: req.params.id!,
+      ...requestMeta(req),
+    })
     res.json(successResponse({ deleted: true }))
   } catch (err) { next(err) }
 })

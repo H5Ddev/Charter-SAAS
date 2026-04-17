@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client'
 import { UserRole } from '../../shared/types/appEnums'
 import { env } from '../../config/env'
 import { logger } from '../../shared/utils/logger'
+import { recordAudit } from '../../shared/utils/auditLog'
 import { AppError } from '../../shared/middleware/errorHandler'
 import type { TokenPair, AuthUser, LoginResponse, MfaRequiredResponse } from './auth.types'
 
@@ -258,6 +259,14 @@ export class AuthService {
         data: { totpEnabled: true },
       })
       logger.info(`TOTP enabled for user ${userId}`)
+      recordAudit(this.prisma, {
+        tenantId: mfaSettings.tenantId,
+        userId,
+        action: 'MFA_ENABLED',
+        entityType: 'User',
+        entityId: userId,
+        diff: { totpEnabled: true },
+      })
     }
 
     return { enabled: true }

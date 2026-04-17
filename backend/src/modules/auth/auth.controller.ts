@@ -4,6 +4,8 @@ import { AuthService } from './auth.service'
 import { RegisterSchema, LoginSchema, MfaVerifySchema } from './auth.types'
 import { successResponse, errorResponse } from '../../shared/utils/response'
 import { requireAuth } from '../../shared/middleware/auth'
+import { recordAudit, requestMeta } from '../../shared/utils/auditLog'
+import { AppError } from '../../shared/middleware/errorHandler'
 import { env } from '../../config/env'
 
 const prisma = new PrismaClient()
@@ -38,6 +40,16 @@ export class AuthController {
         maxAge: 15 * 60 * 1000, // 15 minutes
       })
 
+      recordAudit(prisma, {
+        tenantId: result.user.tenantId,
+        userId: result.user.id,
+        action: 'USER_REGISTERED',
+        entityType: 'User',
+        entityId: result.user.id,
+        diff: { email: result.user.email, role: result.user.role },
+        ...requestMeta(req),
+      })
+
       res.status(201).json(successResponse({
         user: result.user,
         accessToken: result.tokens.accessToken,
@@ -53,11 +65,23 @@ export class AuthController {
    * Returns 200 with tokens on success, or 202 with mfaRequired flag if MFA needed.
    */
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
+    let attemptedTenantId: string | undefined
+    let attemptedEmail: string | undefined
     try {
       const data = LoginSchema.parse(req.body)
+      attemptedTenantId = data.tenantId
+      attemptedEmail = data.email
       const result = await authService.login(data.tenantId, data.email, data.password)
 
       if ('mfaRequired' in result && result.mfaRequired) {
+        recordAudit(prisma, {
+          tenantId: data.tenantId,
+          userId: result.userId,
+          action: 'LOGIN_MFA_REQUIRED',
+          entityType: 'User',
+          entityId: result.userId,
+          ...requestMeta(req),
+        })
         res.status(202).json(successResponse({
           mfaRequired: true,
           mfaSessionToken: result.mfaSessionToken,
@@ -74,12 +98,39 @@ export class AuthController {
         maxAge: 15 * 60 * 1000,
       })
 
+      recordAudit(prisma, {
+        tenantId: loginResult.user.tenantId,
+        userId: loginResult.user.id,
+        action: 'USER_LOGIN',
+        entityType: 'User',
+        entityId: loginResult.user.id,
+        ...requestMeta(req),
+      })
+
       res.status(200).json(successResponse({
         user: loginResult.user,
         accessToken: loginResult.tokens.accessToken,
         expiresIn: loginResult.tokens.expiresIn,
       }))
     } catch (err) {
+      // Audit auth failures so brute-force / credential-stuffing attempts are visible.
+      // Only audit when we have a tenantId (i.e. validation passed).
+      if (
+        err instanceof AppError &&
+        attemptedTenantId &&
+        attemptedEmail &&
+        ['INVALID_CREDENTIALS', 'ACCOUNT_DISABLED'].includes(err.code)
+      ) {
+        recordAudit(prisma, {
+          tenantId: attemptedTenantId,
+          userId: null,
+          action: 'LOGIN_FAILED',
+          entityType: 'User',
+          entityId: attemptedEmail,
+          diff: { reason: err.code },
+          ...requestMeta(req),
+        })
+      }
       next(err)
     }
   }
@@ -97,6 +148,15 @@ export class AuthController {
       res.cookie('accessToken', result.tokens.accessToken, {
         ...COOKIE_OPTIONS,
         maxAge: 15 * 60 * 1000,
+      })
+
+      recordAudit(prisma, {
+        tenantId: result.user.tenantId,
+        userId: result.user.id,
+        action: 'MFA_VERIFIED',
+        entityType: 'User',
+        entityId: result.user.id,
+        ...requestMeta(req),
       })
 
       res.status(200).json(successResponse({
@@ -163,6 +223,15 @@ export class AuthController {
     try {
       requireAuth(req, res, async () => {
         await authService.logout(req.user!.id)
+
+        recordAudit(prisma, {
+          tenantId: req.user!.tenantId,
+          userId: req.user!.id,
+          action: 'USER_LOGOUT',
+          entityType: 'User',
+          entityId: req.user!.id,
+          ...requestMeta(req),
+        })
 
         res.clearCookie('refreshToken')
         res.clearCookie('accessToken')

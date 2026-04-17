@@ -33,6 +33,13 @@ export async function twilioStatusCallbackHandler(
       ErrorCode,
       ErrorMessage,
     } = body
+    const { tenantId } = req.params as { tenantId: string }
+
+    if (!tenantId) {
+      logger.warn('Twilio status callback: missing tenantId in URL')
+      res.sendStatus(400)
+      return
+    }
 
     // Verify Twilio signature
     if (env.TWILIO_AUTH_TOKEN) {
@@ -43,7 +50,7 @@ export async function twilioStatusCallbackHandler(
         const url = `${protocol}://${host}${req.originalUrl}`
         const isValid = twilio.validateRequest(env.TWILIO_AUTH_TOKEN, twilioSignature, url, body)
         if (!isValid) {
-          logger.warn('Twilio status callback: signature verification failed', { messageSid: MessageSid })
+          logger.warn('Twilio status callback: signature verification failed', { messageSid: MessageSid, tenantId })
           res.sendStatus(401)
           return
         }
@@ -54,6 +61,7 @@ export async function twilioStatusCallbackHandler(
       to: To,
       from: From,
       errorCode: ErrorCode ?? null,
+      tenantId,
     })
 
     // On terminal failure, find the contact and flag for operator review
@@ -63,8 +71,11 @@ export async function twilioStatusCallbackHandler(
       const normalizedTo = To.replace(/^whatsapp:/, '')
       const isWhatsApp = To.startsWith('whatsapp:')
 
+      // Contact lookup is now scoped to the tenant from the URL — prevents
+      // cross-tenant opt-out if two tenants happen to share a phone number.
       const contact = await prisma.contact.findFirst({
         where: {
+          tenantId,
           OR: isWhatsApp
             ? [{ whatsappPhone: normalizedTo }]
             : [{ phone: normalizedTo }],

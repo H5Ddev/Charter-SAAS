@@ -109,22 +109,48 @@ function getOrCreateIntegration(name: string): Integration | null {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Generic webhook handler
-// POST /api/webhooks/:integrationName
+// POST /api/webhooks/:tenantId/:integrationName
+//
+// Tenant identifier is REQUIRED in the URL so inbound events route to the
+// correct tenant's integration record. Previously the handler used findFirst
+// by integration type only, which sent every tenant's events to whichever
+// tenant happened to be first in the table — a cross-tenant data-routing bug.
+// Signature verification still gates every request, but routing is now
+// unambiguous.
 // ─────────────────────────────────────────────────────────────────────────────
 
 webhooksRouter.use(webhookRateLimiter)
 
-// Raw body needed for signature verification
+// Raw body needed for Stripe signature verification — must be mounted on the
+// path segment Stripe actually posts to. Any tenant.
 webhooksRouter.use(
-  '/stripe',
+  '/:tenantId/stripe',
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   require('express').raw({ type: 'application/json' }),
 )
 
+// Reject any webhook call that does not carry the tenant prefix. The old
+// path `/api/webhooks/:integrationName` is no longer accepted; external
+// providers must reconfigure to the new URL exposed by /api/integrations/status.
 webhooksRouter.post(
   '/:integrationName',
+  (req: Request, res: Response) => {
+    logger.warn(`Rejected legacy tenant-less webhook call: /${req.params.integrationName}`, {
+      ip: req.ip,
+    })
+    res.status(410).json(
+      errorResponse(
+        'WEBHOOK_URL_DEPRECATED',
+        'Webhook URLs must now include a tenant identifier: /api/webhooks/{tenantId}/{integrationName}. Reconfigure the URL in your provider dashboard.',
+      ),
+    )
+  },
+)
+
+webhooksRouter.post(
+  '/:tenantId/:integrationName',
   async (req: Request, res: Response, next: NextFunction) => {
-    const { integrationName } = req.params as { integrationName: string }
+    const { tenantId, integrationName } = req.params as { tenantId: string; integrationName: string }
 
     try {
       const integration = getOrCreateIntegration(integrationName)
@@ -142,6 +168,7 @@ webhooksRouter.post(
         logger.warn(`Webhook signature verification failed for ${integrationName}`, {
           ip: req.ip,
           userAgent: req.headers['user-agent'],
+          tenantId,
         })
         res.status(401).json(
           errorResponse('INVALID_SIGNATURE', 'Webhook signature verification failed'),
@@ -152,49 +179,53 @@ webhooksRouter.post(
       // Parse webhook event
       const webhookEvent = await integration.receiveWebhook(req)
 
-      // Look up integration record in DB to find tenantId
-      // For multi-tenant, each tenant registers their own webhook URL with a tenant token
-      // Here we look up by integration type to find the first matching tenant
+      // Look up the integration record for THIS tenant only.
       const dbIntegration = await prisma.integration.findFirst({
         where: {
+          tenantId,
           type: integrationName.toUpperCase() as never,
           isActive: true,
           deletedAt: null,
         },
       })
 
-      const tenantId = dbIntegration?.tenantId ?? 'unknown'
-
-      // Persist webhook event
-      if (dbIntegration) {
-        await prisma.webhookEvent.create({
-          data: {
-            id: uuidv4(),
-            tenantId,
-            integrationId: dbIntegration.id,
-            eventType: webhookEvent.eventType,
-            rawBody: webhookEvent.rawBody as never,
-            status: 'PENDING',
-          },
-        })
+      if (!dbIntegration) {
+        logger.warn(`No active ${integrationName} integration for tenant`, { tenantId })
+        res.status(404).json(
+          errorResponse(
+            'INTEGRATION_NOT_CONFIGURED',
+            `No active ${integrationName} integration for tenant ${tenantId}`,
+          ),
+        )
+        return
       }
 
+      // Persist webhook event
+      await prisma.webhookEvent.create({
+        data: {
+          id: uuidv4(),
+          tenantId,
+          integrationId: dbIntegration.id,
+          eventType: webhookEvent.eventType,
+          rawBody: webhookEvent.rawBody as never,
+          status: 'PENDING',
+        },
+      })
+
       // Publish to Service Bus for automation processing
-      if (tenantId !== 'unknown') {
-        try {
-          await eventPublisher.publish(
-            env.AZURE_SERVICE_BUS_QUEUE_AUTOMATION,
-            createEvent(tenantId, 'INBOUND_WEBHOOK', {
-              integrationName,
-              integrationId: dbIntegration?.id ?? '',
-              webhookEventId: webhookEvent.eventId,
-              rawEventType: webhookEvent.eventType,
-            }),
-          )
-        } catch {
-          // Service Bus not configured — log and continue
-          logger.warn(`Service Bus not available — webhook event not published to queue`)
-        }
+      try {
+        await eventPublisher.publish(
+          env.AZURE_SERVICE_BUS_QUEUE_AUTOMATION,
+          createEvent(tenantId, 'INBOUND_WEBHOOK', {
+            integrationName,
+            integrationId: dbIntegration.id,
+            webhookEventId: webhookEvent.eventId,
+            rawEventType: webhookEvent.eventType,
+          }),
+        )
+      } catch {
+        // Service Bus not configured — log and continue
+        logger.warn(`Service Bus not available — webhook event not published to queue`)
       }
 
       logger.info(`Webhook processed: ${integrationName}/${webhookEvent.eventType}`, {
@@ -216,5 +247,5 @@ webhooksRouter.post(
 import { twilioInboundSmsHandler } from './twilio-sms'
 import { twilioStatusCallbackHandler } from './twilio-status'
 
-webhooksRouter.post('/twilio/inbound-sms', twilioInboundSmsHandler)
-webhooksRouter.post('/twilio/status', twilioStatusCallbackHandler)
+webhooksRouter.post('/:tenantId/twilio/inbound-sms', twilioInboundSmsHandler)
+webhooksRouter.post('/:tenantId/twilio/status', twilioStatusCallbackHandler)

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import { ZodError } from 'zod'
 import { Prisma } from '@prisma/client'
 import jwt from 'jsonwebtoken'
+import multer from 'multer'
 import { errorResponse } from '../utils/response'
 import { logger } from '../utils/logger'
 import { env } from '../../config/env'
@@ -93,6 +94,13 @@ export function errorHandler(
 
   if (err instanceof Prisma.PrismaClientValidationError) {
     res.status(400).json(errorResponse('DATABASE_VALIDATION_ERROR', 'Invalid database query'))
+    return
+  }
+
+  // Multer errors (file upload)
+  if (err instanceof multer.MulterError) {
+    const status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400
+    res.status(status).json(errorResponse(`UPLOAD_${err.code}`, err.message))
     return
   }
 

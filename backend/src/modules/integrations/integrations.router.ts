@@ -16,16 +16,18 @@ integrationsRouter.use(requireAuth)
  * GET /api/integrations/status
  * Returns which integrations are configured (no secrets exposed).
  */
-integrationsRouter.get('/status', async (_req: Request, res: Response, next: NextFunction) => {
+integrationsRouter.get('/status', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const webhookBase = env.API_BASE_URL
+    const tenantId = req.user!.tenantId
 
     res.json(successResponse({
       twilio: {
         configured: !!(env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_PHONE_NUMBER),
         phoneNumber: env.TWILIO_PHONE_NUMBER ?? null,
         whatsappFrom: env.TWILIO_WHATSAPP_FROM ?? null,
-        inboundWebhookUrl: `${webhookBase}/api/webhooks/twilio/inbound-sms`,
+        inboundWebhookUrl: `${webhookBase}/api/webhooks/${tenantId}/twilio/inbound-sms`,
+        statusCallbackUrl: `${webhookBase}/api/webhooks/${tenantId}/twilio/status`,
       },
       sendgrid: {
         configured: !!(env.SENDGRID_API_KEY && env.SENDGRID_FROM_EMAIL),

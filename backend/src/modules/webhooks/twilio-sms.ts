@@ -38,6 +38,13 @@ export async function twilioInboundSmsHandler(
   try {
     const body = req.body as Record<string, string>
     const { From, Body: messageBody, MessageSid, To } = body
+    const { tenantId } = req.params as { tenantId: string }
+
+    if (!tenantId) {
+      logger.warn('Twilio inbound SMS: missing tenantId in URL')
+      res.status(400).type('text/xml').send(buildTwimlResponse())
+      return
+    }
 
     // Verify Twilio signature
     if (env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN) {
@@ -55,38 +62,24 @@ export async function twilioInboundSmsHandler(
         )
 
         if (!isValid) {
-          logger.warn('Twilio inbound SMS: signature verification failed', { from: From })
+          logger.warn('Twilio inbound SMS: signature verification failed', { from: From, tenantId })
           res.status(401).send(buildTwimlResponse())
           return
         }
       }
     }
 
-    logger.info(`Inbound SMS received from ${From}`, { messageSid: MessageSid })
+    logger.info(`Inbound SMS received from ${From}`, { messageSid: MessageSid, tenantId, to: To })
 
-    // Find tenant by DB integration record, or fall back to env-var config
-    const integration = await prisma.integration.findFirst({
-      where: { type: 'TWILIO', isActive: true, deletedAt: null },
-      include: { config: true },
+    // Verify tenant exists and is active before we touch any data
+    const tenant = await prisma.tenant.findFirst({
+      where: { id: tenantId, deletedAt: null },
+      select: { id: true },
     })
-
-    let tenantId: string
-
-    if (integration) {
-      tenantId = integration.tenantId
-    } else {
-      // Fallback: find the first tenant (single-tenant / env-var config mode)
-      const tenant = await prisma.tenant.findFirst({
-        where: { deletedAt: null },
-        select: { id: true },
-      })
-      if (!tenant) {
-        logger.warn('No tenant found for inbound SMS', { to: To })
-        res.type('text/xml').send(buildTwimlResponse())
-        return
-      }
-      tenantId = tenant.id
-      logger.info('Using fallback tenant for inbound SMS (no integration record found)', { tenantId })
+    if (!tenant) {
+      logger.warn('Twilio inbound SMS: unknown tenant in URL', { tenantId })
+      res.status(404).type('text/xml').send(buildTwimlResponse())
+      return
     }
 
     // Find or create contact

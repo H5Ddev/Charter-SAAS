@@ -278,16 +278,14 @@ export default function SettingsPage() {
     resolver: zodResolver(passwordSchema),
   })
 
-  async function onProfileSubmit(values: ProfileForm) {
+  async function onProfileSubmit(_values: ProfileForm) {
     // TODO: wire to PATCH /api/users/me
-    console.log('Profile update:', values)
     setProfileSaved(true)
     setTimeout(() => setProfileSaved(false), 3000)
   }
 
-  async function onPasswordSubmit(values: PasswordForm) {
+  async function onPasswordSubmit(_values: PasswordForm) {
     // TODO: wire to POST /api/auth/change-password
-    console.log('Password change:', values)
     passwordForm.reset()
   }
 

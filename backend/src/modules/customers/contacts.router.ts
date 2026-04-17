@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { ContactsController } from './contacts.controller'
 import { requireAuth } from '../../shared/middleware/auth'
 import { tenantScope } from '../../shared/middleware/tenantScope'
+import { uploadDocument } from '../../shared/middleware/fileUpload'
 import { successResponse } from '../../shared/utils/response'
 import { AppError } from '../../shared/middleware/errorHandler'
 import { PrismaClient } from '@prisma/client'
@@ -25,7 +26,7 @@ contactsRouter.post('/', controller.create.bind(controller))
 contactsRouter.patch('/:id', controller.update.bind(controller))
 contactsRouter.delete('/:id', controller.softDelete.bind(controller))
 contactsRouter.post('/:id/notes', controller.addNote.bind(controller))
-contactsRouter.post('/:id/documents', controller.uploadDocument.bind(controller))
+contactsRouter.post('/:id/documents', uploadDocument, controller.uploadDocument.bind(controller))
 contactsRouter.post('/merge', controller.merge.bind(controller))
 
 /**

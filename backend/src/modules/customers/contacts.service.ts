@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto'
+import path from 'path'
 import { PrismaClient, Prisma } from '@prisma/client'
 import { eventPublisher } from '../../shared/events/publisher'
 import { createEvent } from '../../shared/events/types'
@@ -332,7 +334,10 @@ export class ContactsService {
       throw new AppError(404, 'CONTACT_NOT_FOUND', 'Contact not found')
     }
 
-    const blobName = `contacts/${tenantId}/${contactId}/${Date.now()}-${file.originalname}`
+    // Use UUID for blob path (never user input) to prevent path traversal.
+    // Preserve original filename's extension for download UX.
+    const ext = path.extname(file.originalname).toLowerCase().replace(/[^a-z0-9.]/g, '').slice(0, 10)
+    const blobName = `contacts/${tenantId}/${contactId}/${randomUUID()}${ext}`
     const blobUrl = await uploadBlob(
       env.AZURE_STORAGE_CONTAINER_DOCUMENTS,
       blobName,
@@ -340,11 +345,15 @@ export class ContactsService {
       file.mimetype,
     )
 
+    // Display filename: sanitize to strip path separators and control chars.
+    // eslint-disable-next-line no-control-regex
+    const displayName = path.basename(file.originalname).replace(/[\x00-\x1f\x7f]/g, '').slice(0, 255)
+
     return this.prisma.contactDocument.create({
       data: {
         tenantId,
         contactId,
-        fileName: file.originalname,
+        fileName: displayName,
         fileType: file.mimetype,
         blobUrl,
         uploadedBy: userId,

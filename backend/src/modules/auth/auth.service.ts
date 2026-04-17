@@ -168,7 +168,9 @@ export class AuthService {
       throw new AppError(401, 'INVALID_REFRESH_TOKEN', 'Invalid or expired refresh token')
     }
 
-    // Check refresh token exists in DB (not revoked) and belongs to this user
+    // Check refresh token exists in DB (not revoked) and belongs to this user.
+    // RefreshToken is not tenant-scoped — tokens are globally-unique opaque strings.
+    // eslint-disable-next-line no-restricted-syntax
     const stored = await this.prisma.refreshToken.findUnique({ where: { token: refreshToken } })
     if (!stored || stored.userId !== payload.id || stored.expiresAt < new Date()) {
       throw new AppError(401, 'REFRESH_TOKEN_REVOKED', 'Refresh token has been revoked')
@@ -233,6 +235,8 @@ export class AuthService {
     userId: string,
     token: string,
   ): Promise<{ enabled: boolean }> {
+    // UserMfaSettings is not tenant-scoped — keyed on userId which is globally unique.
+    // eslint-disable-next-line no-restricted-syntax
     const mfaSettings = await this.prisma.userMfaSettings.findUnique({
       where: { userId },
     })

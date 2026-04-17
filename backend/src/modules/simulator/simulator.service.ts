@@ -8,6 +8,7 @@ import { whatsappSender } from '../notifications/channels/whatsapp.sender'
 import { slackSender } from '../notifications/channels/slack.sender'
 import { teamsSender } from '../notifications/channels/teams.sender'
 import { inAppSender } from '../notifications/channels/inapp.sender'
+import { tenantScope } from '../../shared/utils/prismaScope'
 import { logger } from '../../shared/utils/logger'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -305,7 +306,7 @@ export class SimulatorService {
         const statuses = ['CONFIRMED', 'BOARDING', 'IN_FLIGHT', 'COMPLETED'] as const
 
         for (const toStatus of statuses) {
-          const fromStatus = (await this.prisma.trip.findUnique({ where: { id: trip.id } }))!.status
+          const fromStatus = (await this.prisma.trip.findFirst({ where: tenantScope(tenantId, { id: trip.id }) }))!.status
           log('status_change', { from: fromStatus, to: toStatus })
 
           await this.prisma.trip.update({

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -165,9 +165,9 @@ export default function LoginPage() {
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                   Password
                 </label>
-                <a href="#" className="text-xs text-primary-600 hover:text-primary-700 font-medium">
+                <Link to="/forgot-password" className="text-xs text-primary-600 hover:text-primary-700 font-medium">
                   Forgot password?
-                </a>
+                </Link>
               </div>
               <input
                 id="password"

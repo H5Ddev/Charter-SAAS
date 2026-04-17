@@ -73,11 +73,12 @@ model User {
   updatedAt           DateTime  @updatedAt
   deletedAt           DateTime?
 
-  tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  mfaSettings    UserMfaSettings?
-  auditLogs      AuditLog[]
-  ticketMessages TicketMessage[]
-  refreshTokens  RefreshToken[]
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  mfaSettings         UserMfaSettings?
+  auditLogs           AuditLog[]
+  ticketMessages      TicketMessage[]
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -98,6 +99,25 @@ model RefreshToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("refresh_tokens")
+}
+
+// Password reset tokens. The raw token is emailed to the user; only the
+// SHA-256 hash is stored so a DB leak can't be used to hijack reset flows.
+// Tokens are single-use (usedAt set on confirm) and expire after 1 hour.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tenantId  String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
 }
 
 model UserMfaSettings {

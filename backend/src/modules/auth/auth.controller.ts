@@ -230,6 +230,44 @@ export class AuthController {
   }
 
   /**
+   * POST /api/auth/password-reset/request
+   * Public. Always returns 200, even for unknown emails, to prevent enumeration.
+   */
+  async passwordResetRequest(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const body = req.body as { tenantId?: string; email?: string }
+      if (!body.tenantId || !body.email) {
+        res.status(400).json(errorResponse('MISSING_FIELDS', 'tenantId and email are required'))
+        return
+      }
+      await authService.requestPasswordReset(body.tenantId, body.email)
+      res.json(successResponse({
+        message: 'If an account exists for that email, a reset link has been sent.',
+      }))
+    } catch (err) {
+      next(err)
+    }
+  }
+
+  /**
+   * POST /api/auth/password-reset/confirm
+   * Public. Accepts the raw token from the emailed link plus the new password.
+   */
+  async passwordResetConfirm(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const body = req.body as { token?: string; newPassword?: string }
+      if (!body.token || !body.newPassword) {
+        res.status(400).json(errorResponse('MISSING_FIELDS', 'token and newPassword are required'))
+        return
+      }
+      await authService.confirmPasswordReset(body.token, body.newPassword)
+      res.json(successResponse({ message: 'Password updated. Please sign in with your new password.' }))
+    } catch (err) {
+      next(err)
+    }
+  }
+
+  /**
    * POST /api/auth/refresh
    * Reads refreshToken from HttpOnly cookie or request body.
    */

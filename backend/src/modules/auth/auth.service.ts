@@ -1,3 +1,4 @@
+import { randomBytes, createHash } from 'crypto'
 import * as argon2 from 'argon2'
 import jwt from 'jsonwebtoken'
 import * as OTPAuth from 'otpauth'
@@ -7,6 +8,7 @@ import { UserRole } from '../../shared/types/appEnums'
 import { env } from '../../config/env'
 import { logger } from '../../shared/utils/logger'
 import { recordAudit } from '../../shared/utils/auditLog'
+import { emailSender } from '../notifications/channels/email.sender'
 import { AppError } from '../../shared/middleware/errorHandler'
 import type { TokenPair, AuthUser, LoginResponse, MfaRequiredResponse } from './auth.types'
 
@@ -24,6 +26,15 @@ const REFRESH_TTL_DAYS = 7
 // Defends against distributed brute-force where IP-based rate limiting fails.
 const MAX_FAILED_LOGIN_ATTEMPTS = 5
 const LOCKOUT_DURATION_MINUTES = 15
+
+// Password reset: raw tokens are 32 bytes of entropy (64 hex chars) and expire
+// in PASSWORD_RESET_TTL_MINUTES. Only the SHA-256 hash is stored, so a DB leak
+// can't be used to hijack in-flight resets.
+const PASSWORD_RESET_TTL_MINUTES = 60
+
+function hashResetToken(raw: string): string {
+  return createHash('sha256').update(raw).digest('hex')
+}
 
 export class AuthService {
   constructor(private readonly prisma: PrismaClient) {}
@@ -368,6 +379,107 @@ export class AuthService {
     })
 
     return { enabled: false }
+  }
+
+  /**
+   * Start a password reset flow. Always completes successfully, even if no
+   * user matches — this prevents email enumeration. If a user IS found, we
+   * generate a 32-byte random token, store its SHA-256 hash with a 1-hour
+   * expiry, and email the raw token to the user as a reset link.
+   */
+  async requestPasswordReset(tenantId: string, email: string): Promise<void> {
+    const user = await this.prisma.user.findFirst({
+      where: { tenantId, email, deletedAt: null, isActive: true },
+    })
+
+    // Audit the request either way so suspicious floods are visible.
+    recordAudit(this.prisma, {
+      tenantId,
+      userId: user?.id ?? null,
+      action: 'PASSWORD_RESET_REQUESTED',
+      entityType: 'User',
+      entityId: user?.id ?? email,
+    })
+
+    if (!user) {
+      logger.info(`Password reset requested for non-existent email`, { tenantId, email })
+      return
+    }
+
+    const rawToken = randomBytes(32).toString('hex')
+    const tokenHash = hashResetToken(rawToken)
+    const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MINUTES * 60 * 1000)
+
+    await this.prisma.passwordResetToken.create({
+      data: { userId: user.id, tenantId, tokenHash, expiresAt },
+    })
+
+    const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${rawToken}`
+    const subject = 'Reset your AeroComm password'
+    const body =
+      `Hi ${user.firstName},\n\n` +
+      `We received a request to reset the password for your AeroComm account.\n\n` +
+      `Reset link (valid for ${PASSWORD_RESET_TTL_MINUTES} minutes): ${resetUrl}\n\n` +
+      `If you didn't request this, you can safely ignore this email — your password won't change.\n\n` +
+      `— AeroComm`
+
+    try {
+      await emailSender.send(user.email, subject, body)
+    } catch (err) {
+      // Don't leak email-send failure to the caller — still return success.
+      // Log it for operator triage.
+      logger.error(`Failed to send password reset email`, { userId: user.id, error: err })
+    }
+  }
+
+  /**
+   * Complete a password reset by exchanging the raw token for a password
+   * update. The token is hashed and looked up, verified not expired / not
+   * already used, then the user's password is rehashed. All refresh tokens
+   * for the user are deleted so every other session is forced to re-login,
+   * on the assumption a compromised session is what prompted the reset.
+   */
+  async confirmPasswordReset(rawToken: string, newPassword: string): Promise<void> {
+    if (newPassword.length < 8) {
+      throw new AppError(400, 'WEAK_PASSWORD', 'Password must be at least 8 characters')
+    }
+
+    const tokenHash = hashResetToken(rawToken)
+    // eslint-disable-next-line no-restricted-syntax
+    const record = await this.prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+    })
+
+    if (!record || record.usedAt || record.expiresAt < new Date()) {
+      throw new AppError(400, 'INVALID_RESET_TOKEN', 'This reset link is invalid or has expired')
+    }
+
+    const passwordHash = await argon2.hash(newPassword, ARGON2_OPTIONS as argon2.Options & { raw?: false })
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: record.userId },
+        data: {
+          passwordHash,
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+        },
+      }),
+      this.prisma.passwordResetToken.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      }),
+      this.prisma.refreshToken.deleteMany({ where: { userId: record.userId } }),
+    ])
+
+    logger.info(`Password reset completed for user ${record.userId}`)
+    recordAudit(this.prisma, {
+      tenantId: record.tenantId,
+      userId: record.userId,
+      action: 'PASSWORD_RESET_COMPLETED',
+      entityType: 'User',
+      entityId: record.userId,
+    })
   }
 
   async generateTokenPair(

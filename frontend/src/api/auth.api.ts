@@ -147,3 +147,21 @@ export function useRegister() {
     },
   })
 }
+
+export function useRequestPasswordReset() {
+  return useMutation({
+    mutationFn: async (payload: { tenantId: string; email: string }) => {
+      const response = await apiClient.post<{ message: string }>('/auth/password-reset/request', payload)
+      return response.data
+    },
+  })
+}
+
+export function useConfirmPasswordReset() {
+  return useMutation({
+    mutationFn: async (payload: { token: string; newPassword: string }) => {
+      const response = await apiClient.post<{ message: string }>('/auth/password-reset/confirm', payload)
+      return response.data
+    },
+  })
+}

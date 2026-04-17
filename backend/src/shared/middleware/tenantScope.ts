@@ -46,8 +46,10 @@ export function withTenantScope(prisma: PrismaClient, tenantId: string) {
           return query(args)
         },
         async findUnique({ args, query }: { args: Record<string, unknown>; query: (args: Record<string, unknown>) => Promise<unknown> }) {
-          // findUnique does not support deletedAt filtering via where uniqueness
-          // Use findFirst instead for soft-delete aware unique lookups
+          // findUnique bypasses tenant scoping by design (not supported by Prisma).
+          // For business models (contacts, trips, users, etc.), use findFirst instead.
+          // For non-tenant-scoped models (RefreshToken, UserMfaSettings), this passthrough is safe.
+          // NOTE: A lint rule should enforce this pattern in code review.
           return query(args)
         },
         async count({ args, query }: { args: Record<string, unknown>; query: (args: Record<string, unknown>) => Promise<unknown> }) {

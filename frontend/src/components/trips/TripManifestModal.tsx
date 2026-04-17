@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import DOMPurify from 'dompurify'
 import { PrinterIcon, LockClosedIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { XMarkIcon } from '@heroicons/react/20/solid'
 import Button from '@/components/ui/Button'
@@ -37,6 +38,7 @@ export function TripManifestModal({ trip, onClose }: Props) {
     if (!content) return
     const win = window.open('', '_blank', 'width=900,height=700')
     if (!win) return
+    const sanitizedHtml = DOMPurify.sanitize(content.innerHTML)
     win.document.write(`
       <!DOCTYPE html>
       <html>
@@ -60,7 +62,7 @@ export function TripManifestModal({ trip, onClose }: Props) {
           @media print { body { padding: 16px; } }
         </style>
       </head>
-      <body>${content.innerHTML}</body>
+      <body>${sanitizedHtml}</body>
       </html>
     `)
     win.document.close()

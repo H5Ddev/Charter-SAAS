@@ -367,6 +367,9 @@ export class ActionExecutor {
     const url = config.url ? render(config.url, context) : undefined
     if (!url) throw new AppError(400, 'NO_WEBHOOK_URL', 'FIRE_WEBHOOK action requires url')
 
+    // Validate URL to prevent SSRF attacks
+    this.validateWebhookUrl(url)
+
     const body = config.body ? render(config.body, context) : JSON.stringify(context)
     const method = config.method ?? 'POST'
 
@@ -381,6 +384,35 @@ export class ActionExecutor {
 
     if (!response.ok) {
       throw new AppError(502, 'WEBHOOK_FAILED', `FIRE_WEBHOOK: ${url} returned ${response.status}`)
+    }
+  }
+
+  private validateWebhookUrl(url: string): void {
+    try {
+      const parsed = new URL(url)
+      const hostname = parsed.hostname
+
+      // Block private/internal IP ranges and metadata endpoints
+      const blockedPatterns = [
+        /^127\./, // Loopback (127.0.0.1)
+        /^10\./, // Private range (10.0.0.0/8)
+        /^172\.(1[6-9]|2[0-9]|3[01])\./, // Private range (172.16.0.0/12)
+        /^192\.168\./, // Private range (192.168.0.0/16)
+        /^169\.254\./, // Link-local (169.254.0.0/16)
+        /^0\./, // Current network (0.0.0.0/8)
+        /^255\./, // Broadcast (255.255.255.255)
+        /^localhost$/i, // localhost
+        /^::1$/i, // IPv6 loopback
+      ]
+
+      for (const pattern of blockedPatterns) {
+        if (pattern.test(hostname)) {
+          throw new AppError(400, 'WEBHOOK_BLOCKED', `Webhook URL targets private/internal address: ${hostname}`)
+        }
+      }
+    } catch (error) {
+      if (error instanceof AppError) throw error
+      throw new AppError(400, 'INVALID_WEBHOOK_URL', `Invalid webhook URL: ${(error as Error).message}`)
     }
   }
 

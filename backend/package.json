@@ -21,7 +21,7 @@
     "@azure/keyvault-secrets": "^4.8.0",
     "@azure/service-bus": "^7.9.0",
     "@azure/storage-blob": "^12.17.0",
-    "@prisma/client": "^5.10.0",
+    "@prisma/client": "^5.22.0",
     "@sendgrid/mail": "^8.1.0",
     "argon2": "^0.31.2",
     "compression": "^1.7.4",
@@ -72,16 +72,30 @@
     "preset": "ts-jest",
     "testEnvironment": "node",
     "transform": {
-      "^.+\\.tsx?$": ["ts-jest", { "tsconfig": "tsconfig.test.json" }]
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "tsconfig": "tsconfig.test.json"
+        }
+      ]
     },
-    "roots": ["<rootDir>/tests", "<rootDir>/src"],
-    "testMatch": ["**/*.test.ts"],
+    "roots": [
+      "<rootDir>/tests",
+      "<rootDir>/src"
+    ],
+    "testMatch": [
+      "**/*.test.ts"
+    ],
     "collectCoverageFrom": [
       "src/**/*.ts",
       "!src/**/*.d.ts",
       "!src/server.ts"
     ],
     "coverageDirectory": "coverage",
-    "coverageReporters": ["text", "lcov", "html"]
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html"
+    ]
   }
 }

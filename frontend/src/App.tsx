@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { Suspense, lazy, Component, type ReactNode } from 'react'
 import { Layout } from './components/layout/Layout'
 import { ToastContainer } from './components/ui/ToastContainer'
+import { useAuthStore } from './store/auth.store'
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null }
@@ -16,11 +17,12 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
   render() {
     if (this.state.error) {
+      const isDev = import.meta.env.DEV
       return (
         <div style={{ padding: 40, fontFamily: 'monospace', whiteSpace: 'pre-wrap', color: 'red' }}>
           <h2>Runtime Error</h2>
-          <p>{(this.state.error as Error).message}</p>
-          <p>{(this.state.error as Error).stack}</p>
+          <p>{isDev ? (this.state.error as Error).message : 'An unexpected error occurred'}</p>
+          {isDev && <p>{(this.state.error as Error).stack}</p>}
         </div>
       )
     }
@@ -53,7 +55,10 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const SimulatorPage = lazy(() => import('./pages/SimulatorPage'))
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  // Auth guard disabled until backend is connected
+  const { accessToken } = useAuthStore()
+  if (!accessToken || accessToken === 'demo') {
+    return <Navigate to="/login" replace />
+  }
   return <>{children}</>
 }
 

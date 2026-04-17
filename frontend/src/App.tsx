@@ -4,25 +4,69 @@ import { Layout } from './components/layout/Layout'
 import { ToastContainer } from './components/ui/ToastContainer'
 import { useAuthStore } from './store/auth.store'
 
+const CHUNK_RELOAD_KEY = 'chunk-reload-attempted'
+
+function isChunkLoadError(err: Error): boolean {
+  return (
+    err.message.includes('Failed to fetch dynamically imported module') ||
+    err.message.includes('Importing a module script failed')
+  )
+}
+
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
-  state = { error: null }
+  state = { error: null as Error | null }
   static getDerivedStateFromError(error: Error) { return { error } }
+
+  componentDidMount() {
+    // We rendered successfully — a prior chunk-reload attempt worked.
+    // Clear the guard so a future outage in this session can auto-recover again.
+    try { sessionStorage.removeItem(CHUNK_RELOAD_KEY) } catch { /* ignore */ }
+  }
+
   componentDidCatch(error: Error) {
     // Stale chunk after a new deploy — the hashed JS file no longer exists.
-    // Force a hard reload so the browser picks up the new index.html + chunks.
-    if (error.message.includes('Failed to fetch dynamically imported module') ||
-        error.message.includes('Importing a module script failed')) {
-      window.location.reload()
-    }
+    // Auto-reload once to pick up the new index.html + chunks. Guard with
+    // sessionStorage so that if the reload ALSO fails (e.g. cached index.html
+    // from a CDN) we don't loop forever — we fall through to the manual UI.
+    if (!isChunkLoadError(error)) return
+    try {
+      if (sessionStorage.getItem(CHUNK_RELOAD_KEY)) return
+      sessionStorage.setItem(CHUNK_RELOAD_KEY, '1')
+    } catch { /* storage disabled — best-effort one reload still useful */ }
+    window.location.reload()
   }
+
   render() {
     if (this.state.error) {
       const isDev = import.meta.env.DEV
+      const chunkError = isChunkLoadError(this.state.error)
       return (
-        <div style={{ padding: 40, fontFamily: 'monospace', whiteSpace: 'pre-wrap', color: 'red' }}>
-          <h2>Runtime Error</h2>
-          <p>{isDev ? (this.state.error as Error).message : 'An unexpected error occurred'}</p>
-          {isDev && <p>{(this.state.error as Error).stack}</p>}
+        <div style={{ padding: 40, fontFamily: 'system-ui, sans-serif', maxWidth: 640, margin: '40px auto' }}>
+          <h2 style={{ marginBottom: 12 }}>
+            {chunkError ? 'App update available' : 'Runtime Error'}
+          </h2>
+          <p style={{ marginBottom: 16, color: '#4b5563' }}>
+            {chunkError
+              ? 'A newer version of AeroComm has been deployed. Reload to load the latest assets.'
+              : isDev ? this.state.error.message : 'An unexpected error occurred.'}
+          </p>
+          <button
+            onClick={() => {
+              try { sessionStorage.removeItem(CHUNK_RELOAD_KEY) } catch { /* ignore */ }
+              window.location.reload()
+            }}
+            style={{
+              padding: '8px 16px', borderRadius: 6, border: 'none',
+              background: '#2563eb', color: '#fff', fontSize: 14, cursor: 'pointer',
+            }}
+          >
+            Reload
+          </button>
+          {isDev && !chunkError && (
+            <pre style={{ marginTop: 16, whiteSpace: 'pre-wrap', fontSize: 12, color: '#991b1b' }}>
+              {this.state.error.stack}
+            </pre>
+          )}
         </div>
       )
     }

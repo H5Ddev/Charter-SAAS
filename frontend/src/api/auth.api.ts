@@ -77,6 +77,32 @@ export function useMfaSetup() {
   })
 }
 
+export function useMfaSetupVerify() {
+  const { user, setUser } = useAuthStore()
+  return useMutation({
+    mutationFn: async (token: string) => {
+      const response = await apiClient.post<{ enabled: boolean }>('/auth/mfa/setup/verify', { token })
+      return response.data
+    },
+    onSuccess: () => {
+      if (user) setUser({ ...user, mfaEnabled: true })
+    },
+  })
+}
+
+export function useMfaDisable() {
+  const { user, setUser } = useAuthStore()
+  return useMutation({
+    mutationFn: async (payload: { password: string; token: string }) => {
+      const response = await apiClient.post<{ enabled: boolean }>('/auth/mfa/disable', payload)
+      return response.data
+    },
+    onSuccess: () => {
+      if (user) setUser({ ...user, mfaEnabled: false })
+    },
+  })
+}
+
 export function useRefreshToken() {
   return useMutation({
     mutationFn: async () => {

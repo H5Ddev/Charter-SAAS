@@ -19,6 +19,12 @@ const ARGON2_OPTIONS: argon2.Options = {
 
 const REFRESH_TTL_DAYS = 7
 
+// Account lockout: after N consecutive failed password attempts, lock the
+// account for LOCKOUT_DURATION_MINUTES. Counters reset on successful login.
+// Defends against distributed brute-force where IP-based rate limiting fails.
+const MAX_FAILED_LOGIN_ATTEMPTS = 5
+const LOCKOUT_DURATION_MINUTES = 15
+
 export class AuthService {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -87,15 +93,51 @@ export class AuthService {
       throw new AppError(403, 'ACCOUNT_DISABLED', 'Account has been disabled')
     }
 
+    // Reject if account is currently locked from prior failed attempts.
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new AppError(
+        423,
+        'ACCOUNT_LOCKED',
+        `Account locked due to too many failed login attempts. Try again after ${user.lockedUntil.toISOString()}.`,
+      )
+    }
+
     const passwordValid = await argon2.verify(user.passwordHash, password)
     if (!passwordValid) {
+      const nextAttempts = user.failedLoginAttempts + 1
+      const reachedThreshold = nextAttempts >= MAX_FAILED_LOGIN_ATTEMPTS
+      const lockedUntil = reachedThreshold
+        ? new Date(Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000)
+        : null
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { failedLoginAttempts: nextAttempts, lockedUntil },
+      })
+
+      if (reachedThreshold) {
+        recordAudit(this.prisma, {
+          tenantId: user.tenantId,
+          userId: user.id,
+          action: 'ACCOUNT_LOCKED',
+          entityType: 'User',
+          entityId: user.id,
+          diff: { failedLoginAttempts: nextAttempts, lockedUntil: lockedUntil?.toISOString() },
+        })
+        throw new AppError(
+          423,
+          'ACCOUNT_LOCKED',
+          `Too many failed login attempts. Account locked until ${lockedUntil!.toISOString()}.`,
+        )
+      }
+
       throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password')
     }
 
-    // Update last login timestamp
+    // Successful auth: reset the failed-attempt counter and update last-login.
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date() },
+      data: { lastLoginAt: new Date(), failedLoginAttempts: 0, lockedUntil: null },
     })
 
     // Check if MFA is required

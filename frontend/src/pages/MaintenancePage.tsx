@@ -113,19 +113,20 @@ function AddMaintenanceModal({ isOpen, onClose, editingRecord }: AddMaintenanceM
     if (!form.aircraftId) { setError('Please select an aircraft.'); return }
     if (!form.title.trim()) { setError('Title is required.'); return }
 
+    const toIso = (d: string) => (d ? new Date(`${d}T00:00:00.000Z`).toISOString() : undefined)
     const payload = {
       aircraftId: form.aircraftId,
       type: form.type,
       title: form.title.trim(),
       description: form.description.trim() || undefined,
       status: form.status,
-      scheduledAt: form.scheduledAt || undefined,
-      completedAt: form.completedAt || undefined,
+      scheduledAt: toIso(form.scheduledAt),
+      completedAt: toIso(form.completedAt),
       vendor: form.vendor.trim() || undefined,
       cost: form.cost ? Number(form.cost) : undefined,
       airframeHoursAtService: form.airframeHoursAtService ? Number(form.airframeHoursAtService) : undefined,
       nextDueHours: form.nextDueHours ? Number(form.nextDueHours) : undefined,
-      nextDueDate: form.nextDueDate || undefined,
+      nextDueDate: toIso(form.nextDueDate),
       notes: form.notes.trim() || undefined,
     }
 

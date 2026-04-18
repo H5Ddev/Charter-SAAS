@@ -13,27 +13,39 @@ function isChunkLoadError(err: Error): boolean {
   )
 }
 
+// Reload using a cache-bust query param so the browser is forced to GET a
+// fresh index.html instead of replaying a cached copy that lacks no-cache
+// headers (the most common reason the auto-reload didn't actually recover).
+function reloadWithCacheBust() {
+  try { sessionStorage.removeItem(CHUNK_RELOAD_KEY) } catch { /* ignore */ }
+  const url = new URL(window.location.href)
+  url.searchParams.set('_cb', Date.now().toString(36))
+  window.location.replace(url.toString())
+}
+
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null }
   static getDerivedStateFromError(error: Error) { return { error } }
 
-  componentDidMount() {
-    // We rendered successfully — a prior chunk-reload attempt worked.
-    // Clear the guard so a future outage in this session can auto-recover again.
-    try { sessionStorage.removeItem(CHUNK_RELOAD_KEY) } catch { /* ignore */ }
-  }
+  // NOTE: do NOT clear CHUNK_RELOAD_KEY in componentDidMount. The boundary
+  // mounts BEFORE its lazy children resolve, so clearing it here would
+  // re-arm the guard after every reload and produce an infinite loop —
+  // exactly the bug the previous attempt at this fix shipped. The flag is
+  // now cleared only by the user clicking Reload (manual recovery) or by
+  // the browser discarding sessionStorage when the tab closes.
 
   componentDidCatch(error: Error) {
-    // Stale chunk after a new deploy — the hashed JS file no longer exists.
-    // Auto-reload once to pick up the new index.html + chunks. Guard with
-    // sessionStorage so that if the reload ALSO fails (e.g. cached index.html
-    // from a CDN) we don't loop forever — we fall through to the manual UI.
     if (!isChunkLoadError(error)) return
     try {
       if (sessionStorage.getItem(CHUNK_RELOAD_KEY)) return
       sessionStorage.setItem(CHUNK_RELOAD_KEY, '1')
     } catch { /* storage disabled — best-effort one reload still useful */ }
-    window.location.reload()
+    // Use cache-bust on the auto-reload too. Without it, a browser holding
+    // a pre-fix cached index.html (no Cache-Control header) will replay the
+    // same broken response.
+    const url = new URL(window.location.href)
+    url.searchParams.set('_cb', Date.now().toString(36))
+    window.location.replace(url.toString())
   }
 
   render() {
@@ -51,10 +63,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
               : isDev ? this.state.error.message : 'An unexpected error occurred.'}
           </p>
           <button
-            onClick={() => {
-              try { sessionStorage.removeItem(CHUNK_RELOAD_KEY) } catch { /* ignore */ }
-              window.location.reload()
-            }}
+            onClick={reloadWithCacheBust}
             style={{
               padding: '8px 16px', borderRadius: 6, border: 'none',
               background: '#2563eb', color: '#fff', fontSize: 14, cursor: 'pointer',

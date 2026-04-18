@@ -22,22 +22,12 @@ interface AuthState {
   setAccessToken: (token: string) => void
 }
 
-const DEMO_USER: AuthUser = {
-  id: 'user_admin_demo',
-  email: 'admin@demo.aerocomm.io',
-  firstName: 'Alex',
-  lastName: 'Admin',
-  role: 'ADMIN',
-  tenantId: 'tenant_aerocomm_demo',
-  mfaEnabled: false,
-}
-
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      user: DEMO_USER,
-      accessToken: 'demo',
-      isAuthenticated: true,
+      user: null,
+      accessToken: null,
+      isAuthenticated: false,
 
       login: (user, accessToken) =>
         set({ user, accessToken, isAuthenticated: true }),

@@ -37,7 +37,6 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Aircraft', to: '/aircraft', icon: WrenchScrewdriverIcon },
   { label: 'Crew', to: '/crew', icon: UserGroupIcon },
   { label: 'Maintenance', to: '/maintenance', icon: ClipboardDocumentListIcon },
-  { label: 'Settings', to: '/settings', icon: Cog6ToothIcon },
 ]
 
 const ADMIN_ITEMS: NavItem[] = [
@@ -45,6 +44,7 @@ const ADMIN_ITEMS: NavItem[] = [
   { label: 'Templates', to: '/notifications/templates', icon: BellIcon },
   { label: 'Users', to: '/users', icon: UsersManageIcon },
   { label: 'Simulator', to: '/simulator', icon: BeakerIcon },
+  { label: 'Settings', to: '/settings', icon: Cog6ToothIcon },
 ]
 
 interface SidebarProps {

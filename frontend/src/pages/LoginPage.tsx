@@ -44,6 +44,12 @@ export default function LoginPage() {
       const result = await login.mutateAsync({ ...values, tenantId })
       if ('mfaRequired' in result && result.mfaRequired) {
         navigate('/auth/mfa', { state: { mfaSessionToken: (result as { mfaSessionToken: string }).mfaSessionToken } })
+      } else {
+        // Navigate explicitly. Don't rely on the isAuthenticated-watching
+        // useEffect — the demo store initializes isAuthenticated=true, so
+        // the value doesn't actually change on login and the effect never
+        // re-fires. (See the audit followup to remove DEMO_USER entirely.)
+        navigate('/', { replace: true })
       }
     } catch {
       setError('root', { message: 'Invalid email or password.' })

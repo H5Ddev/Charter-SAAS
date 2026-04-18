@@ -39,11 +39,18 @@ interface StatCardProps {
   sub?: string
   iconBg: string
   icon: React.ReactNode
+  onClick?: () => void
 }
 
-function StatCard({ label, value, sub, iconBg, icon }: StatCardProps) {
+function StatCard({ label, value, sub, iconBg, icon, onClick }: StatCardProps) {
+  const interactive = !!onClick
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start justify-between">
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!interactive}
+      className={`w-full text-left bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex items-start justify-between ${interactive ? 'hover:shadow-md hover:-translate-y-0.5 hover:border-primary-200 transition-all cursor-pointer' : ''}`}
+    >
       <div>
         <p className="text-sm font-medium text-gray-500">{label}</p>
         <p className="mt-2 text-3xl font-bold text-gray-900">{value}</p>
@@ -52,7 +59,7 @@ function StatCard({ label, value, sub, iconBg, icon }: StatCardProps) {
       <div className={`rounded-lg p-2.5 ${iconBg}`}>
         {icon}
       </div>
-    </div>
+    </button>
   )
 }
 
@@ -166,6 +173,7 @@ export default function Dashboard() {
               sub="Confirmed or manifest locked"
               iconBg="bg-blue-50 text-blue-600"
               icon={<PaperAirplaneIcon20 />}
+              onClick={() => navigate('/trips')}
             />
             <StatCard
               label="Total Contacts"
@@ -173,6 +181,7 @@ export default function Dashboard() {
               sub="Owners & passengers"
               iconBg="bg-green-50 text-green-600"
               icon={<UsersIcon20 />}
+              onClick={() => navigate('/contacts')}
             />
             <StatCard
               label="Departures Today"
@@ -180,6 +189,7 @@ export default function Dashboard() {
               sub="Next 24 hours"
               iconBg="bg-amber-50 text-amber-600"
               icon={<ClockIcon20 />}
+              onClick={() => navigate('/calendar')}
             />
             <StatCard
               label="Delayed"
@@ -187,6 +197,7 @@ export default function Dashboard() {
               sub="Currently flagged"
               iconBg="bg-red-50 text-red-600"
               icon={<ExclamationTriangleIcon20 />}
+              onClick={() => navigate('/trips')}
             />
           </>
         )}

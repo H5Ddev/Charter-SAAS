@@ -29,7 +29,7 @@ export default function SmsConsentPage() {
                 step: '2',
                 title: 'Opt-In Presented',
                 description: 'The operator presents the passenger with opt-in language either verbally, via email, or through a paper/digital form. The opt-in language reads:',
-                quote: '"By providing your phone number, you agree to receive SMS flight notifications from [Charter Company] powered by AeroComm, including booking confirmations, reminders, boarding times, and delay alerts. Message and data rates may apply. Reply STOP to opt out at any time. Reply HELP for help. View our Privacy Policy and Terms."',
+                quote: '"By providing your phone number, you agree to receive SMS flight notifications from AeroComm, including booking confirmations, reminders, boarding times, and delay alerts. Message and data rates may apply. Reply STOP to opt out at any time. Reply HELP for help. View our Privacy Policy and Terms."',
               },
               {
                 step: '3',

@@ -255,9 +255,14 @@ export default function LoginPage() {
             Continue with Google / Azure AD
           </button>
 
-          <p className="mt-8 text-center text-xs text-gray-400">
-            © {new Date().getFullYear()} H5 Enterprises · All rights reserved
-          </p>
+          <div className="mt-8 text-center text-xs text-gray-400 space-y-1">
+            <div className="flex justify-center gap-4">
+              <Link to="/privacy" className="hover:text-gray-600 hover:underline">Privacy Policy</Link>
+              <Link to="/terms" className="hover:text-gray-600 hover:underline">Terms</Link>
+              <Link to="/sms-consent" className="hover:text-gray-600 hover:underline">SMS Consent</Link>
+            </div>
+            <p>© {new Date().getFullYear()} H5 Enterprises · All rights reserved</p>
+          </div>
         </div>
       </div>
 
